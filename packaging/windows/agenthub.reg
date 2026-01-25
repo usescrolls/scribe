@@ -1,0 +1,23 @@
+Windows Registry Editor Version 5.00
+
+; AgentHub URL Scheme Registration
+; This file registers the agenthub:// protocol handler
+;
+; Usage: Right-click and select "Merge" or run: reg import agenthub.reg
+; Note: Requires administrator privileges
+;
+; The install.ps1 script will update the path automatically.
+
+[HKEY_CLASSES_ROOT\agenthub]
+@="URL:AgentHub Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\agenthub\DefaultIcon]
+@="\"C:\\Program Files\\AgentHub\\agenthub-middleware.exe\",0"
+
+[HKEY_CLASSES_ROOT\agenthub\shell]
+
+[HKEY_CLASSES_ROOT\agenthub\shell\open]
+
+[HKEY_CLASSES_ROOT\agenthub\shell\open\command]
+@="\"C:\\Program Files\\AgentHub\\agenthub-middleware.exe\" \"%1\""
