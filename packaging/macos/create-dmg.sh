@@ -2,14 +2,14 @@
 set -e
 
 # Configuration
-APP_NAME="AgentHub"
-DMG_NAME="AgentHub-Installer"
+APP_NAME="Scribe"
+DMG_NAME="Scribe-Installer"
 VERSION="1.0.0"
-VOLUME_NAME="AgentHub"
+VOLUME_NAME="Scribe"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIDDLEWARE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-BUILD_DIR="$MIDDLEWARE_DIR/build"
+REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BUILD_DIR="$REPO_DIR/build"
 APP_PATH="$BUILD_DIR/$APP_NAME.app"
 DMG_PATH="$BUILD_DIR/$DMG_NAME.dmg"
 BACKGROUND_PATH="$SCRIPT_DIR/dmg-background.png"

@@ -4,7 +4,7 @@ A local service that enables one-click plugin installation from [AgentHub](https
 
 ## Overview
 
-The AgentHub Middleware is a lightweight local service that bridges the gap between the AgentHub web marketplace and Claude Code's plugin system. It manages a directory-based marketplace that Claude Code reads directly from the filesystem.
+Scribe is a lightweight local service that bridges the gap between the AgentHub web marketplace and Claude Code's plugin system. It manages a directory-based marketplace that Claude Code reads directly from the filesystem.
 
 ### Architecture
 
@@ -12,15 +12,15 @@ The AgentHub Middleware is a lightweight local service that bridges the gap betw
 flowchart LR
     subgraph Browser["Web Browser<br/>(agenthub.dev)"]
     end
-    subgraph Middleware["AgentHub Middleware<br/>(background app)"]
+    subgraph Scribe["Scribe<br/>(background app)"]
     end
     subgraph Claude["Claude Code"]
     end
-    subgraph Storage["~/.agenthub-middleware<br/>(local directory)"]
+    subgraph Storage["~/.scribe<br/>(local directory)"]
     end
 
-    Browser -->|"1. User clicks<br/>agenthub://install<br/><br/>OS launches/forwards to middleware"| Middleware
-    Middleware -->|"2. Update marketplace<br/>& settings"| Storage
+    Browser -->|"1. User clicks<br/>agenthub://install<br/><br/>OS launches/forwards to Scribe"| Scribe
+    Scribe -->|"2. Update marketplace<br/>& settings"| Storage
     Claude -->|"reads as marketplace"| Storage
 ```
 
@@ -34,29 +34,29 @@ flowchart LR
 
 ### Option 1: macOS DMG Installer (Recommended)
 
-Download the DMG from [agenthub.dev/releases](https://agenthub.dev/releases), open it, and drag AgentHub to your Applications folder.
+Download the DMG from [agenthub.dev/releases](https://agenthub.dev/releases), open it, and drag Scribe to your Applications folder.
 
 ### Option 2: Download Binary
 
 ```bash
 # macOS (Apple Silicon)
-curl -fsSL https://agenthub.dev/releases/agenthub-middleware-darwin-arm64 -o agenthub-middleware
-chmod +x agenthub-middleware
-./agenthub-middleware
+curl -fsSL https://agenthub.dev/releases/scribe-darwin-arm64 -o scribe
+chmod +x scribe
+./scribe
 
 # macOS (Intel)
-curl -fsSL https://agenthub.dev/releases/agenthub-middleware-darwin-amd64 -o agenthub-middleware
-chmod +x agenthub-middleware
-./agenthub-middleware
+curl -fsSL https://agenthub.dev/releases/scribe-darwin-amd64 -o scribe
+chmod +x scribe
+./scribe
 
 # Linux
-curl -fsSL https://agenthub.dev/releases/agenthub-middleware-linux-amd64 -o agenthub-middleware
-chmod +x agenthub-middleware
-./agenthub-middleware
+curl -fsSL https://agenthub.dev/releases/scribe-linux-amd64 -o scribe
+chmod +x scribe
+./scribe
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://agenthub.dev/releases/agenthub-middleware-windows-amd64.exe -OutFile agenthub-middleware.exe
-.\agenthub-middleware.exe
+Invoke-WebRequest -Uri https://agenthub.dev/releases/scribe-windows-amd64.exe -OutFile scribe.exe
+.\scribe.exe
 ```
 
 ### Option 3: Windows PowerShell Installer
@@ -65,7 +65,7 @@ For Windows, use the PowerShell installer script for full setup including URL sc
 
 ```powershell
 # Download the binary and installer
-Invoke-WebRequest -Uri https://agenthub.dev/releases/agenthub-middleware-windows-amd64.exe -OutFile agenthub-middleware.exe
+Invoke-WebRequest -Uri https://agenthub.dev/releases/scribe-windows-amd64.exe -OutFile scribe.exe
 Invoke-WebRequest -Uri https://agenthub.dev/releases/install.ps1 -OutFile install.ps1
 
 # System-wide install (requires admin)
@@ -76,18 +76,21 @@ Invoke-WebRequest -Uri https://agenthub.dev/releases/install.ps1 -OutFile instal
 ```
 
 The installer:
-- Copies the binary to `Program Files\AgentHub` (or `%LOCALAPPDATA%\AgentHub` for user install)
+- Copies the binary to `Program Files\Scribe` (or `%LOCALAPPDATA%\Scribe` for user install)
 - Registers the `agenthub://` URL scheme in the Windows Registry
 - Optionally creates a startup shortcut
 
 ### Option 4: Build from Source
 
 ```bash
+# Clone the repo
+git clone https://github.com/usescrolls/scribe.git
+cd scribe
+
 # Requires Go 1.21+
-cd middleware
 make deps
 make build
-./build/agenthub-middleware
+./build/scribe
 
 # For Windows cross-compilation from macOS/Linux:
 make install-windows
@@ -96,31 +99,30 @@ make install-windows
 ### Option 5: Run with Go
 
 ```bash
-cd middleware
-go run ./cmd/agenthub-middleware
+go run ./cmd/scribe
 ```
 
 ## First-Time Setup
 
-After starting the middleware, add the marketplace to Claude Code:
+After starting Scribe, add the marketplace to Claude Code:
 
 ```shell
 # In Claude Code
-/plugin marketplace add ~/.agenthub-middleware
+/plugin marketplace add ~/.scribe
 ```
 
-Or the middleware will auto-configure `~/.claude/settings.json` on first plugin install.
+Or Scribe will auto-configure `~/.claude/settings.json` on first plugin install.
 
 ## Installation Flow
 
-The middleware uses the `agenthub://` URL scheme for one-click installs:
+Scribe uses the `agenthub://` URL scheme for one-click installs:
 
 1. Click an `agenthub://install?...` link on the website
-2. OS launches the middleware with the URL
-3. If middleware is already running, the URL is forwarded via IPC
-4. Middleware resolves the source (downloads if zip, passes through otherwise)
-5. Middleware updates `~/.agenthub-middleware/.claude-plugin/marketplace.json`
-6. Middleware updates `~/.claude/settings.json` to enable the plugin
+2. OS launches Scribe with the URL
+3. If Scribe is already running, the URL is forwarded via IPC
+4. Scribe resolves the source (downloads if zip, passes through otherwise)
+5. Scribe updates `~/.scribe/.claude-plugin/marketplace.json`
+6. Scribe updates `~/.claude/settings.json` to enable the plugin
 7. Run `/plugin` in Claude Code to complete installation
 
 **URL format:** `agenthub://install?name=plugin-name&source=github&repo=owner/repo`
@@ -133,28 +135,28 @@ The middleware uses the `agenthub://` URL scheme for one-click installs:
 
 ## Source Types
 
-| Source | Example | Middleware Handling |
+| Source | Example | Scribe Handling |
 |--------|---------|---------------------|
 | GitHub | `{"source": "github", "repo": "owner/repo"}` | Pass-through (Claude Code handles) |
 | npm | `{"source": "npm", "package": "package-name"}` | Pass-through (Claude Code handles) |
 | Git URL | `{"source": "url", "url": "https://github.com/..."}` | Pass-through (Claude Code handles) |
 | Zip | `{"source": "zip", "url": "https://example.com/plugin.zip"}` | Downloaded & extracted locally |
 
-For `zip` sources (recommended for website distribution), the middleware:
+For `zip` sources (recommended for website distribution), Scribe:
 1. Downloads the zip file from the URL
-2. Extracts it to `~/.agenthub-middleware/plugins/<name>/`
+2. Extracts it to `~/.scribe/plugins/<name>/`
 3. Writes a relative path entry (`"./plugins/<name>"`) to `marketplace.json`
 
-For `github`, `npm`, and `url` sources, the middleware passes them through to `marketplace.json` as-is, and Claude Code handles the actual download/installation.
+For `github`, `npm`, and `url` sources, Scribe passes them through to `marketplace.json` as-is, and Claude Code handles the actual download/installation.
 
 ## Data Storage
 
 Data is stored in the user's home directory:
-- **macOS/Linux:** `~/.agenthub-middleware/`
-- **Windows:** `%USERPROFILE%\.agenthub-middleware\`
+- **macOS/Linux:** `~/.scribe/`
+- **Windows:** `%USERPROFILE%\.scribe\`
 
 ```
-~/.agenthub-middleware/
+~/.scribe/
 ├── .claude-plugin/
 │   └── marketplace.json      # Claude Code reads this directly
 ├── plugins/                  # Downloaded plugin files (for zip sources)
@@ -165,28 +167,28 @@ Data is stored in the user's home directory:
 │       ├── agents/
 │       └── skills/
 └── data/
-    └── registry.json         # Middleware's internal state
+    └── registry.json         # Scribe's internal state
 ```
 
-- **Marketplace**: `~/.agenthub-middleware/.claude-plugin/marketplace.json` - Generated by middleware, read by Claude Code
-- **Plugin Registry**: `~/.agenthub-middleware/data/registry.json` - Tracks installed plugins with original and resolved sources
-- **Downloaded Plugins**: `~/.agenthub-middleware/plugins/` - Extracted plugin files for `zip` sources
+- **Marketplace**: `~/.scribe/.claude-plugin/marketplace.json` - Generated by Scribe, read by Claude Code
+- **Plugin Registry**: `~/.scribe/data/registry.json` - Tracks installed plugins with original and resolved sources
+- **Downloaded Plugins**: `~/.scribe/plugins/` - Extracted plugin files for `zip` sources
 - **Claude Code Settings**: `~/.claude/settings.json` - Updated to enable plugins and register marketplace
 
 ### Registry vs Marketplace: Why Two Files?
 
-The middleware maintains two separate data files that serve different purposes:
+Scribe maintains two separate data files that serve different purposes:
 
 | Aspect | `registry.json` | `marketplace.json` |
 |--------|-----------------|-------------------|
 | **Location** | `data/registry.json` | `.claude-plugin/marketplace.json` |
-| **Consumer** | Middleware only | Claude Code only |
+| **Consumer** | Scribe only | Claude Code only |
 | **Purpose** | Internal state tracking | Plugin catalog for Claude Code |
 | **Contains** | Original + resolved sources, timestamps | Only resolved sources |
 
 **Why the separation?**
 
-1. **Source Resolution**: The registry preserves the original source URL (e.g., `https://agenthub.dev/plugins/test-runner.zip`) while the marketplace contains the resolved local path (e.g., `./plugins/test-runner`). This allows the middleware to re-download or update plugins later.
+1. **Source Resolution**: The registry preserves the original source URL (e.g., `https://agenthub.dev/plugins/test-runner.zip`) while the marketplace contains the resolved local path (e.g., `./plugins/test-runner`). This allows Scribe to re-download or update plugins later.
 
 2. **Metadata**: The registry stores installation timestamps and other internal metadata that Claude Code doesn't need.
 
@@ -223,31 +225,31 @@ For pass-through sources (GitHub, npm, git URL), both files contain similar sour
 
 ```bash
 # Create launch agent
-cat > ~/Library/LaunchAgents/dev.agenthub.middleware.plist << 'EOF'
+cat > ~/Library/LaunchAgents/dev.scribe.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>dev.agenthub.middleware</string>
+    <string>dev.scribe</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/YOU/.local/bin/agenthub-middleware</string>
+        <string>/Users/YOU/.local/bin/scribe</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/tmp/agenthub-middleware.log</string>
+    <string>/tmp/scribe.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/agenthub-middleware.log</string>
+    <string>/tmp/scribe.log</string>
 </dict>
 </plist>
 EOF
 
 # Load the service
-launchctl load ~/Library/LaunchAgents/dev.agenthub.middleware.plist
+launchctl load ~/Library/LaunchAgents/dev.scribe.plist
 ```
 
 ### Linux (systemd)
@@ -256,13 +258,13 @@ launchctl load ~/Library/LaunchAgents/dev.agenthub.middleware.plist
 # Create user service
 mkdir -p ~/.config/systemd/user
 
-cat > ~/.config/systemd/user/agenthub-middleware.service << 'EOF'
+cat > ~/.config/systemd/user/scribe.service << 'EOF'
 [Unit]
-Description=AgentHub Middleware
+Description=Scribe
 After=network.target
 
 [Service]
-ExecStart=%h/.local/bin/agenthub-middleware
+ExecStart=%h/.local/bin/scribe
 Restart=always
 RestartSec=5
 
@@ -272,8 +274,8 @@ EOF
 
 # Enable and start
 systemctl --user daemon-reload
-systemctl --user enable agenthub-middleware
-systemctl --user start agenthub-middleware
+systemctl --user enable scribe
+systemctl --user start scribe
 ```
 
 ### Windows (Startup Folder)
@@ -283,8 +285,8 @@ The PowerShell installer can create a startup shortcut automatically. To do it m
 ```powershell
 # Create a shortcut in the Startup folder
 $WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\AgentHub Middleware.lnk")
-$Shortcut.TargetPath = "$env:ProgramFiles\AgentHub\agenthub-middleware.exe"
+$Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Scribe.lnk")
+$Shortcut.TargetPath = "$env:ProgramFiles\Scribe\scribe.exe"
 $Shortcut.Save()
 ```
 
@@ -292,16 +294,16 @@ Or use Task Scheduler for more control:
 
 ```powershell
 # Create a scheduled task to run at login
-$Action = New-ScheduledTaskAction -Execute "$env:ProgramFiles\AgentHub\agenthub-middleware.exe"
+$Action = New-ScheduledTaskAction -Execute "$env:ProgramFiles\Scribe\scribe.exe"
 $Trigger = New-ScheduledTaskTrigger -AtLogon
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "AgentHub Middleware" -Action $Action -Trigger $Trigger -Settings $Settings
+Register-ScheduledTask -TaskName "Scribe" -Action $Action -Trigger $Trigger -Settings $Settings
 ```
 
 ## Command Line Options
 
 ```bash
-./agenthub-middleware [options]
+./scribe [options]
 
 Options:
   -no-gui        Run without system tray icon (headless mode)
@@ -310,12 +312,12 @@ Options:
 
 ## System Tray
 
-When running with GUI (default), the middleware shows a system tray icon with:
+When running with GUI (default), Scribe shows a system tray icon with:
 
 - **Status**: Shows version and running state
 - **Plugins**: Shows count of installed plugins
 - **Delete Local Data**: Uninstalls all plugins, clears settings, and deletes data
-- **Quit**: Stops the middleware
+- **Quit**: Stops Scribe
 
 ## Security
 
@@ -342,33 +344,33 @@ make build-all
 brew install create-dmg
 
 # Build the DMG (requires a binary in build/)
-make app    # Creates AgentHub.app bundle
-make dmg    # Creates AgentHub-Installer.dmg
+make app    # Creates Scribe.app bundle
+make dmg    # Creates Scribe-Installer.dmg
 
 # Or build everything at once
 make release
 ```
 
-The DMG will be created at `build/AgentHub-Installer.dmg`.
+The DMG will be created at `build/Scribe-Installer.dmg`.
 
 **Note:** Building the DMG requires granting Finder automation permissions to your terminal app (System Settings > Privacy & Security > Automation).
 
 ## Troubleshooting
 
-### Middleware Not Starting
+### Scribe Not Starting
 
 **macOS/Linux:**
-1. Check logs: `/tmp/agenthub-middleware.log`
-2. Try running with debug: `./agenthub-middleware -debug`
+1. Check logs: `/tmp/scribe.log`
+2. Try running with debug: `./scribe -debug`
 
 **Windows:**
-1. Try running with debug: `.\agenthub-middleware.exe -debug`
+1. Try running with debug: `.\scribe.exe -debug`
 2. Check Windows Event Viewer for application errors
 
 ### Plugins Not Appearing in Claude Code
 
 1. Verify marketplace is registered: Check `~/.claude/settings.json` for `extraKnownMarketplaces.agenthub`
-2. Verify marketplace.json exists: `cat ~/.agenthub-middleware/.claude-plugin/marketplace.json`
+2. Verify marketplace.json exists: `cat ~/.scribe/.claude-plugin/marketplace.json`
 3. Run `/plugin` in Claude Code to refresh
 
 ### URL Scheme Not Working (agenthub:// links)
@@ -391,7 +393,7 @@ The DMG will be created at `build/AgentHub-Installer.dmg`.
 
 ## Architecture (Developer Reference)
 
-This section covers internal implementation details for developers working on the middleware.
+This section covers internal implementation details for developers working on Scribe.
 
 ### URL Scheme IPC Architecture
 
@@ -422,7 +424,7 @@ sequenceDiagram
 ### Source Files
 
 ```
-middleware/cmd/agenthub-middleware/
+cmd/scribe/
 ├── main.go                 # Main logic, URL scheme processing
 ├── url_handler.go          # Shared IPC interface (function pointers)
 ├── url_handler_darwin.go   # macOS: Apple Events via Objective-C/CGO
@@ -471,15 +473,15 @@ Server → Client: OK\n
 #### Linux
 
 - URL scheme registered via XDG desktop entry (`~/.local/share/applications/agenthub.desktop`)
-- IPC via Unix domain socket at `~/.agenthub-middleware/ipc.sock`
+- IPC via Unix domain socket at `~/.scribe/ipc.sock`
 - CGO required for GTK3 systray bindings
 - Must run `update-desktop-database` after installing desktop entry
 
 #### Windows
 
 - URL scheme registered in Windows Registry (`HKEY_CLASSES_ROOT\agenthub`)
-- Single-instance detection via named mutex (`Global\AgentHubMiddleware`)
-- IPC via named pipe (`\\.\pipe\AgentHubMiddleware`)
+- Single-instance detection via named mutex (`Global\Scribe`)
+- IPC via named pipe (`\\.\pipe\Scribe`)
 - No CGO required for IPC (uses `go-winio` library)
 - Requires admin for system-wide install, or use `-UserInstall` for user-only
 
@@ -489,10 +491,10 @@ The `systray` library requires CGO on all platforms, which complicates cross-com
 
 ```bash
 # This works (same platform):
-go build ./cmd/agenthub-middleware
+go build ./cmd/scribe
 
 # This fails (cross-platform with CGO):
-GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build ./cmd/agenthub-middleware
+GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build ./cmd/scribe
 ```
 
 **Solution:** Build inside Docker or on the target platform:
@@ -509,14 +511,14 @@ make install-windows  # Cross-compiles, but test on real Windows
 
 #### macOS
 ```bash
-# Terminal 1: Start middleware
-./build/agenthub-middleware -debug
+# Terminal 1: Start Scribe
+./build/scribe -debug
 
 # Terminal 2: Test URL scheme
 open "agenthub://install?name=test&source=github&repo=user/repo"
 
 # Verify
-cat ~/.agenthub-middleware/data/registry.json
+cat ~/.scribe/data/registry.json
 ```
 
 #### Linux
@@ -525,20 +527,20 @@ cat ~/.agenthub-middleware/data/registry.json
 make docker-test
 
 # Or manually:
-./build/agenthub-middleware -debug &
+./build/scribe -debug &
 xdg-open "agenthub://install?name=test&source=github&repo=user/repo"
 ```
 
 #### Windows
 ```powershell
-# Terminal 1: Start middleware
-.\agenthub-middleware.exe -debug
+# Terminal 1: Start Scribe
+.\scribe.exe -debug
 
 # Terminal 2: Test URL scheme
 Start-Process "agenthub://install?name=test&source=github&repo=user/repo"
 
 # Verify
-type $env:USERPROFILE\.agenthub-middleware\data\registry.json
+type $env:USERPROFILE\.scribe\data\registry.json
 ```
 
 ### Common Pitfalls

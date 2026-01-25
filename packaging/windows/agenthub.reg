@@ -13,11 +13,11 @@ Windows Registry Editor Version 5.00
 "URL Protocol"=""
 
 [HKEY_CLASSES_ROOT\agenthub\DefaultIcon]
-@="\"C:\\Program Files\\AgentHub\\agenthub-middleware.exe\",0"
+@="\"C:\\Program Files\\Scribe\\scribe.exe\",0"
 
 [HKEY_CLASSES_ROOT\agenthub\shell]
 
 [HKEY_CLASSES_ROOT\agenthub\shell\open]
 
 [HKEY_CLASSES_ROOT\agenthub\shell\open\command]
-@="\"C:\\Program Files\\AgentHub\\agenthub-middleware.exe\" \"%1\""
+@="\"C:\\Program Files\\Scribe\\scribe.exe\" \"%1\""

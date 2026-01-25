@@ -1,4 +1,4 @@
-module github.com/agenthub/middleware
+module github.com/usescrolls/scribe
 
 go 1.21
 

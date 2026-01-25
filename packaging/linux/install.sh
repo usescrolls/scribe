@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# AgentHub Middleware Linux Installer
+# Scribe Linux Installer
 #
 # This script:
 # 1. Installs the binary to /usr/local/bin (or ~/.local/bin)
@@ -13,7 +13,7 @@ set -e
 
 INSTALL_DIR="/usr/local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
-BINARY_NAME="agenthub-middleware"
+BINARY_NAME="scribe"
 
 # Detect architecture
 ARCH=$(uname -m)
@@ -32,8 +32,8 @@ esac
 
 # Find script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIDDLEWARE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-BUILD_DIR="$MIDDLEWARE_DIR/build"
+REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BUILD_DIR="$REPO_DIR/build"
 
 # Find binary
 if [ -f "$BUILD_DIR/$BINARY_NAME-$ARCH_SUFFIX" ]; then
@@ -46,8 +46,8 @@ else
     exit 1
 fi
 
-echo "AgentHub Middleware Installer"
-echo "=============================="
+echo "Scribe Installer"
+echo "================"
 echo ""
 
 # Install binary
@@ -66,11 +66,11 @@ echo "  Binary installed: $INSTALL_DIR/$BINARY_NAME"
 echo ""
 echo "Installing URL scheme handler..."
 mkdir -p "$DESKTOP_DIR"
-cp "$SCRIPT_DIR/agenthub.desktop" "$DESKTOP_DIR/"
-echo "  Desktop entry: $DESKTOP_DIR/agenthub.desktop"
+cp "$SCRIPT_DIR/scribe.desktop" "$DESKTOP_DIR/"
+echo "  Desktop entry: $DESKTOP_DIR/scribe.desktop"
 
 # Register URL scheme
-xdg-mime default agenthub.desktop x-scheme-handler/agenthub
+xdg-mime default scribe.desktop x-scheme-handler/agenthub
 echo "  Registered: x-scheme-handler/agenthub"
 
 # Update desktop database
@@ -81,7 +81,7 @@ fi
 echo ""
 echo "Installation complete!"
 echo ""
-echo "To start the middleware:"
+echo "To start Scribe:"
 echo "  $BINARY_NAME"
 echo ""
 echo "To test the URL scheme:"

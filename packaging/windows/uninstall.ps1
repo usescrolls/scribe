@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    AgentHub Middleware Windows Uninstaller
+    Scribe Windows Uninstaller
 
 .DESCRIPTION
     This script:
@@ -28,10 +28,10 @@ $ErrorActionPreference = "Stop"
 
 # Determine install location
 if ($UserInstall) {
-    $InstallDir = "$env:LOCALAPPDATA\AgentHub"
+    $InstallDir = "$env:LOCALAPPDATA\Scribe"
     $RegistryRoot = "HKCU:\Software\Classes"
 } else {
-    $InstallDir = "$env:ProgramFiles\AgentHub"
+    $InstallDir = "$env:ProgramFiles\Scribe"
     $RegistryRoot = "HKLM:\Software\Classes"
 
     # Check for admin privileges
@@ -43,8 +43,8 @@ if ($UserInstall) {
     }
 }
 
-Write-Host "AgentHub Middleware Uninstaller" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
+Write-Host "Scribe Uninstaller" -ForegroundColor Cyan
+Write-Host "==================" -ForegroundColor Cyan
 Write-Host ""
 
 # Remove URL scheme registration
@@ -78,7 +78,7 @@ if ($UserInstall) {
 }
 
 # Remove startup shortcut
-$StartupShortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\AgentHub Middleware.lnk"
+$StartupShortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Scribe.lnk"
 if (Test-Path $StartupShortcut) {
     Write-Host "Removing startup shortcut..."
     Remove-Item -Path $StartupShortcut -Force
@@ -86,7 +86,7 @@ if (Test-Path $StartupShortcut) {
 }
 
 # Optionally remove user data
-$DataDir = "$env:USERPROFILE\.agenthub-middleware"
+$DataDir = "$env:USERPROFILE\.scribe"
 if (Test-Path $DataDir) {
     Write-Host ""
     $RemoveData = Read-Host "Remove user data at $DataDir? (y/N)"

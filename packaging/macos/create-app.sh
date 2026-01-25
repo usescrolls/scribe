@@ -2,13 +2,13 @@
 set -e
 
 # Configuration
-APP_NAME="AgentHub"
-BUNDLE_ID="dev.agenthub.middleware"
+APP_NAME="Scribe"
+BUNDLE_ID="dev.scribe"
 VERSION="1.0.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIDDLEWARE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-BUILD_DIR="$MIDDLEWARE_DIR/build"
+REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BUILD_DIR="$REPO_DIR/build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
 
 # Detect architecture and find binary
@@ -20,12 +20,12 @@ else
 fi
 
 # Try architecture-specific binary first, then fall back to generic
-if [ -f "$BUILD_DIR/agenthub-middleware-$BINARY_SUFFIX" ]; then
-    BINARY_PATH="$BUILD_DIR/agenthub-middleware-$BINARY_SUFFIX"
-elif [ -f "$BUILD_DIR/agenthub-middleware" ]; then
-    BINARY_PATH="$BUILD_DIR/agenthub-middleware"
+if [ -f "$BUILD_DIR/scribe-$BINARY_SUFFIX" ]; then
+    BINARY_PATH="$BUILD_DIR/scribe-$BINARY_SUFFIX"
+elif [ -f "$BUILD_DIR/scribe" ]; then
+    BINARY_PATH="$BUILD_DIR/scribe"
 else
-    BINARY_PATH="$BUILD_DIR/agenthub-middleware-$BINARY_SUFFIX"
+    BINARY_PATH="$BUILD_DIR/scribe-$BINARY_SUFFIX"
 fi
 
 echo "Creating $APP_NAME.app bundle..."
@@ -45,8 +45,8 @@ mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources"
 
 # Copy binary
-cp "$BINARY_PATH" "$APP_DIR/Contents/MacOS/agenthub-middleware"
-chmod +x "$APP_DIR/Contents/MacOS/agenthub-middleware"
+cp "$BINARY_PATH" "$APP_DIR/Contents/MacOS/scribe"
+chmod +x "$APP_DIR/Contents/MacOS/scribe"
 
 # Copy Info.plist
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
@@ -54,13 +54,13 @@ cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
 # Create/copy icon
 if [ -f "$SCRIPT_DIR/AppIcon.icns" ]; then
     cp "$SCRIPT_DIR/AppIcon.icns" "$APP_DIR/Contents/Resources/"
-elif [ -f "$MIDDLEWARE_DIR/cmd/agenthub-middleware/icon.png" ]; then
+elif [ -f "$REPO_DIR/cmd/scribe/icon.png" ]; then
     # Convert PNG to ICNS if iconutil is available
     echo "Converting icon.png to AppIcon.icns..."
     ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
     mkdir -p "$ICONSET_DIR"
 
-    PNG_SOURCE="$MIDDLEWARE_DIR/cmd/agenthub-middleware/icon.png"
+    PNG_SOURCE="$REPO_DIR/cmd/scribe/icon.png"
 
     # Create iconset with different sizes (using sips for resizing)
     sips -z 16 16     "$PNG_SOURCE" --out "$ICONSET_DIR/icon_16x16.png" 2>/dev/null || cp "$PNG_SOURCE" "$ICONSET_DIR/icon_16x16.png"

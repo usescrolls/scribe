@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    AgentHub Middleware Windows Installer
+    Scribe Windows Installer
 
 .DESCRIPTION
     This script:
@@ -25,14 +25,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$BinaryName = "agenthub-middleware.exe"
+$BinaryName = "scribe.exe"
 
 # Determine install location
 if ($UserInstall) {
-    $InstallDir = "$env:LOCALAPPDATA\AgentHub"
+    $InstallDir = "$env:LOCALAPPDATA\Scribe"
     $RegistryRoot = "HKCU:\Software\Classes"
 } else {
-    $InstallDir = "$env:ProgramFiles\AgentHub"
+    $InstallDir = "$env:ProgramFiles\Scribe"
     $RegistryRoot = "HKLM:\Software\Classes"
 
     # Check for admin privileges
@@ -46,15 +46,15 @@ if ($UserInstall) {
 
 # Find script directory and build directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$MiddlewareDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
-$BuildDir = Join-Path $MiddlewareDir "build"
+$RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+$BuildDir = Join-Path $RepoDir "build"
 
 # Detect architecture and find binary
 $Arch = if ([Environment]::Is64BitOperatingSystem) { "windows-amd64" } else { "windows-386" }
 $BinaryPath = $null
 
 $PossiblePaths = @(
-    (Join-Path $BuildDir "agenthub-middleware-$Arch.exe"),
+    (Join-Path $BuildDir "scribe-$Arch.exe"),
     (Join-Path $BuildDir $BinaryName),
     (Join-Path $ScriptDir $BinaryName)
 )
@@ -71,12 +71,12 @@ if (-not $BinaryPath) {
     Write-Host "Searched in:" -ForegroundColor Yellow
     $PossiblePaths | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
     Write-Host ""
-    Write-Host "Please build first with: go build -o build\$BinaryName .\cmd\agenthub-middleware" -ForegroundColor Cyan
+    Write-Host "Please build first with: go build -o build\$BinaryName .\cmd\scribe" -ForegroundColor Cyan
     exit 1
 }
 
-Write-Host "AgentHub Middleware Installer" -ForegroundColor Cyan
-Write-Host "==============================" -ForegroundColor Cyan
+Write-Host "Scribe Installer" -ForegroundColor Cyan
+Write-Host "================" -ForegroundColor Cyan
 Write-Host ""
 
 # Create install directory
@@ -138,7 +138,7 @@ if ($UserInstall) {
 Write-Host ""
 Write-Host "Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "To start the middleware:" -ForegroundColor Cyan
+Write-Host "To start Scribe:" -ForegroundColor Cyan
 Write-Host "  $DestPath"
 Write-Host ""
 Write-Host "To test the URL scheme:" -ForegroundColor Cyan
@@ -152,13 +152,13 @@ Write-Host ""
 $CreateStartup = Read-Host "Create startup shortcut? (y/N)"
 if ($CreateStartup -eq 'y' -or $CreateStartup -eq 'Y') {
     $StartupFolder = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-    $ShortcutPath = Join-Path $StartupFolder "AgentHub Middleware.lnk"
+    $ShortcutPath = Join-Path $StartupFolder "Scribe.lnk"
 
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
     $Shortcut.TargetPath = $DestPath
     $Shortcut.WorkingDirectory = $InstallDir
-    $Shortcut.Description = "AgentHub Middleware - Plugin manager for Claude Code"
+    $Shortcut.Description = "Scribe - Plugin manager for Claude Code"
     $Shortcut.Save()
 
     Write-Host "Startup shortcut created: $ShortcutPath" -ForegroundColor Green
