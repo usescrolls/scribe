@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build Linux AMD64
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o scribe-linux-amd64 ./cmd/scribe
+
+      - name: Build Windows AMD64
+        run: |
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o scribe-windows-amd64.exe ./cmd/scribe
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: scribe-linux-amd64
+          path: scribe-linux-amd64
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: scribe-windows-amd64.exe
+          path: scribe-windows-amd64.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build macOS binaries
+        run: |
+          mkdir -p build
+          # Build for both architectures
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build/scribe-darwin-arm64 ./cmd/scribe
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build/scribe-darwin-amd64 ./cmd/scribe
+          # Create universal binary for the app bundle
+          lipo -create -output build/scribe-darwin-universal build/scribe-darwin-arm64 build/scribe-darwin-amd64
+          # Copy universal as the detected arch binary (macOS runners are arm64 now)
+          cp build/scribe-darwin-universal build/scribe-darwin-arm64
+
+      - name: Create app bundle
+        run: ./packaging/macos/create-app.sh
+
+      - name: Create DMG
+        run: |
+          ./packaging/macos/create-dmg.sh
+          # Rename to expected name
+          mv build/Scribe-Installer.dmg build/AgentHub-Installer.dmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgentHub-Installer.dmg
+          path: build/AgentHub-Installer.dmg
+
+  release:
+    needs: [build-linux-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp artifacts/scribe-linux-amd64/scribe-linux-amd64 release/
+          cp artifacts/scribe-windows-amd64.exe/scribe-windows-amd64.exe release/
+          cp artifacts/AgentHub-Installer.dmg/AgentHub-Installer.dmg release/
+          ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/scribe-linux-amd64
+            release/scribe-windows-amd64.exe
+            release/AgentHub-Installer.dmg
+          generate_release_notes: true
