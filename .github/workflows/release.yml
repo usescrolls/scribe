@@ -88,13 +88,13 @@ jobs:
         run: |
           ./packaging/macos/create-dmg.sh
           # Rename to expected name
-          mv build/Scribe-Installer.dmg build/AgentHub-Installer.dmg
+          mv build/Scribe-Installer.dmg build/scribe-Installer.dmg
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: AgentHub-Installer.dmg
-          path: build/AgentHub-Installer.dmg
+          name: scribe-Installer.dmg
+          path: build/scribe-Installer.dmg
 
   release:
     needs: [build-linux, build-windows, build-macos]
@@ -110,7 +110,7 @@ jobs:
           mkdir -p release
           cp artifacts/scribe-linux-amd64/scribe-linux-amd64 release/
           cp artifacts/scribe-windows-amd64.exe/scribe-windows-amd64.exe release/
-          cp artifacts/AgentHub-Installer.dmg/AgentHub-Installer.dmg release/
+          cp artifacts/scribe-Installer.dmg/scribe-Installer.dmg release/
           ls -la release/
 
       - name: Create Release
@@ -119,5 +119,5 @@ jobs:
           files: |
             release/scribe-linux-amd64
             release/scribe-windows-amd64.exe
-            release/AgentHub-Installer.dmg
+            release/scribe-Installer.dmg
           generate_release_notes: true
