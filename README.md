@@ -1,16 +1,16 @@
 # Scribe
 
-A local service that enables one-click plugin installation from [AgentHub](https://agenthub.dev) into Claude Code.
+A local service that enables one-click plugin installation from [useScrolls](https://usescrolls.com) into Claude Code.
 
 ## Overview
 
-Scribe is a lightweight local service that bridges the gap between the AgentHub web marketplace and Claude Code's plugin system. It manages a directory-based marketplace that Claude Code reads directly from the filesystem.
+Scribe is a lightweight local service that bridges the gap between the useScrolls web marketplace and Claude Code's plugin system. It manages a directory-based marketplace that Claude Code reads directly from the filesystem.
 
 ### Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Browser["Web Browser<br/>(agenthub.dev)"]
+    subgraph Browser["Web Browser<br/>(useScrolls.com)"]
     end
     subgraph Scribe["Scribe<br/>(background app)"]
     end
@@ -34,28 +34,28 @@ flowchart LR
 
 ### Option 1: macOS DMG Installer (Recommended)
 
-Download the DMG from [agenthub.dev/releases](https://agenthub.dev/releases), open it, and drag Scribe to your Applications folder.
+Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases), open it, and drag Scribe to your Applications folder.
 
 ### Option 2: Download Binary
 
 ```bash
 # macOS (Apple Silicon)
-curl -fsSL https://agenthub.dev/releases/scribe-darwin-arm64 -o scribe
+curl -fsSL https://usescrolls.com/releases/scribe-darwin-arm64 -o scribe
 chmod +x scribe
 ./scribe
 
 # macOS (Intel)
-curl -fsSL https://agenthub.dev/releases/scribe-darwin-amd64 -o scribe
+curl -fsSL https://usescrolls.com/releases/scribe-darwin-amd64 -o scribe
 chmod +x scribe
 ./scribe
 
 # Linux
-curl -fsSL https://agenthub.dev/releases/scribe-linux-amd64 -o scribe
+curl -fsSL https://usescrolls.com/releases/scribe-linux-amd64 -o scribe
 chmod +x scribe
 ./scribe
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://agenthub.dev/releases/scribe-windows-amd64.exe -OutFile scribe.exe
+Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe -OutFile scribe.exe
 .\scribe.exe
 ```
 
@@ -65,8 +65,8 @@ For Windows, use the PowerShell installer script for full setup including URL sc
 
 ```powershell
 # Download the binary and installer
-Invoke-WebRequest -Uri https://agenthub.dev/releases/scribe-windows-amd64.exe -OutFile scribe.exe
-Invoke-WebRequest -Uri https://agenthub.dev/releases/install.ps1 -OutFile install.ps1
+Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe -OutFile scribe.exe
+Invoke-WebRequest -Uri https://usescrolls.com/releases/install.ps1 -OutFile install.ps1
 
 # System-wide install (requires admin)
 .\install.ps1
@@ -188,7 +188,7 @@ Scribe maintains two separate data files that serve different purposes:
 
 **Why the separation?**
 
-1. **Source Resolution**: The registry preserves the original source URL (e.g., `https://agenthub.dev/plugins/test-runner.zip`) while the marketplace contains the resolved local path (e.g., `./plugins/test-runner`). This allows Scribe to re-download or update plugins later.
+1. **Source Resolution**: The registry preserves the original source URL (e.g., `https://usescrolls.com/plugins/test-runner.zip`) while the marketplace contains the resolved local path (e.g., `./plugins/test-runner`). This allows Scribe to re-download or update plugins later.
 
 2. **Metadata**: The registry stores installation timestamps and other internal metadata that Claude Code doesn't need.
 
@@ -202,7 +202,7 @@ Scribe maintains two separate data files that serve different purposes:
   "name": "test-runner",
   "source": {
     "source": "zip",
-    "url": "https://agenthub.dev/plugins/test-runner.zip"
+    "url": "https://usescrolls.com/plugins/test-runner.zip"
   },
   "resolvedSource": "./plugins/test-runner",
   "installedAt": "2025-01-15T10:30:00Z",
@@ -369,7 +369,7 @@ The DMG will be created at `build/Scribe-Installer.dmg`.
 
 ### Plugins Not Appearing in Claude Code
 
-1. Verify marketplace is registered: Check `~/.claude/settings.json` for `extraKnownMarketplaces.agenthub`
+1. Verify marketplace is registered: Check `~/.claude/settings.json` for `extraKnownMarketplaces.scribe`
 2. Verify marketplace.json exists: `cat ~/.scribe/.claude-plugin/marketplace.json`
 3. Run `/plugin` in Claude Code to refresh
 
@@ -380,8 +380,8 @@ The DMG will be created at `build/Scribe-Installer.dmg`.
 - Ensure you're running the .app bundle, not the raw binary
 
 **Linux:**
-- Check desktop entry exists: `cat ~/.local/share/applications/agenthub.desktop`
-- Re-register: `xdg-mime default agenthub.desktop x-scheme-handler/agenthub`
+- Check desktop entry exists: `cat ~/.local/share/applications/scribe.desktop`
+- Re-register: `xdg-mime default scribe.desktop x-scheme-handler/agenthub`
 - Update database: `update-desktop-database ~/.local/share/applications/`
 
 **Windows:**
@@ -472,7 +472,7 @@ Server → Client: OK\n
 
 #### Linux
 
-- URL scheme registered via XDG desktop entry (`~/.local/share/applications/agenthub.desktop`)
+- URL scheme registered via XDG desktop entry (`~/.local/share/applications/scribe.desktop`)
 - IPC via Unix domain socket at `~/.scribe/ipc.sock`
 - CGO required for GTK3 systray bindings
 - Must run `update-desktop-database` after installing desktop entry

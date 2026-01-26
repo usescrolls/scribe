@@ -1,6 +1,6 @@
 Windows Registry Editor Version 5.00
 
-; AgentHub URL Scheme Registration
+; Scribe URL Scheme Registration
 ; This file registers the agenthub:// protocol handler
 ;
 ; Usage: Right-click and select "Merge" or run: reg import agenthub.reg
@@ -9,7 +9,7 @@ Windows Registry Editor Version 5.00
 ; The install.ps1 script will update the path automatically.
 
 [HKEY_CLASSES_ROOT\agenthub]
-@="URL:AgentHub Protocol"
+@="URL:Scribe Protocol"
 "URL Protocol"=""
 
 [HKEY_CLASSES_ROOT\agenthub\DefaultIcon]

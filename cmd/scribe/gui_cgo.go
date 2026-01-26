@@ -25,10 +25,10 @@ func onReady() {
 	// Set the icon (a simple orange circle as PNG)
 	systray.SetIcon(getIcon())
 	systray.SetTitle("")
-	systray.SetTooltip("AgentHub Middleware")
+	systray.SetTooltip("Scribe")
 
 	// Menu items (display-only, no interaction needed)
-	systray.AddMenuItem("AgentHub Middleware v"+Version, "").Disable()
+	systray.AddMenuItem("Scribe v"+Version, "").Disable()
 
 	systray.AddSeparator()
 
@@ -75,5 +75,5 @@ func onExit() {
 	if CleanupIPC != nil {
 		CleanupIPC()
 	}
-	logger.Info("agenthub middleware stopped")
+	logger.Info("Scribe stopped")
 }

@@ -2,7 +2,7 @@
 Version=1.0
 Name=Scribe
 GenericName=Plugin Manager
-Comment=Plugin manager for Claude Code - enables one-click installs from agenthub.dev
+Comment=Plugin manager for Claude Code - enables one-click installs from useScrolls.com
 Exec=/usr/local/bin/scribe %u
 Icon=scribe
 Terminal=false

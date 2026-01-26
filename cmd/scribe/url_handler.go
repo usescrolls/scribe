@@ -24,8 +24,8 @@ const (
 	IPCSocketName = "ipc.sock"
 
 	// IPCMutexName is the named mutex for Windows single-instance detection
-	IPCMutexName = `Global\AgentHubMiddleware`
+	IPCMutexName = `Global\Scribe`
 
 	// IPCPipeName is the named pipe for Windows IPC
-	IPCPipeName = `\\.\pipe\AgentHubMiddleware`
+	IPCPipeName = `\\.\pipe\Scribe`
 )

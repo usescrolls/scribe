@@ -104,7 +104,7 @@ if (Test-Path $ProtocolKey) {
 
 # Create protocol registration
 New-Item -Path $ProtocolKey -Force | Out-Null
-Set-ItemProperty -Path $ProtocolKey -Name "(Default)" -Value "URL:AgentHub Protocol"
+Set-ItemProperty -Path $ProtocolKey -Name "(Default)" -Value "URL:Scribe Protocol"
 Set-ItemProperty -Path $ProtocolKey -Name "URL Protocol" -Value ""
 
 # Create DefaultIcon key

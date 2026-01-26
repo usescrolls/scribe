@@ -22,12 +22,12 @@ import (
 var iconData []byte
 
 const (
-	MarketplaceName  = "agenthub"
-	MarketplaceOwner = "AgentHub"
+	MarketplaceName  = "scribe"
+	MarketplaceOwner = "Scribe"
 	Version          = "1.0.0"
 
 	// Directory structure constants
-	HubDirName         = ".agenthub-middleware"
+	HubDirName         = ".scribe"
 	MarketplaceDirName = ".claude-plugin"
 	MarketplaceFile    = "marketplace.json"
 	PluginsDirName     = "plugins"
@@ -130,7 +130,7 @@ type RegistryEntry struct {
 type Server struct {
 	mu        sync.RWMutex
 	registry  map[string]RegistryEntry
-	hubDir    string // ~/.agenthub-middleware
+	hubDir    string // ~/.scribe
 	claudeDir string // ~/.claude
 }
 
@@ -404,7 +404,7 @@ func (s *Server) GenerateMarketplace() error {
 
 	marketplace := map[string]interface{}{
 		"name":        MarketplaceName,
-		"description": "AgentHub Plugin Marketplace - One-click installs from agenthub.dev",
+		"description": "Scribe Plugin Marketplace - One-click installs from useScrolls.com",
 		"owner":       map[string]string{"name": MarketplaceOwner},
 		"version":     Version,
 		"plugins":     plugins,
@@ -634,7 +634,7 @@ func (s *Server) UpdateClaudeSettings(pluginName string, enabled bool) error {
 
 	// Add our marketplace if not present (using directory source)
 	if _, exists := marketplaces[MarketplaceName]; !exists {
-		logger.Info("registering agenthub marketplace in claude settings", "path", s.hubDir)
+		logger.Info("registering useScrolls.com marketplace in claude settings", "path", s.hubDir)
 		marketplaces[MarketplaceName] = map[string]interface{}{
 			"source": map[string]interface{}{
 				"source": "directory",
@@ -728,7 +728,7 @@ func (s *Server) UninstallAllPlugins() error {
 	return nil
 }
 
-// ClearClaudePluginSettings removes all agenthub plugin entries from Claude settings
+// ClearClaudePluginSettings removes all plugin entries from Claude settings
 func (s *Server) ClearClaudePluginSettings() error {
 	settingsPath := filepath.Join(s.claudeDir, "settings.json")
 	logger.Info("clearing claude plugin settings", "path", settingsPath)
@@ -757,7 +757,7 @@ func (s *Server) ClearClaudePluginSettings() error {
 		}
 	}
 
-	// Remove all agenthub plugins from enabledPlugins
+	// Remove all plugins from enabledPlugins
 	if enabledPlugins, ok := settings["enabledPlugins"].(map[string]interface{}); ok {
 		for key := range enabledPlugins {
 			if strings.HasSuffix(key, "@"+MarketplaceName) {
@@ -1030,7 +1030,7 @@ func main() {
 	// Initialize logger
 	initLogger(*debug)
 
-	logger.Info("initializing agenthub middleware", "version", Version, "debug", *debug)
+	logger.Info("initializing scribe", "version", Version, "debug", *debug)
 
 	server = NewServer()
 
