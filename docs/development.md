@@ -71,7 +71,18 @@ sequenceDiagram
 
 ```
 cmd/scribe/
-├── main.go                 # Main logic, URL scheme processing
+├── main.go                 # Entry point and startup logic
+├── config.go               # Constants, logger, embedded icon
+├── types.go                # Data structures (Plugin, RegistryEntry, etc.)
+├── server.go               # Server struct and constructor
+├── registry.go             # Registry persistence (Load, Save, Migrate)
+├── marketplace.go          # marketplace.json generation
+├── source.go               # Source resolution and zip download
+├── claude.go               # Claude Code settings management
+├── plugins.go              # Plugin lifecycle (uninstall, reset)
+├── url_scheme.go           # URL scheme parsing and handling
+├── gui_cgo.go              # System tray UI (requires CGO)
+├── gui_nocgo.go            # Headless fallback (CGO disabled)
 ├── url_handler.go          # Shared IPC interface (function pointers)
 ├── url_handler_darwin.go   # macOS: Apple Events via Objective-C/CGO
 ├── url_handler_darwin.m    # Objective-C Apple Event handler
