@@ -70,8 +70,7 @@ sequenceDiagram
 ### Source Files
 
 ```
-cmd/scribe/
-├── main.go                 # Entry point and startup logic
+internal/scribe/            # Core business logic (importable package)
 ├── config.go               # Constants, logger, embedded icon
 ├── types.go                # Data structures (Plugin, RegistryEntry, etc.)
 ├── server.go               # Server struct and constructor
@@ -81,6 +80,10 @@ cmd/scribe/
 ├── claude.go               # Claude Code settings management
 ├── plugins.go              # Plugin lifecycle (uninstall, reset)
 ├── url_scheme.go           # URL scheme parsing and handling
+└── scribe_test.go          # Unit tests
+
+cmd/scribe/                 # Entry point and platform-specific code
+├── main.go                 # Entry point and startup logic
 ├── gui_cgo.go              # System tray UI (requires CGO)
 ├── gui_nocgo.go            # Headless fallback (CGO disabled)
 ├── url_handler.go          # Shared IPC interface (function pointers)

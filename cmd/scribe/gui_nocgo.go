@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/usescrolls/scribe/internal/scribe"
 )
 
 // RunWithGUI falls back to headless mode when CGO is disabled.
 // This happens during cross-compilation since systray requires CGO.
 func RunWithGUI() {
-	logger.Warn("system tray unavailable (CGO disabled), running in headless mode")
+	scribe.Logger.Warn("system tray unavailable (CGO disabled), running in headless mode")
 	runHeadless()
 }
 
@@ -25,7 +27,7 @@ func runHeadless() {
 
 	go func() {
 		<-sigCh
-		logger.Info("shutdown signal received")
+		scribe.Logger.Info("shutdown signal received")
 		if CleanupIPC != nil {
 			CleanupIPC()
 		}

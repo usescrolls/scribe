@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"encoding/json"
@@ -89,20 +89,11 @@ func TestNewServer(t *testing.T) {
 		t.Fatal("NewServer returned nil")
 	}
 
-	if server.registry == nil {
-		t.Error("registry map is nil")
-	}
-
 	homeDir, _ := os.UserHomeDir()
 	expectedHubDir := filepath.Join(homeDir, HubDirName)
-	expectedClaudeDir := filepath.Join(homeDir, ".claude")
 
-	if server.hubDir != expectedHubDir {
-		t.Errorf("expected hubDir %q, got %q", expectedHubDir, server.hubDir)
-	}
-
-	if server.claudeDir != expectedClaudeDir {
-		t.Errorf("expected claudeDir %q, got %q", expectedClaudeDir, server.claudeDir)
+	if server.HubDir() != expectedHubDir {
+		t.Errorf("expected hubDir %q, got %q", expectedHubDir, server.HubDir())
 	}
 }
 
@@ -116,13 +107,9 @@ func TestServerInitialize(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize logger for tests
-	initLogger(false)
+	InitLogger(false)
 
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 
 	if err := server.Initialize(); err != nil {
 		t.Fatalf("Initialize failed: %v", err)
@@ -210,7 +197,7 @@ func TestParseURLScheme(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			action, err := parseURLScheme(tt.url)
+			action, err := ParseURLScheme(tt.url)
 
 			if tt.expectError {
 				if err == nil {
@@ -240,7 +227,7 @@ func TestParseURLScheme(t *testing.T) {
 // TestResolveSource tests source resolution for different source types
 func TestResolveSource(t *testing.T) {
 	// Initialize logger for tests
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -248,11 +235,7 @@ func TestResolveSource(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 	server.Initialize()
 
 	tests := []struct {
@@ -368,7 +351,7 @@ func TestResolveSource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := server.resolveSource(tt.pluginName, tt.source)
+			result, err := server.ResolveSource(tt.pluginName, tt.source)
 
 			if tt.expectError {
 				if err == nil {
@@ -390,7 +373,7 @@ func TestResolveSource(t *testing.T) {
 
 // TestRegistryPersistence tests saving and loading the registry
 func TestRegistryPersistence(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -398,16 +381,12 @@ func TestRegistryPersistence(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 	server.Initialize()
 
 	// Add some entries
 	now := time.Now()
-	server.registry["plugin1"] = RegistryEntry{
+	server.SetRegistryEntry("plugin1", RegistryEntry{
 		Name:        "plugin1",
 		Description: "Test plugin 1",
 		Version:     "1.0.0",
@@ -420,8 +399,8 @@ func TestRegistryPersistence(t *testing.T) {
 			"repo":   "user/plugin1",
 		},
 		InstalledAt: now,
-	}
-	server.registry["plugin2"] = RegistryEntry{
+	})
+	server.SetRegistryEntry("plugin2", RegistryEntry{
 		Name:    "plugin2",
 		Version: "2.0.0",
 		Source: PluginSource{
@@ -433,7 +412,7 @@ func TestRegistryPersistence(t *testing.T) {
 			"package": "@test/plugin2",
 		},
 		InstalledAt: now,
-	}
+	})
 
 	// Save
 	if err := server.SaveRegistry(); err != nil {
@@ -447,22 +426,18 @@ func TestRegistryPersistence(t *testing.T) {
 	}
 
 	// Create new server and load
-	server2 := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server2 := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 
 	if err := server2.Load(); err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
 
 	// Verify loaded data
-	if len(server2.registry) != 2 {
-		t.Errorf("expected 2 entries, got %d", len(server2.registry))
+	if server2.PluginCount() != 2 {
+		t.Errorf("expected 2 entries, got %d", server2.PluginCount())
 	}
 
-	entry1, ok := server2.registry["plugin1"]
+	entry1, ok := server2.GetRegistryEntry("plugin1")
 	if !ok {
 		t.Fatal("plugin1 not found in loaded registry")
 	}
@@ -473,7 +448,7 @@ func TestRegistryPersistence(t *testing.T) {
 		t.Errorf("expected repo 'user/plugin1', got %q", entry1.Source.Repo)
 	}
 
-	entry2, ok := server2.registry["plugin2"]
+	entry2, ok := server2.GetRegistryEntry("plugin2")
 	if !ok {
 		t.Fatal("plugin2 not found in loaded registry")
 	}
@@ -484,7 +459,7 @@ func TestRegistryPersistence(t *testing.T) {
 
 // TestGenerateMarketplace tests marketplace.json generation
 func TestGenerateMarketplace(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -492,15 +467,11 @@ func TestGenerateMarketplace(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 	server.Initialize()
 
 	// Add a plugin
-	server.registry["test-plugin"] = RegistryEntry{
+	server.SetRegistryEntry("test-plugin", RegistryEntry{
 		Name:        "test-plugin",
 		Description: "A test plugin",
 		Version:     "1.0.0",
@@ -511,7 +482,7 @@ func TestGenerateMarketplace(t *testing.T) {
 			"source": "github",
 			"repo":   "test/plugin",
 		},
-	}
+	})
 
 	if err := server.GenerateMarketplace(); err != nil {
 		t.Fatalf("GenerateMarketplace failed: %v", err)
@@ -561,16 +532,14 @@ func TestGenerateMarketplace(t *testing.T) {
 
 // TestPluginCount tests the PluginCount method
 func TestPluginCount(t *testing.T) {
-	server := &Server{
-		registry: make(map[string]RegistryEntry),
-	}
+	server := NewTestServer("/tmp", "/tmp/.claude")
 
 	if server.PluginCount() != 0 {
 		t.Errorf("expected 0, got %d", server.PluginCount())
 	}
 
-	server.registry["plugin1"] = RegistryEntry{Name: "plugin1"}
-	server.registry["plugin2"] = RegistryEntry{Name: "plugin2"}
+	server.SetRegistryEntry("plugin1", RegistryEntry{Name: "plugin1"})
+	server.SetRegistryEntry("plugin2", RegistryEntry{Name: "plugin2"})
 
 	if server.PluginCount() != 2 {
 		t.Errorf("expected 2, got %d", server.PluginCount())
@@ -579,7 +548,7 @@ func TestPluginCount(t *testing.T) {
 
 // TestUpdateClaudeSettings tests Claude settings management
 func TestUpdateClaudeSettings(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -588,11 +557,7 @@ func TestUpdateClaudeSettings(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: claudeDir,
-	}
+	server := NewTestServer(tmpDir, claudeDir)
 
 	// Test enabling a plugin (creates settings file)
 	if err := server.UpdateClaudeSettings("test-plugin", true); err != nil {
@@ -653,9 +618,7 @@ func TestClaudeCodeDetected(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	server := &Server{
-		claudeDir: claudeDir,
-	}
+	server := NewTestServer(tmpDir, claudeDir)
 
 	// Should return false when settings.json doesn't exist
 	if server.ClaudeCodeDetected() {
@@ -674,7 +637,7 @@ func TestClaudeCodeDetected(t *testing.T) {
 
 // TestFullReset tests the complete reset functionality
 func TestFullReset(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -683,21 +646,17 @@ func TestFullReset(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: claudeDir,
-	}
+	server := NewTestServer(tmpDir, claudeDir)
 	server.Initialize()
 
 	// Add a plugin
-	server.registry["test-plugin"] = RegistryEntry{
+	server.SetRegistryEntry("test-plugin", RegistryEntry{
 		Name: "test-plugin",
 		ResolvedSource: map[string]interface{}{
 			"source": "github",
 			"repo":   "test/plugin",
 		},
-	}
+	})
 	server.SaveRegistry()
 	server.GenerateMarketplace()
 	server.UpdateClaudeSettings("test-plugin", true)
@@ -826,7 +785,7 @@ func TestRegistryEntryJSON(t *testing.T) {
 
 // TestLoadNonExistentRegistry tests that loading a non-existent registry doesn't error
 func TestLoadNonExistentRegistry(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -834,24 +793,21 @@ func TestLoadNonExistentRegistry(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	server := &Server{
-		registry: make(map[string]RegistryEntry),
-		hubDir:   tmpDir,
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 
 	// Should not error when registry file doesn't exist
 	if err := server.Load(); err != nil {
 		t.Errorf("Load should not error for non-existent registry: %v", err)
 	}
 
-	if len(server.registry) != 0 {
-		t.Errorf("registry should be empty, got %d entries", len(server.registry))
+	if server.PluginCount() != 0 {
+		t.Errorf("registry should be empty, got %d entries", server.PluginCount())
 	}
 }
 
 // TestDeletePluginData tests the DeletePluginData method
 func TestDeletePluginData(t *testing.T) {
-	initLogger(false)
+	InitLogger(false)
 
 	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
 	if err != nil {
@@ -859,15 +815,11 @@ func TestDeletePluginData(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	server := &Server{
-		registry:  make(map[string]RegistryEntry),
-		hubDir:    tmpDir,
-		claudeDir: filepath.Join(tmpDir, ".claude"),
-	}
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
 	server.Initialize()
 
 	// Add some data
-	server.registry["plugin1"] = RegistryEntry{Name: "plugin1"}
+	server.SetRegistryEntry("plugin1", RegistryEntry{Name: "plugin1"})
 	server.SaveRegistry()
 
 	// Create a plugin directory
@@ -881,7 +833,7 @@ func TestDeletePluginData(t *testing.T) {
 	}
 
 	// Verify registry is empty
-	if len(server.registry) != 0 {
+	if server.PluginCount() != 0 {
 		t.Errorf("registry should be empty")
 	}
 

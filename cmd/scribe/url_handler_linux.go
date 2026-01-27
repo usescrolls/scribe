@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/usescrolls/scribe/internal/scribe"
 )
 
 var (
@@ -25,7 +27,7 @@ func init() {
 // getSocketPath returns the path to the IPC socket
 func getSocketPath() string {
 	homeDir, _ := os.UserHomeDir()
-	return filepath.Join(homeDir, HubDirName, IPCSocketName)
+	return filepath.Join(homeDir, scribe.HubDirName, IPCSocketName)
 }
 
 // trySendToRunningInstanceLinux attempts to send URL to running instance via Unix socket
@@ -36,7 +38,7 @@ func trySendToRunningInstanceLinux(url string) bool {
 	conn, err := net.DialTimeout("unix", socketPath, 2*time.Second)
 	if err != nil {
 		// No instance running or socket stale
-		logger.Debug("no running instance found", "socket", socketPath, "error", err)
+		scribe.Logger.Debug("no running instance found", "socket", socketPath, "error", err)
 		return false
 	}
 	defer conn.Close()
@@ -47,7 +49,7 @@ func trySendToRunningInstanceLinux(url string) bool {
 	// Send URL with newline delimiter
 	_, err = conn.Write([]byte(url + "\n"))
 	if err != nil {
-		logger.Warn("failed to send URL to running instance", "error", err)
+		scribe.Logger.Warn("failed to send URL to running instance", "error", err)
 		return false
 	}
 
@@ -55,7 +57,7 @@ func trySendToRunningInstanceLinux(url string) bool {
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		logger.Warn("failed to read response from running instance", "error", err)
+		scribe.Logger.Warn("failed to read response from running instance", "error", err)
 		return false
 	}
 
@@ -87,7 +89,7 @@ func StartIPCServer() error {
 	// Set socket permissions (owner only)
 	os.Chmod(socketPath, 0600)
 
-	logger.Info("IPC server started", "socket", socketPath)
+	scribe.Logger.Info("IPC server started", "socket", socketPath)
 
 	go acceptIPCConnections(listener)
 
@@ -105,7 +107,7 @@ func acceptIPCConnections(listener net.Listener) {
 			if closed {
 				return
 			}
-			logger.Warn("IPC accept error", "error", err)
+			scribe.Logger.Warn("IPC accept error", "error", err)
 			continue
 		}
 		go handleIPCConnection(conn)
@@ -121,18 +123,18 @@ func handleIPCConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	urlStr, err := reader.ReadString('\n')
 	if err != nil {
-		logger.Warn("IPC read error", "error", err)
+		scribe.Logger.Warn("IPC read error", "error", err)
 		return
 	}
 
 	urlStr = strings.TrimSpace(urlStr)
 
 	if strings.HasPrefix(urlStr, "agenthub://") {
-		logger.Info("received URL via IPC", "url", urlStr)
-		handleURLScheme(urlStr)
+		scribe.Logger.Info("received URL via IPC", "url", urlStr)
+		server.HandleURLScheme(urlStr)
 		conn.Write([]byte("OK\n"))
 	} else {
-		logger.Warn("invalid URL received via IPC", "url", urlStr)
+		scribe.Logger.Warn("invalid URL received via IPC", "url", urlStr)
 		conn.Write([]byte("ERROR: invalid URL\n"))
 	}
 }
@@ -150,12 +152,12 @@ func cleanupIPCLinux() {
 	socketPath := getSocketPath()
 	os.Remove(socketPath)
 
-	logger.Debug("IPC cleanup completed")
+	scribe.Logger.Debug("IPC cleanup completed")
 }
 
 // RegisterURLSchemeHandler on Linux starts the IPC server
 func RegisterURLSchemeHandler() {
 	if err := StartIPCServer(); err != nil {
-		logger.Error("failed to start IPC server", "error", err)
+		scribe.Logger.Error("failed to start IPC server", "error", err)
 	}
 }

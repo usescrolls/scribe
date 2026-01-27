@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"fmt"
@@ -31,27 +31,27 @@ func (s *Server) UninstallAllPlugins() error {
 	s.registry = make(map[string]RegistryEntry)
 	s.mu.Unlock()
 
-	logger.Info("uninstalling all plugins", "count", len(pluginNames))
+	Logger.Info("uninstalling all plugins", "count", len(pluginNames))
 
 	// Save empty registry
 	if err := s.SaveRegistry(); err != nil {
-		logger.Error("failed to save after uninstalling plugins", "error", err)
+		Logger.Error("failed to save after uninstalling plugins", "error", err)
 		return err
 	}
 
 	// Regenerate marketplace.json
 	if err := s.GenerateMarketplace(); err != nil {
-		logger.Error("failed to regenerate marketplace after uninstalling plugins", "error", err)
+		Logger.Error("failed to regenerate marketplace after uninstalling plugins", "error", err)
 	}
 
 	// Disable each plugin in Claude settings
 	for _, name := range pluginNames {
 		if err := s.UpdateClaudeSettings(name, false); err != nil {
-			logger.Warn("failed to disable plugin in claude settings", "plugin", name, "error", err)
+			Logger.Warn("failed to disable plugin in claude settings", "plugin", name, "error", err)
 		}
 	}
 
-	logger.Info("all plugins uninstalled successfully")
+	Logger.Info("all plugins uninstalled successfully")
 	return nil
 }
 
@@ -63,17 +63,17 @@ func (s *Server) DeletePluginData() error {
 
 	// Delete registry file
 	registryFile := filepath.Join(s.hubDir, DataDirName, RegistryFile)
-	logger.Info("deleting registry file", "path", registryFile)
+	Logger.Info("deleting registry file", "path", registryFile)
 	if err := os.Remove(registryFile); err != nil && !os.IsNotExist(err) {
-		logger.Error("failed to delete registry file", "error", err)
+		Logger.Error("failed to delete registry file", "error", err)
 		return err
 	}
 
 	// Delete downloaded plugins directory
 	pluginsDir := filepath.Join(s.hubDir, PluginsDirName)
-	logger.Info("deleting plugins directory", "path", pluginsDir)
+	Logger.Info("deleting plugins directory", "path", pluginsDir)
 	if err := os.RemoveAll(pluginsDir); err != nil {
-		logger.Error("failed to delete plugins directory", "error", err)
+		Logger.Error("failed to delete plugins directory", "error", err)
 		return err
 	}
 	// Recreate empty plugins directory
@@ -81,16 +81,16 @@ func (s *Server) DeletePluginData() error {
 
 	// Regenerate empty marketplace.json
 	if err := s.GenerateMarketplace(); err != nil {
-		logger.Error("failed to regenerate marketplace", "error", err)
+		Logger.Error("failed to regenerate marketplace", "error", err)
 	}
 
-	logger.Info("plugin data deleted")
+	Logger.Info("plugin data deleted")
 	return nil
 }
 
 // FullReset performs all reset operations: uninstall plugins, clear claude settings, delete data
 func (s *Server) FullReset() error {
-	logger.Info("performing full reset")
+	Logger.Info("performing full reset")
 
 	var errors []string
 
@@ -110,6 +110,6 @@ func (s *Server) FullReset() error {
 		return fmt.Errorf("full reset completed with errors: %s", strings.Join(errors, "; "))
 	}
 
-	logger.Info("full reset completed successfully")
+	Logger.Info("full reset completed successfully")
 	return nil
 }

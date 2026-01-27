@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"encoding/json"
@@ -69,8 +69,8 @@ type RegistryEntry struct {
 	Category       string          `json:"category,omitempty"`
 	Author         *Author         `json:"author,omitempty"`
 	Tags           []string        `json:"tags,omitempty"`
-	Source         PluginSource    `json:"source"`                 // Original source from request
-	ResolvedSource interface{}     `json:"resolvedSource"`         // What goes in marketplace.json (string or object)
+	Source         PluginSource    `json:"source"`             // Original source from request
+	ResolvedSource interface{}     `json:"resolvedSource"`     // What goes in marketplace.json (string or object)
 	InstalledAt    time.Time       `json:"installedAt"`
-	Provides       *PluginProvides `json:"provides,omitempty"`     // What extension types this plugin provides (for multi-skill plugins)
+	Provides       *PluginProvides `json:"provides,omitempty"` // What extension types this plugin provides (for multi-skill plugins)
 }

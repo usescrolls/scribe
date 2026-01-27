@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/usescrolls/scribe/internal/scribe"
 	"golang.org/x/sys/windows"
 )
 
@@ -42,14 +43,14 @@ func trySendToRunningInstanceWindows(url string) bool {
 		}
 	} else {
 		// Error creating mutex, assume no instance running
-		logger.Debug("no running instance found", "error", err)
+		scribe.Logger.Debug("no running instance found", "error", err)
 		return false
 	}
 
 	// Another instance exists - send URL via named pipe
 	conn, err := winio.DialPipe(IPCPipeName, nil)
 	if err != nil {
-		logger.Debug("failed to connect to named pipe", "error", err)
+		scribe.Logger.Debug("failed to connect to named pipe", "error", err)
 		return false
 	}
 	defer conn.Close()
@@ -60,7 +61,7 @@ func trySendToRunningInstanceWindows(url string) bool {
 	// Send URL with newline delimiter
 	_, err = conn.Write([]byte(url + "\n"))
 	if err != nil {
-		logger.Warn("failed to send URL to running instance", "error", err)
+		scribe.Logger.Warn("failed to send URL to running instance", "error", err)
 		return false
 	}
 
@@ -68,7 +69,7 @@ func trySendToRunningInstanceWindows(url string) bool {
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		logger.Warn("failed to read response from running instance", "error", err)
+		scribe.Logger.Warn("failed to read response from running instance", "error", err)
 		return false
 	}
 
@@ -88,7 +89,7 @@ func StartIPCServer() error {
 	mutexHandle = handle
 	ipcMu.Unlock()
 
-	logger.Info("IPC server started", "pipe", IPCPipeName)
+	scribe.Logger.Info("IPC server started", "pipe", IPCPipeName)
 
 	// Start named pipe server in background
 	go acceptPipeConnections()
@@ -108,7 +109,7 @@ func acceptPipeConnections() {
 
 		listener, err := winio.ListenPipe(IPCPipeName, cfg)
 		if err != nil {
-			logger.Error("failed to create named pipe", "error", err)
+			scribe.Logger.Error("failed to create named pipe", "error", err)
 			time.Sleep(1 * time.Second) // Backoff before retry
 			continue
 		}
@@ -127,7 +128,7 @@ func acceptPipeConnections() {
 				listener.Close()
 				return
 			}
-			logger.Warn("pipe accept error", "error", err)
+			scribe.Logger.Warn("pipe accept error", "error", err)
 			listener.Close()
 			continue
 		}
@@ -149,18 +150,18 @@ func handlePipeConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	urlStr, err := reader.ReadString('\n')
 	if err != nil {
-		logger.Warn("pipe read error", "error", err)
+		scribe.Logger.Warn("pipe read error", "error", err)
 		return
 	}
 
 	urlStr = strings.TrimSpace(urlStr)
 
 	if strings.HasPrefix(urlStr, "agenthub://") {
-		logger.Info("received URL via IPC", "url", urlStr)
-		handleURLScheme(urlStr)
+		scribe.Logger.Info("received URL via IPC", "url", urlStr)
+		server.HandleURLScheme(urlStr)
 		conn.Write([]byte("OK\n"))
 	} else {
-		logger.Warn("invalid URL received via IPC", "url", urlStr)
+		scribe.Logger.Warn("invalid URL received via IPC", "url", urlStr)
 		conn.Write([]byte("ERROR: invalid URL\n"))
 	}
 }
@@ -181,12 +182,12 @@ func cleanupIPCWindows() {
 		mutexHandle = 0
 	}
 
-	logger.Debug("IPC cleanup completed")
+	scribe.Logger.Debug("IPC cleanup completed")
 }
 
 // RegisterURLSchemeHandler on Windows starts the IPC server
 func RegisterURLSchemeHandler() {
 	if err := StartIPCServer(); err != nil {
-		logger.Error("failed to start IPC server", "error", err)
+		scribe.Logger.Error("failed to start IPC server", "error", err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/getlantern/systray"
+	"github.com/usescrolls/scribe/internal/scribe"
 )
 
 // RunWithGUI starts the application with the system tray GUI.
@@ -16,19 +17,19 @@ func RunWithGUI() {
 }
 
 func onReady() {
-	logger.Debug("initializing system tray")
+	scribe.Logger.Debug("initializing system tray")
 
 	// Register URL scheme handler (must be on main thread for macOS)
 	// This allows receiving agenthub:// URLs while the app is already running
 	RegisterURLSchemeHandler()
 
 	// Set the icon (a simple orange circle as PNG)
-	systray.SetIcon(getIcon())
+	systray.SetIcon(scribe.GetIcon())
 	systray.SetTitle("")
 	systray.SetTooltip("Scribe")
 
 	// Menu items (display-only, no interaction needed)
-	systray.AddMenuItem("Scribe v"+Version, "").Disable()
+	systray.AddMenuItem("Scribe v"+scribe.Version, "").Disable()
 
 	systray.AddSeparator()
 
@@ -44,7 +45,7 @@ func onReady() {
 
 	mQuit := systray.AddMenuItem("Quit", "Stop the middleware and quit")
 
-	logger.Debug("system tray initialized")
+	scribe.Logger.Debug("system tray initialized")
 
 	// Update plugin count periodically and handle menu clicks
 	go func() {
@@ -57,12 +58,12 @@ func onReady() {
 				count := server.PluginCount()
 				mPlugins.SetTitle(fmt.Sprintf("Plugins: %d", count))
 			case <-mReset.ClickedCh:
-				logger.Info("reset requested from system tray")
+				scribe.Logger.Info("reset requested from system tray")
 				if err := server.FullReset(); err != nil {
-					logger.Error("failed to perform reset", "error", err)
+					scribe.Logger.Error("failed to perform reset", "error", err)
 				}
 			case <-mQuit.ClickedCh:
-				logger.Info("quit requested from system tray")
+				scribe.Logger.Info("quit requested from system tray")
 				systray.Quit()
 				return
 			}
@@ -75,5 +76,5 @@ func onExit() {
 	if CleanupIPC != nil {
 		CleanupIPC()
 	}
-	logger.Info("Scribe stopped")
+	scribe.Logger.Info("Scribe stopped")
 }

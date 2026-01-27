@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"encoding/json"
@@ -18,10 +18,10 @@ func (s *Server) Initialize() error {
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			logger.Error("failed to create directory", "path", dir, "error", err)
+			Logger.Error("failed to create directory", "path", dir, "error", err)
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
-		logger.Debug("ensured directory exists", "path", dir)
+		Logger.Debug("ensured directory exists", "path", dir)
 	}
 
 	return nil
@@ -34,14 +34,14 @@ func (s *Server) Migrate() error {
 	// Check if old format exists
 	data, err := os.ReadFile(oldPath)
 	if os.IsNotExist(err) {
-		logger.Debug("no old plugins.json found, nothing to migrate")
+		Logger.Debug("no old plugins.json found, nothing to migrate")
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("failed to read old plugins file: %w", err)
 	}
 
-	logger.Info("migrating from old plugins.json format")
+	Logger.Info("migrating from old plugins.json format")
 
 	// Parse old format
 	var oldPlugins []Plugin
@@ -107,15 +107,15 @@ func (s *Server) Migrate() error {
 
 	// Update Claude settings to use directory source
 	if err := s.migrateClaudeSettings(); err != nil {
-		logger.Warn("failed to migrate claude settings", "error", err)
+		Logger.Warn("failed to migrate claude settings", "error", err)
 	}
 
 	// Remove old file
 	if err := os.Remove(oldPath); err != nil {
-		logger.Warn("failed to remove old plugins.json", "path", oldPath, "error", err)
+		Logger.Warn("failed to remove old plugins.json", "path", oldPath, "error", err)
 	}
 
-	logger.Info("migration completed successfully", "plugin_count", len(oldPlugins))
+	Logger.Info("migration completed successfully", "plugin_count", len(oldPlugins))
 	return nil
 }
 
@@ -154,7 +154,7 @@ func (s *Server) migrateClaudeSettings() error {
 
 	// Check if it's still URL-based
 	if source["source"] == "url" {
-		logger.Info("updating marketplace source from URL to directory")
+		Logger.Info("updating marketplace source from URL to directory")
 		marketplace["source"] = map[string]interface{}{
 			"source": "directory",
 			"path":   s.hubDir,
@@ -168,7 +168,7 @@ func (s *Server) migrateClaudeSettings() error {
 		if err := os.WriteFile(settingsPath, output, 0644); err != nil {
 			return err
 		}
-		logger.Info("claude settings migrated to directory source")
+		Logger.Info("claude settings migrated to directory source")
 	}
 
 	return nil
@@ -180,28 +180,28 @@ func (s *Server) Load() error {
 	defer s.mu.Unlock()
 
 	registryFile := filepath.Join(s.hubDir, DataDirName, RegistryFile)
-	logger.Debug("loading registry from disk", "path", registryFile)
+	Logger.Debug("loading registry from disk", "path", registryFile)
 
 	data, err := os.ReadFile(registryFile)
 	if os.IsNotExist(err) {
-		logger.Debug("no existing registry file found, starting fresh")
+		Logger.Debug("no existing registry file found, starting fresh")
 		return nil
 	}
 	if err != nil {
-		logger.Error("failed to read registry file", "path", registryFile, "error", err)
+		Logger.Error("failed to read registry file", "path", registryFile, "error", err)
 		return err
 	}
 
 	var entries []RegistryEntry
 	if err := json.Unmarshal(data, &entries); err != nil {
-		logger.Error("failed to parse registry file", "path", registryFile, "error", err)
+		Logger.Error("failed to parse registry file", "path", registryFile, "error", err)
 		return err
 	}
 
 	for _, e := range entries {
 		s.registry[e.Name] = e
 	}
-	logger.Info("loaded registry from disk", "count", len(entries))
+	Logger.Info("loaded registry from disk", "count", len(entries))
 	return nil
 }
 
@@ -215,19 +215,19 @@ func (s *Server) SaveRegistry() error {
 	s.mu.RUnlock()
 
 	registryFile := filepath.Join(s.hubDir, DataDirName, RegistryFile)
-	logger.Debug("saving registry to disk", "path", registryFile, "count", len(entries))
+	Logger.Debug("saving registry to disk", "path", registryFile, "count", len(entries))
 
 	data, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
-		logger.Error("failed to marshal registry", "error", err)
+		Logger.Error("failed to marshal registry", "error", err)
 		return err
 	}
 
 	if err := os.WriteFile(registryFile, data, 0644); err != nil {
-		logger.Error("failed to write registry file", "path", registryFile, "error", err)
+		Logger.Error("failed to write registry file", "path", registryFile, "error", err)
 		return err
 	}
 
-	logger.Info("saved registry to disk", "count", len(entries))
+	Logger.Info("saved registry to disk", "count", len(entries))
 	return nil
 }

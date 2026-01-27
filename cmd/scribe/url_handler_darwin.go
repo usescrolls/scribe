@@ -21,7 +21,7 @@ func init() {
 //export urlCallbackGo
 func urlCallbackGo(urlCString *C.char) {
 	urlStr := C.GoString(urlCString)
-	handleURLScheme(urlStr)
+	server.HandleURLScheme(urlStr)
 }
 
 // RegisterURLSchemeHandler registers the app to receive agenthub:// URLs

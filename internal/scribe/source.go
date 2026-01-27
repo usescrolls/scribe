@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"archive/zip"
@@ -10,10 +10,10 @@ import (
 	"strings"
 )
 
-// resolveSource resolves the plugin source based on type
+// ResolveSource resolves the plugin source based on type
 // For github/npm/git/url sources, it passes through the source definition
 // For zip sources, it downloads and extracts the plugin files locally
-func (s *Server) resolveSource(name string, source PluginSource) (interface{}, error) {
+func (s *Server) ResolveSource(name string, source PluginSource) (interface{}, error) {
 	switch source.Source {
 	case "github":
 		// Pass through - Claude Code handles GitHub sources directly
@@ -72,11 +72,11 @@ func (s *Server) resolveSource(name string, source PluginSource) (interface{}, e
 // downloadZip downloads a zip file from a URL and extracts it to the plugins directory
 func (s *Server) downloadZip(name string, zipURL string) error {
 	targetDir := filepath.Join(s.hubDir, PluginsDirName, name)
-	logger.Info("downloading zip plugin", "name", name, "url", zipURL, "target", targetDir)
+	Logger.Info("downloading zip plugin", "name", name, "url", zipURL, "target", targetDir)
 
 	// Remove existing if present
 	if err := os.RemoveAll(targetDir); err != nil {
-		logger.Warn("failed to remove existing plugin directory", "path", targetDir, "error", err)
+		Logger.Warn("failed to remove existing plugin directory", "path", targetDir, "error", err)
 	}
 
 	// Download the zip file
@@ -172,6 +172,6 @@ func (s *Server) downloadZip(name string, zipURL string) error {
 		dstFile.Close()
 	}
 
-	logger.Info("plugin extracted successfully", "name", name)
+	Logger.Info("plugin extracted successfully", "name", name)
 	return nil
 }

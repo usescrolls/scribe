@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	_ "embed"
@@ -24,11 +24,11 @@ const (
 	OldPluginsFile     = "plugins.json" // For migration
 )
 
-// logger is the global structured logger instance
-var logger *slog.Logger
+// Logger is the global structured logger instance
+var Logger *slog.Logger
 
-// initLogger initializes the structured logger
-func initLogger(debug bool) {
+// InitLogger initializes the structured logger
+func InitLogger(debug bool) {
 	level := slog.LevelInfo
 	if debug {
 		level = slog.LevelDebug
@@ -39,11 +39,11 @@ func initLogger(debug bool) {
 	}
 
 	handler := slog.NewTextHandler(os.Stderr, opts)
-	logger = slog.New(handler)
-	slog.SetDefault(logger)
+	Logger = slog.New(handler)
+	slog.SetDefault(Logger)
 }
 
-// getIcon returns the embedded icon PNG
-func getIcon() []byte {
+// GetIcon returns the embedded icon PNG
+func GetIcon() []byte {
 	return iconData
 }

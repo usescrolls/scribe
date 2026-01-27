@@ -1,4 +1,4 @@
-package main
+package scribe
 
 import (
 	"encoding/json"
@@ -49,19 +49,19 @@ func (s *Server) GenerateMarketplace() error {
 	}
 
 	marketplacePath := filepath.Join(s.hubDir, MarketplaceDirName, MarketplaceFile)
-	logger.Debug("writing marketplace.json", "path", marketplacePath, "plugin_count", len(plugins))
+	Logger.Debug("writing marketplace.json", "path", marketplacePath, "plugin_count", len(plugins))
 
 	data, err := json.MarshalIndent(marketplace, "", "  ")
 	if err != nil {
-		logger.Error("failed to marshal marketplace", "error", err)
+		Logger.Error("failed to marshal marketplace", "error", err)
 		return err
 	}
 
 	if err := os.WriteFile(marketplacePath, data, 0644); err != nil {
-		logger.Error("failed to write marketplace file", "path", marketplacePath, "error", err)
+		Logger.Error("failed to write marketplace file", "path", marketplacePath, "error", err)
 		return err
 	}
 
-	logger.Info("marketplace.json updated", "plugin_count", len(plugins))
+	Logger.Info("marketplace.json updated", "plugin_count", len(plugins))
 	return nil
 }
