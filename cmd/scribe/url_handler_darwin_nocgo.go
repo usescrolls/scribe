@@ -2,6 +2,8 @@
 
 package main
 
+import "github.com/usescrolls/scribe/internal/scribe"
+
 func init() {
 	// When CGO is disabled on macOS, URL scheme handling is not available.
 	// The app will still work but won't receive agenthub:// URLs while running.
@@ -12,5 +14,5 @@ func init() {
 // RegisterURLSchemeHandler is a no-op when CGO is disabled on macOS.
 // URL scheme handling requires Objective-C/Cocoa which needs CGO.
 func RegisterURLSchemeHandler() {
-	logger.Warn("URL scheme handler unavailable (CGO disabled)")
+	scribe.Logger.Warn("URL scheme handler unavailable (CGO disabled)")
 }
