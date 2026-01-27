@@ -9,7 +9,22 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests
+        run: go test -v ./...
+
   build-linux:
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,6 +51,7 @@ jobs:
           path: scribe-linux-amd64
 
   build-windows:
+    needs: [test]
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -57,6 +73,7 @@ jobs:
           path: scribe-windows-amd64.exe
 
   build-macos:
+    needs: [test]
     runs-on: macos-latest
     steps:
       - name: Checkout

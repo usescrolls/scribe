@@ -853,3 +853,460 @@ func TestDeletePluginData(t *testing.T) {
 		t.Errorf("plugins dir should be empty, got %d entries", len(entries))
 	}
 }
+
+// TestClearClaudePluginSettings tests clearing plugin settings from Claude
+func TestClearClaudePluginSettings(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	server := NewTestServer(tmpDir, claudeDir)
+
+	// Test clearing when no settings file exists (should not error)
+	if err := server.ClearClaudePluginSettings(); err != nil {
+		t.Fatalf("ClearClaudePluginSettings should not error when file doesn't exist: %v", err)
+	}
+
+	// Setup: create settings with our marketplace and plugins
+	os.MkdirAll(claudeDir, 0755)
+	settings := map[string]interface{}{
+		"extraKnownMarketplaces": map[string]interface{}{
+			MarketplaceName: map[string]interface{}{
+				"source": map[string]interface{}{
+					"source": "directory",
+					"path":   tmpDir,
+				},
+			},
+			"other-marketplace": map[string]interface{}{}, // Should remain
+		},
+		"enabledPlugins": map[string]interface{}{
+			"plugin1@" + MarketplaceName:   true,
+			"plugin2@" + MarketplaceName:   true,
+			"other-plugin@other-market":    true, // Should remain
+		},
+		"otherSetting": "should remain",
+	}
+	data, _ := json.Marshal(settings)
+	settingsPath := filepath.Join(claudeDir, "settings.json")
+	os.WriteFile(settingsPath, data, 0644)
+
+	// Clear settings
+	if err := server.ClearClaudePluginSettings(); err != nil {
+		t.Fatalf("ClearClaudePluginSettings failed: %v", err)
+	}
+
+	// Verify
+	data, _ = os.ReadFile(settingsPath)
+	var result map[string]interface{}
+	json.Unmarshal(data, &result)
+
+	// Our marketplace should be removed
+	marketplaces := result["extraKnownMarketplaces"].(map[string]interface{})
+	if _, exists := marketplaces[MarketplaceName]; exists {
+		t.Error("our marketplace should be removed")
+	}
+	if _, exists := marketplaces["other-marketplace"]; !exists {
+		t.Error("other marketplace should remain")
+	}
+
+	// Our plugins should be removed
+	enabledPlugins := result["enabledPlugins"].(map[string]interface{})
+	if _, exists := enabledPlugins["plugin1@"+MarketplaceName]; exists {
+		t.Error("plugin1 should be removed")
+	}
+	if _, exists := enabledPlugins["other-plugin@other-market"]; !exists {
+		t.Error("other plugin should remain")
+	}
+
+	// Other settings should remain
+	if result["otherSetting"] != "should remain" {
+		t.Error("other settings should remain unchanged")
+	}
+}
+
+// TestUninstallAllPlugins tests uninstalling all plugins
+func TestUninstallAllPlugins(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	server := NewTestServer(tmpDir, claudeDir)
+	server.Initialize()
+
+	// Add plugins with different source types
+	server.SetRegistryEntry("plugin1", RegistryEntry{
+		Name: "plugin1",
+		ResolvedSource: map[string]interface{}{
+			"source": "github",
+			"repo":   "user/plugin1",
+		},
+	})
+	server.SetRegistryEntry("plugin2", RegistryEntry{
+		Name:           "plugin2",
+		ResolvedSource: "./plugins/plugin2", // Relative source - should delete directory
+	})
+
+	// Create plugin directory for plugin2
+	pluginDir := filepath.Join(tmpDir, PluginsDirName, "plugin2")
+	os.MkdirAll(pluginDir, 0755)
+	os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte("{}"), 0644)
+
+	// Save registry
+	server.SaveRegistry()
+
+	// Setup Claude settings
+	os.MkdirAll(claudeDir, 0755)
+	os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644)
+	server.UpdateClaudeSettings("plugin1", true)
+	server.UpdateClaudeSettings("plugin2", true)
+
+	// Uninstall all
+	if err := server.UninstallAllPlugins(); err != nil {
+		t.Fatalf("UninstallAllPlugins failed: %v", err)
+	}
+
+	// Verify registry is empty
+	if server.PluginCount() != 0 {
+		t.Errorf("expected 0 plugins, got %d", server.PluginCount())
+	}
+
+	// Verify plugin2 directory was deleted
+	if _, err := os.Stat(pluginDir); !os.IsNotExist(err) {
+		t.Error("plugin2 directory should be deleted")
+	}
+
+	// Verify registry file is empty array
+	registryFile := filepath.Join(tmpDir, DataDirName, RegistryFile)
+	data, _ := os.ReadFile(registryFile)
+	var entries []RegistryEntry
+	json.Unmarshal(data, &entries)
+	if len(entries) != 0 {
+		t.Errorf("registry file should have 0 entries, got %d", len(entries))
+	}
+}
+
+// TestMigrate tests migration from old plugins.json format
+func TestMigrate(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	server := NewTestServer(tmpDir, claudeDir)
+	server.Initialize()
+
+	// Test migration when no old file exists (should be no-op)
+	if err := server.Migrate(); err != nil {
+		t.Fatalf("Migrate should not error when no old file exists: %v", err)
+	}
+
+	// Create old format plugins.json
+	oldPlugins := []Plugin{
+		{
+			Name:        "github-plugin",
+			Description: "A GitHub plugin",
+			Version:     "1.0.0",
+			Source: PluginSource{
+				Source: "github",
+				Repo:   "user/repo",
+				Ref:    "main",
+			},
+		},
+		{
+			Name: "npm-plugin",
+			Source: PluginSource{
+				Source:  "npm",
+				Package: "@scope/package",
+			},
+		},
+		{
+			Name: "git-plugin",
+			Source: PluginSource{
+				Source: "git",
+				URL:    "https://example.com/repo.git",
+			},
+		},
+	}
+	oldData, _ := json.Marshal(oldPlugins)
+	oldPath := filepath.Join(tmpDir, OldPluginsFile)
+	os.WriteFile(oldPath, oldData, 0644)
+
+	// Setup Claude settings with URL-based source
+	os.MkdirAll(claudeDir, 0755)
+	claudeSettings := map[string]interface{}{
+		"extraKnownMarketplaces": map[string]interface{}{
+			MarketplaceName: map[string]interface{}{
+				"source": map[string]interface{}{
+					"source": "url",
+					"url":    "https://old.url/marketplace.json",
+				},
+			},
+		},
+	}
+	claudeData, _ := json.Marshal(claudeSettings)
+	os.WriteFile(filepath.Join(claudeDir, "settings.json"), claudeData, 0644)
+
+	// Run migration
+	if err := server.Migrate(); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	// Verify plugins were migrated
+	if server.PluginCount() != 3 {
+		t.Errorf("expected 3 plugins, got %d", server.PluginCount())
+	}
+
+	// Verify GitHub plugin
+	entry, ok := server.GetRegistryEntry("github-plugin")
+	if !ok {
+		t.Fatal("github-plugin not found")
+	}
+	if entry.Description != "A GitHub plugin" {
+		t.Errorf("expected description 'A GitHub plugin', got %q", entry.Description)
+	}
+	resolved := entry.ResolvedSource.(map[string]interface{})
+	if resolved["ref"] != "main" {
+		t.Errorf("expected ref 'main', got %v", resolved["ref"])
+	}
+
+	// Verify old file was deleted
+	if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+		t.Error("old plugins.json should be deleted after migration")
+	}
+
+	// Verify new registry file exists
+	registryFile := filepath.Join(tmpDir, DataDirName, RegistryFile)
+	if _, err := os.Stat(registryFile); err != nil {
+		t.Error("new registry file should exist")
+	}
+
+	// Verify Claude settings were migrated to directory source
+	settingsData, _ := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
+	var settings map[string]interface{}
+	json.Unmarshal(settingsData, &settings)
+	marketplaces := settings["extraKnownMarketplaces"].(map[string]interface{})
+	marketplace := marketplaces[MarketplaceName].(map[string]interface{})
+	source := marketplace["source"].(map[string]interface{})
+	if source["source"] != "directory" {
+		t.Errorf("expected source 'directory', got %v", source["source"])
+	}
+}
+
+// TestHandleURLScheme tests URL scheme handling
+func TestHandleURLScheme(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	server := NewTestServer(tmpDir, claudeDir)
+	server.Initialize()
+
+	// Setup Claude directory
+	os.MkdirAll(claudeDir, 0755)
+	os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644)
+
+	// Test install via URL scheme
+	installURL := "agenthub://install?name=test-plugin&source=github&repo=user/test-repo&ref=v1.0.0"
+	server.HandleURLScheme(installURL)
+
+	// Verify plugin was installed
+	if server.PluginCount() != 1 {
+		t.Errorf("expected 1 plugin after install, got %d", server.PluginCount())
+	}
+
+	entry, ok := server.GetRegistryEntry("test-plugin")
+	if !ok {
+		t.Fatal("test-plugin not found after URL install")
+	}
+	if entry.Source.Repo != "user/test-repo" {
+		t.Errorf("expected repo 'user/test-repo', got %q", entry.Source.Repo)
+	}
+	if entry.Source.Ref != "v1.0.0" {
+		t.Errorf("expected ref 'v1.0.0', got %q", entry.Source.Ref)
+	}
+
+	// Test uninstall via URL scheme
+	uninstallURL := "agenthub://uninstall?name=test-plugin"
+	server.HandleURLScheme(uninstallURL)
+
+	// Verify plugin was uninstalled
+	if server.PluginCount() != 0 {
+		t.Errorf("expected 0 plugins after uninstall, got %d", server.PluginCount())
+	}
+
+	// Test open action (should not error)
+	openURL := "agenthub://open"
+	server.HandleURLScheme(openURL) // Just verifying it doesn't panic
+
+	// Test invalid URL (should not panic)
+	server.HandleURLScheme("invalid://url")
+
+	// Test unknown action (should not panic)
+	server.HandleURLScheme("agenthub://unknown")
+}
+
+// TestHandleURLInstallWithAutoEnable tests autoEnable parameter
+func TestHandleURLInstallWithAutoEnable(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	server := NewTestServer(tmpDir, claudeDir)
+	server.Initialize()
+
+	os.MkdirAll(claudeDir, 0755)
+	os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644)
+
+	// Test with autoEnable=false
+	installURL := "agenthub://install?name=no-auto&source=github&repo=user/repo&autoEnable=false"
+	server.HandleURLScheme(installURL)
+
+	// Plugin should be installed but not enabled in Claude settings
+	settingsData, _ := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
+	var settings map[string]interface{}
+	json.Unmarshal(settingsData, &settings)
+
+	// Plugin should NOT be in enabledPlugins since autoEnable=false
+	enabledPlugins, _ := settings["enabledPlugins"].(map[string]interface{})
+	pluginID := "no-auto@" + MarketplaceName
+	if _, exists := enabledPlugins[pluginID]; exists {
+		t.Error("plugin should not be auto-enabled when autoEnable=false")
+	}
+}
+
+// TestHandleURLInstallMissingParams tests error handling for missing parameters
+func TestHandleURLInstallMissingParams(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
+	server.Initialize()
+
+	// Missing name - should not install
+	server.HandleURLScheme("agenthub://install?source=github&repo=user/repo")
+	if server.PluginCount() != 0 {
+		t.Error("should not install without name parameter")
+	}
+
+	// Missing source - should not install
+	server.HandleURLScheme("agenthub://install?name=test")
+	if server.PluginCount() != 0 {
+		t.Error("should not install without source parameter")
+	}
+}
+
+// TestHandleURLUninstallNonExistent tests uninstalling a non-existent plugin
+func TestHandleURLUninstallNonExistent(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
+	server.Initialize()
+
+	// Should not panic when uninstalling non-existent plugin
+	server.HandleURLScheme("agenthub://uninstall?name=nonexistent")
+}
+
+// TestInitLogger tests logger initialization
+func TestInitLogger(t *testing.T) {
+	// Test debug mode
+	InitLogger(true)
+	if Logger == nil {
+		t.Error("Logger should not be nil after initialization")
+	}
+
+	// Test non-debug mode
+	InitLogger(false)
+	if Logger == nil {
+		t.Error("Logger should not be nil after initialization")
+	}
+}
+
+// TestGetIcon tests the GetIcon function
+func TestGetIcon(t *testing.T) {
+	icon := GetIcon()
+	if len(icon) == 0 {
+		t.Error("GetIcon should return non-empty icon data")
+	}
+	// Check PNG magic bytes
+	if len(icon) >= 4 && (icon[0] != 0x89 || icon[1] != 'P' || icon[2] != 'N' || icon[3] != 'G') {
+		t.Error("icon should be a valid PNG file")
+	}
+}
+
+// TestResolveSourceZipMissingURL tests zip source with missing URL
+func TestResolveSourceZipMissingURL(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
+	server.Initialize()
+
+	// Zip source without URL should error
+	_, err = server.ResolveSource("test", PluginSource{
+		Source: "zip",
+	})
+	if err == nil {
+		t.Error("expected error for zip source without URL")
+	}
+}
+
+// TestResolveSourceGitMissingURL tests git source with missing URL
+func TestResolveSourceGitMissingURL(t *testing.T) {
+	InitLogger(false)
+
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	server := NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
+
+	// Git source without URL should error
+	_, err = server.ResolveSource("test", PluginSource{
+		Source: "git",
+	})
+	if err == nil {
+		t.Error("expected error for git source without URL")
+	}
+}

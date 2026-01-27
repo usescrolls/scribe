@@ -1,4 +1,4 @@
-.PHONY: build build-all run clean install install-linux install-windows app dmg docker-build docker-test
+.PHONY: build build-all run clean install install-linux install-windows app dmg docker-build docker-test test test-verbose coverage coverage-html
 
 BINARY_NAME=scribe
 VERSION=1.0.0
@@ -42,6 +42,24 @@ install: build
 deps:
 	go mod download
 	go mod tidy
+
+# Run tests
+test:
+	go test ./...
+
+# Run tests with verbose output
+test-verbose:
+	go test -v ./...
+
+# Run tests with coverage
+coverage:
+	go test -cover ./...
+
+# Generate HTML coverage report
+coverage-html:
+	go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
+	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
+	@echo "Coverage report: $(BUILD_DIR)/coverage.html"
 
 # Create macOS .app bundle (requires binary to exist in build/)
 app:
