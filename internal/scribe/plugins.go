@@ -14,6 +14,56 @@ func (s *Server) PluginCount() int {
 	return len(s.registry)
 }
 
+// GetAllPlugins returns all registry entries
+func (s *Server) GetAllPlugins() []RegistryEntry {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	entries := make([]RegistryEntry, 0, len(s.registry))
+	for _, e := range s.registry {
+		entries = append(entries, e)
+	}
+	return entries
+}
+
+// UninstallPlugin removes a single plugin from the registry
+func (s *Server) UninstallPlugin(name string) error {
+	s.mu.Lock()
+	entry, existed := s.registry[name]
+	if existed {
+		// Delete plugin files for relative sources
+		if resolved, ok := entry.ResolvedSource.(string); ok {
+			if strings.HasPrefix(resolved, "./plugins/") {
+				pluginDir := filepath.Join(s.hubDir, PluginsDirName, name)
+				os.RemoveAll(pluginDir)
+			}
+		}
+		delete(s.registry, name)
+	}
+	s.mu.Unlock()
+
+	if !existed {
+		return fmt.Errorf("plugin not found: %s", name)
+	}
+
+	Logger.Info("uninstalling plugin", "name", name)
+
+	if err := s.SaveRegistry(); err != nil {
+		Logger.Error("failed to save after uninstalling plugin", "error", err)
+		return err
+	}
+
+	if err := s.GenerateMarketplace(); err != nil {
+		Logger.Error("failed to regenerate marketplace after uninstalling plugin", "error", err)
+	}
+
+	if err := s.UpdateClaudeSettings(name, false); err != nil {
+		Logger.Warn("failed to disable plugin in claude settings", "plugin", name, "error", err)
+	}
+
+	Logger.Info("plugin uninstalled successfully", "name", name)
+	return nil
+}
+
 // UninstallAllPlugins removes all plugins from memory and disk
 func (s *Server) UninstallAllPlugins() error {
 	s.mu.Lock()

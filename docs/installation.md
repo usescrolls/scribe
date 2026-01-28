@@ -157,12 +157,114 @@ Register-ScheduledTask -TaskName "Scribe" -Action $Action -Trigger $Trigger -Set
 
 ---
 
-## Command Line Options
+## Command Line Interface
+
+Scribe provides a full CLI for managing plugins without needing the GUI or URL scheme.
+
+### Commands
+
+#### Install a plugin
+
+```bash
+scribe install <name> --github|--npm|--url|--zip <source> [flags]
+```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--github` | GitHub repository (owner/repo) |
+| `--npm` | NPM package name |
+| `--url` | Git URL |
+| `--zip` | Zip file URL |
+| `--ref` | Branch or tag reference |
+| `--no-enable` | Don't auto-enable in Claude settings |
+
+**Examples:**
+```bash
+scribe install prettier --github usescrolls/prettier-skill
+scribe install eslint --npm @anthropic/claude-eslint
+scribe install custom --url https://github.com/user/plugin.git
+scribe install tool --zip https://example.com/plugin.zip
+scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0
+```
+
+#### Uninstall a plugin
+
+```bash
+scribe uninstall <name>
+scribe uninstall --all
+```
+
+**Aliases:** `remove`, `rm`
+
+**Examples:**
+```bash
+scribe uninstall prettier
+scribe rm prettier
+scribe uninstall --all
+```
+
+#### List installed plugins
+
+```bash
+scribe list [flags]
+```
+
+**Aliases:** `ls`
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output in JSON format |
+| `--names-only` | Print only plugin names, one per line |
+
+**Examples:**
+```bash
+scribe list
+scribe ls --json
+scribe list --names-only
+```
+
+#### Show plugin info
+
+```bash
+scribe info <name>
+```
+
+#### Show version
+
+```bash
+scribe version
+```
+
+### Global Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--debug` | | Enable debug logging |
+| `--json` | | Output in JSON format (where applicable) |
+| `--quiet` | `-q` | Suppress non-essential output |
+| `--help` | `-h` | Show help |
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Invalid usage / bad arguments |
+| 3 | Plugin not found |
+| 4 | Source resolution failed |
+| 5 | Registry/filesystem error |
+
+### GUI Mode Options
+
+When running without CLI commands, Scribe launches in GUI mode:
 
 ```bash
 ./scribe [options]
 
 Options:
-  -no-gui        Run without system tray icon (headless mode)
-  -debug         Enable debug logging
+  --no-gui       Run without system tray icon (headless mode)
+  --debug        Enable debug logging
 ```

@@ -43,6 +43,23 @@ func InitLogger(debug bool) {
 	slog.SetDefault(Logger)
 }
 
+// InitLoggerCLI initializes a quiet logger for CLI mode
+// Only shows logs when debug=true, otherwise suppresses all output
+func InitLoggerCLI(debug bool) {
+	level := slog.LevelError + 1 // Suppress all logs
+	if debug {
+		level = slog.LevelDebug
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	handler := slog.NewTextHandler(os.Stderr, opts)
+	Logger = slog.New(handler)
+	slog.SetDefault(Logger)
+}
+
 // GetIcon returns the embedded icon PNG
 func GetIcon() []byte {
 	return iconData

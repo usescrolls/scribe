@@ -61,9 +61,38 @@ Scribe uses the `agenthub://` URL scheme for one-click installs:
 
 **URL format:** `agenthub://install?name=plugin-name&source=github&repo=owner/repo`
 
+## CLI Usage
+
+Scribe also provides a command-line interface for managing plugins:
+
+```bash
+# Install plugins
+scribe install prettier --github usescrolls/prettier-skill
+scribe install eslint --npm @anthropic/claude-eslint
+scribe install tool --zip https://example.com/plugin.zip
+
+# List installed plugins
+scribe list
+scribe list --json
+scribe list --names-only
+
+# Show plugin details
+scribe info prettier
+
+# Uninstall plugins
+scribe uninstall prettier
+scribe uninstall --all
+
+# Show version
+scribe version
+```
+
+For complete CLI documentation, see [CLI Specification](docs/cli-spec.md).
+
 ## Documentation
 
-- [Installation](docs/installation.md) - All installation methods and background service setup
+- [Installation](docs/installation.md) - All installation methods, CLI usage, and background service setup
+- [CLI Specification](docs/cli-spec.md) - Complete CLI command reference
 - [Configuration](docs/configuration.md) - Source types, data storage, and settings
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Development](docs/development.md) - Building, testing, and architecture reference
