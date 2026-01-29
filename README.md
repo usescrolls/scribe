@@ -32,9 +32,19 @@ flowchart LR
 
 ## Quick Start
 
+### macOS (Homebrew)
+
+```bash
+brew install usescrolls/tap/scribe
+```
+
+### macOS (DMG)
+
 Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases), open it, and drag Scribe to your Applications folder.
 
-For other platforms and installation methods, see [Installation](docs/installation.md).
+### Other Platforms
+
+For Linux, Windows, and other installation methods, see [Installation](docs/installation.md).
 
 ## First-Time Setup
 
