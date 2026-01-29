@@ -1,0 +1,21 @@
+{
+  "$schema": "https://wails.io/schemas/config.v3.json",
+  "name": "scribe",
+  "frontend": {
+    "dir": "./frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev",
+    "devServerUrl": "http://localhost:5173"
+  },
+  "author": {
+    "name": "useScrolls.com"
+  },
+  "info": {
+    "companyName": "useScrolls.com",
+    "productName": "Scribe",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright 2025 useScrolls.com",
+    "comments": "Plugin Manager for Claude Code"
+  }
+}
