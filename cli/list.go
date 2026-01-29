@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/usescrolls/scribe/internal/scribe"
+	"github.com/usescrolls/scribe/internal"
 )
 
 var (

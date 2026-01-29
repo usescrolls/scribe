@@ -1,5 +1,3 @@
-//go:build !nowails
-
 package main
 
 import (
@@ -10,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/usescrolls/scribe/cmd/scribe/cli"
-	"github.com/usescrolls/scribe/internal/scribe"
+	"github.com/usescrolls/scribe/cli"
+	"github.com/usescrolls/scribe/internal"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -124,6 +122,17 @@ func runGUIMode() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
+	})
+
+	// Handle agenthub:// URLs when app is already running (macOS)
+	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
+		url := event.Context().URL()
+		scribe.Logger.Info("received URL via Wails event", "url", url)
+		server.HandleURLScheme(url)
+		if err := server.GenerateMarketplace(); err != nil {
+			scribe.Logger.Warn("failed to generate marketplace", "error", err)
+		}
+		wailsApp.Event.Emit("plugins-updated")
 	})
 
 	// Create main window (hidden initially)

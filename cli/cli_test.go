@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/usescrolls/scribe/internal/scribe"
+	"github.com/usescrolls/scribe/internal"
 )
 
 // setupTestServer creates a test server with a temporary directory
