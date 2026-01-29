@@ -138,3 +138,14 @@ jobs:
             release/scribe-windows-amd64.exe
             release/scribe-Installer.dmg
           generate_release_notes: true
+
+  update-homebrew:
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Homebrew tap update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: usescrolls/homebrew-tap
+          event-type: update-cask
