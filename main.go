@@ -13,6 +13,7 @@ import (
 	"github.com/usescrolls/scribe/cmd/scribe/cli"
 	"github.com/usescrolls/scribe/internal/scribe"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed frontend/dist
@@ -140,6 +141,12 @@ func runGUIMode() {
 		},
 	})
 
+	// Hide instead of close when X is clicked, so we can reopen from tray
+	mainWindow.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		mainWindow.Hide()
+		e.Cancel()
+	})
+
 	// Create system tray
 	systray := wailsApp.SystemTray.New()
 	systray.SetIcon(scribe.GetIcon())
@@ -148,7 +155,6 @@ func runGUIMode() {
 	trayMenu := wailsApp.NewMenu()
 	trayMenu.Add("Open Scribe").OnClick(func(ctx *application.Context) {
 		mainWindow.Show()
-		mainWindow.Focus()
 	})
 	trayMenu.AddSeparator()
 
@@ -168,7 +174,7 @@ func runGUIMode() {
 			mainWindow.Hide()
 		} else {
 			mainWindow.Show()
-			mainWindow.Focus()
+			// Note: Focus() removed due to Wails v3 alpha crash on macOS 26
 		}
 	})
 

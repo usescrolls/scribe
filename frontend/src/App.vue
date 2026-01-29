@@ -36,6 +36,7 @@ onMounted(async () => {
 .header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   background-color: var(--bg-secondary);
