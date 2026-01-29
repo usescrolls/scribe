@@ -54,13 +54,13 @@ cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
 # Create/copy icon
 if [ -f "$SCRIPT_DIR/AppIcon.icns" ]; then
     cp "$SCRIPT_DIR/AppIcon.icns" "$APP_DIR/Contents/Resources/"
-elif [ -f "$REPO_DIR/cmd/scribe/icon.png" ]; then
+elif [ -f "$REPO_DIR/internal/icon.png" ]; then
     # Convert PNG to ICNS if iconutil is available
     echo "Converting icon.png to AppIcon.icns..."
     ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
     mkdir -p "$ICONSET_DIR"
 
-    PNG_SOURCE="$REPO_DIR/cmd/scribe/icon.png"
+    PNG_SOURCE="$REPO_DIR/internal/icon.png"
 
     # Create iconset with different sizes (using sips for resizing)
     sips -z 16 16     "$PNG_SOURCE" --out "$ICONSET_DIR/icon_16x16.png" 2>/dev/null || cp "$PNG_SOURCE" "$ICONSET_DIR/icon_16x16.png"
