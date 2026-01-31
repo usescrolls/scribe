@@ -264,7 +264,14 @@ func (a *AppService) GetPluginCount() int {
 
 // UninstallPlugin removes a plugin by name
 func (a *AppService) UninstallPlugin(name string) error {
-	return a.server.UninstallPlugin(name)
+	scribe.Logger.Info("AppService.UninstallPlugin called", "name", name)
+	err := a.server.UninstallPlugin(name)
+	if err != nil {
+		scribe.Logger.Error("AppService.UninstallPlugin failed", "name", name, "error", err)
+	} else {
+		scribe.Logger.Info("AppService.UninstallPlugin succeeded", "name", name)
+	}
+	return err
 }
 
 // UninstallAllPlugins removes all plugins

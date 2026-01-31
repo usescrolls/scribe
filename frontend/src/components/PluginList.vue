@@ -26,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { Dialogs } from '@wailsio/runtime'
 import { usePlugins } from '../composables/usePlugins'
 import PluginCard from './PluginCard.vue'
 import EmptyState from './EmptyState.vue'
@@ -33,8 +34,24 @@ import EmptyState from './EmptyState.vue'
 const { plugins, loading, error, fetchPlugins, uninstall } = usePlugins()
 
 async function handleUninstall(name: string) {
-  if (confirm(`Uninstall "${name}"?`)) {
-    await uninstall(name)
+  console.log('[PluginList] handleUninstall called with:', name)
+  try {
+    const result = await Dialogs.Question({
+      Title: 'Confirm Uninstall',
+      Message: `Are you sure you want to uninstall "${name}"?`,
+      Buttons: [
+        { Label: 'Uninstall', IsDefault: true },
+        { Label: 'Cancel', IsCancel: true }
+      ]
+    })
+    console.log('[PluginList] Dialog result:', result)
+    if (result === 'Uninstall') {
+      console.log('[PluginList] Calling uninstall...')
+      const success = await uninstall(name)
+      console.log('[PluginList] Uninstall result:', success)
+    }
+  } catch (err) {
+    console.error('[PluginList] Error in handleUninstall:', err)
   }
 }
 </script>

@@ -1,0 +1,78 @@
+---
+name: scribe-development
+description: Scribe app development guide for Wails v3 + Vue 3 desktop app. Use when building, debugging, or modifying the Scribe plugin manager.
+---
+
+# Scribe Development
+
+## Project Structure
+
+- Frontend: Vue 3 + TypeScript in `frontend/`
+- Backend: Go with Wails v3 bindings in `main.go` and `internal/`
+- Packaging: Platform-specific scripts in `packaging/`
+
+## Building
+
+Build CLI binary:
+```bash
+make build
+# Output: build/bin/scribe
+```
+
+Build macOS app bundle:
+```bash
+cp build/bin/scribe build/scribe && ./packaging/macos/create-app.sh
+# Output: build/Scribe.app
+```
+
+Note: `create-app.sh` expects binary at `build/scribe`, not `build/bin/scribe`.
+
+## Wails v3 Dialogs
+
+Browser APIs like `confirm()`, `alert()`, `prompt()` are silently blocked in Wails apps. Use Wails runtime dialogs:
+
+```typescript
+// WRONG - silently fails
+if (confirm('Are you sure?')) { ... }
+
+// CORRECT - use Wails Dialogs
+import { Dialogs } from '@wailsio/runtime'
+
+const result = await Dialogs.Question({
+  Title: 'Confirm',
+  Message: 'Are you sure?',
+  Buttons: [
+    { Label: 'Yes', IsDefault: true },
+    { Label: 'No', IsCancel: true }
+  ]
+})
+if (result === 'Yes') { ... }
+```
+
+## wails3 CLI
+
+If `wails3` not found:
+```bash
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+Do NOT use `wails3 generate build-assets` - it creates unnecessary files for all platforms. This project uses Makefile + packaging scripts instead.
+
+## Debugging
+
+Add console logs in frontend components:
+```typescript
+console.log('[ComponentName] action', data)
+```
+
+View in browser dev tools: Cmd+Option+I in the Wails app window.
+
+## Key Files
+
+| Purpose | Location |
+|---------|----------|
+| Frontend source | `frontend/src/` |
+| Wails bindings | `frontend/src/bindings/` |
+| Go backend | `main.go`, `internal/` |
+| macOS packaging | `packaging/macos/create-app.sh` |

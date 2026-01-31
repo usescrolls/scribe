@@ -22,11 +22,15 @@ export function usePlugins() {
   }
 
   async function uninstall(name: string): Promise<boolean> {
+    console.log('[usePlugins] uninstall called with:', name)
     try {
+      console.log('[usePlugins] Calling AppService.UninstallPlugin...')
       await AppService.UninstallPlugin(name)
+      console.log('[usePlugins] UninstallPlugin succeeded, refreshing plugins...')
       await fetchPlugins()
       return true
     } catch (e) {
+      console.error('[usePlugins] UninstallPlugin failed:', e)
       error.value = e instanceof Error ? e.message : 'Failed to uninstall plugin'
       return false
     }
