@@ -154,16 +154,6 @@ func TestParseURLScheme(t *testing.T) {
 			},
 		},
 		{
-			name:           "install with npm source",
-			url:            "agenthub://install?name=my-plugin&source=npm&package=@scope/package",
-			expectedAction: "install",
-			expectedParams: map[string]string{
-				"name":    "my-plugin",
-				"source":  "npm",
-				"package": "@scope/package",
-			},
-		},
-		{
 			name:           "uninstall action",
 			url:            "agenthub://uninstall?name=test-plugin",
 			expectedAction: "uninstall",
@@ -284,26 +274,6 @@ func TestResolveSource(t *testing.T) {
 			},
 		},
 		{
-			name:       "npm source",
-			pluginName: "npm-plugin",
-			source: PluginSource{
-				Source:  "npm",
-				Package: "@scope/package",
-			},
-			validate: func(t *testing.T, result interface{}) {
-				m, ok := result.(map[string]interface{})
-				if !ok {
-					t.Fatal("expected map result")
-				}
-				if m["source"] != "npm" {
-					t.Errorf("expected source=npm, got %v", m["source"])
-				}
-				if m["package"] != "@scope/package" {
-					t.Errorf("expected package=@scope/package, got %v", m["package"])
-				}
-			},
-		},
-		{
 			name:       "git url source",
 			pluginName: "git-plugin",
 			source: PluginSource{
@@ -328,14 +298,6 @@ func TestResolveSource(t *testing.T) {
 			pluginName: "bad-plugin",
 			source: PluginSource{
 				Source: "github",
-			},
-			expectError: true,
-		},
-		{
-			name:       "npm missing package",
-			pluginName: "bad-plugin",
-			source: PluginSource{
-				Source: "npm",
 			},
 			expectError: true,
 		},
@@ -404,12 +366,12 @@ func TestRegistryPersistence(t *testing.T) {
 		Name:    "plugin2",
 		Version: "2.0.0",
 		Source: PluginSource{
-			Source:  "npm",
-			Package: "@test/plugin2",
+			Source: "url",
+			URL:    "https://github.com/test/plugin2.git",
 		},
 		ResolvedSource: map[string]interface{}{
-			"source":  "npm",
-			"package": "@test/plugin2",
+			"source": "url",
+			"url":    "https://github.com/test/plugin2.git",
 		},
 		InstalledAt: now,
 	})
@@ -452,8 +414,8 @@ func TestRegistryPersistence(t *testing.T) {
 	if !ok {
 		t.Fatal("plugin2 not found in loaded registry")
 	}
-	if entry2.Source.Package != "@test/plugin2" {
-		t.Errorf("expected package '@test/plugin2', got %q", entry2.Source.Package)
+	if entry2.Source.URL != "https://github.com/test/plugin2.git" {
+		t.Errorf("expected url 'https://github.com/test/plugin2.git', got %q", entry2.Source.URL)
 	}
 }
 
@@ -1027,13 +989,6 @@ func TestMigrate(t *testing.T) {
 			},
 		},
 		{
-			Name: "npm-plugin",
-			Source: PluginSource{
-				Source:  "npm",
-				Package: "@scope/package",
-			},
-		},
-		{
 			Name: "git-plugin",
 			Source: PluginSource{
 				Source: "git",
@@ -1066,8 +1021,8 @@ func TestMigrate(t *testing.T) {
 	}
 
 	// Verify plugins were migrated
-	if server.PluginCount() != 3 {
-		t.Errorf("expected 3 plugins, got %d", server.PluginCount())
+	if server.PluginCount() != 2 {
+		t.Errorf("expected 2 plugins, got %d", server.PluginCount())
 	}
 
 	// Verify GitHub plugin

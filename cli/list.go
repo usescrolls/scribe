@@ -134,8 +134,6 @@ func formatSourceEntry(source scribe.PluginSource) string {
 	switch source.Source {
 	case "github":
 		return fmt.Sprintf("github:%s", source.Repo)
-	case "npm":
-		return fmt.Sprintf("npm:%s", source.Package)
 	case "url", "git":
 		return fmt.Sprintf("url:%s", source.URL)
 	case "zip":

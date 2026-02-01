@@ -106,14 +106,6 @@ func TestFormatSource(t *testing.T) {
 			expected: "github:user/repo@v1.0.0",
 		},
 		{
-			name: "npm source",
-			source: scribe.PluginSource{
-				Source:  "npm",
-				Package: "@scope/package",
-			},
-			expected: "npm:@scope/package",
-		},
-		{
 			name: "url source",
 			source: scribe.PluginSource{
 				Source: "url",
@@ -162,14 +154,6 @@ func TestFormatSourceEntry(t *testing.T) {
 				Repo:   "owner/repo",
 			},
 			expected: "github:owner/repo",
-		},
-		{
-			name: "npm source",
-			source: scribe.PluginSource{
-				Source:  "npm",
-				Package: "@test/pkg",
-			},
-			expected: "npm:@test/pkg",
 		},
 		{
 			name: "git source",
@@ -226,18 +210,13 @@ func TestInstallValidation(t *testing.T) {
 		},
 		{
 			name:        "multiple source flags",
-			args:        []string{"test-plugin", "--github", "user/repo", "--npm", "pkg"},
+			args:        []string{"test-plugin", "--github", "user/repo", "--url", "https://example.com/repo.git"},
 			expectError: true,
 			errorMsg:    "only one source flag can be specified",
 		},
 		{
 			name:        "valid github source",
 			args:        []string{"test-plugin", "--github", "user/repo"},
-			expectError: false,
-		},
-		{
-			name:        "valid npm source",
-			args:        []string{"npm-plugin", "--npm", "@scope/package"},
 			expectError: false,
 		},
 		{
@@ -251,7 +230,6 @@ func TestInstallValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset flags for each test
 			githubRepo = ""
-			npmPackage = ""
 			gitURL = ""
 			zipURL = ""
 			ref = ""
@@ -261,7 +239,6 @@ func TestInstallValidation(t *testing.T) {
 			cmd := installCmd
 			cmd.ResetFlags()
 			cmd.Flags().StringVar(&githubRepo, "github", "", "")
-			cmd.Flags().StringVar(&npmPackage, "npm", "", "")
 			cmd.Flags().StringVar(&gitURL, "url", "", "")
 			cmd.Flags().StringVar(&zipURL, "zip", "", "")
 			cmd.Flags().StringVar(&ref, "ref", "", "")
@@ -311,8 +288,8 @@ func TestListOutput(t *testing.T) {
 	server.SetRegistryEntry("plugin-b", scribe.RegistryEntry{
 		Name: "plugin-b",
 		Source: scribe.PluginSource{
-			Source:  "npm",
-			Package: "@scope/plugin-b",
+			Source: "url",
+			URL:    "https://github.com/scope/plugin-b.git",
 		},
 		InstalledAt: now,
 	})
@@ -544,8 +521,8 @@ func TestUninstallCommand(t *testing.T) {
 		server.SetRegistryEntry("plugin2", scribe.RegistryEntry{
 			Name: "plugin2",
 			ResolvedSource: map[string]interface{}{
-				"source": "npm",
-				"package": "@scope/plugin2",
+				"source": "url",
+				"url":    "https://github.com/scope/plugin2.git",
 			},
 		})
 		server.SaveRegistry()
@@ -679,7 +656,6 @@ func TestInstallWithRef(t *testing.T) {
 	defer cleanup()
 
 	githubRepo = "user/repo"
-	npmPackage = ""
 	gitURL = ""
 	zipURL = ""
 	ref = "v2.0.0"
@@ -706,7 +682,6 @@ func TestInstallNoEnable(t *testing.T) {
 	defer cleanup()
 
 	githubRepo = "user/repo"
-	npmPackage = ""
 	gitURL = ""
 	zipURL = ""
 	ref = ""

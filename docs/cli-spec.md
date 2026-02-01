@@ -17,14 +17,13 @@ scribe <command> [flags] [arguments]
 Install a plugin from a source.
 
 ```bash
-scribe install [name] --github|--npm|--url|--zip <source> [flags]
+scribe install [name] --github|--url|--zip <source> [flags]
 ```
 
 **Flags:**
 | Flag | Description |
 |------|-------------|
 | `--github` | GitHub repository (owner/repo) |
-| `--npm` | NPM package name |
 | `--url` | Git URL |
 | `--zip` | Zip file URL |
 | `--ref` | Branch or tag reference |
@@ -33,7 +32,6 @@ scribe install [name] --github|--npm|--url|--zip <source> [flags]
 **Examples:**
 ```bash
 scribe install prettier --github usescrolls/prettier-skill
-scribe install eslint --npm @anthropic/claude-eslint
 scribe install custom --url https://github.com/user/plugin.git
 scribe install tool --zip https://example.com/plugin.zip
 scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0
@@ -88,7 +86,7 @@ scribe list --names-only
 ```
 NAME         SOURCE                              VERSION   INSTALLED
 prettier     github:usescrolls/prettier-skill    1.2.0     2024-01-15
-eslint       npm:@anthropic/claude-eslint        2.0.1     2024-01-10
+eslint       url:https://github.com/user/eslint  2.0.1     2024-01-10
 
 2 plugin(s) installed
 ```

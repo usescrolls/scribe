@@ -7,7 +7,6 @@ This guide covers Scribe's source types, data storage, and settings.
 | Source | Example | Scribe Handling |
 |--------|---------|-----------------|
 | GitHub | `{"source": "github", "repo": "owner/repo"}` | Pass-through (Claude Code handles) |
-| npm | `{"source": "npm", "package": "package-name"}` | Pass-through (Claude Code handles) |
 | Git URL | `{"source": "url", "url": "https://github.com/..."}` | Pass-through (Claude Code handles) |
 | Zip | `{"source": "zip", "url": "https://example.com/plugin.zip"}` | Downloaded & extracted locally |
 
@@ -16,7 +15,7 @@ For `zip` sources (recommended for website distribution), Scribe:
 2. Extracts it to `~/.scribe/plugins/<name>/`
 3. Writes a relative path entry (`"./plugins/<name>"`) to `marketplace.json`
 
-For `github`, `npm`, and `url` sources, Scribe passes them through to `marketplace.json` as-is, and Claude Code handles the actual download/installation.
+For `github` and `url` sources, Scribe passes them through to `marketplace.json` as-is, and Claude Code handles the actual download/installation.
 
 ---
 
@@ -90,7 +89,7 @@ Scribe maintains two separate data files that serve different purposes:
 }
 ```
 
-For pass-through sources (GitHub, npm, git URL), both files contain similar source definitions since no local resolution is needed.
+For pass-through sources (GitHub, git URL), both files contain similar source definitions since no local resolution is needed.
 
 ---
 

@@ -12,7 +12,6 @@ import (
 var (
 	// Install flags
 	githubRepo string
-	npmPackage string
 	gitURL     string
 	zipURL     string
 	ref        string
@@ -23,11 +22,10 @@ var (
 		Short: "Install a plugin from a source",
 		Long: `Install a plugin from a source.
 
-Exactly one source flag must be specified: --github, --npm, --url, or --zip.
+Exactly one source flag must be specified: --github, --url, or --zip.
 
 Examples:
   scribe install prettier --github usescrolls/prettier-skill
-  scribe install eslint --npm @anthropic/claude-eslint
   scribe install custom --url https://github.com/user/plugin.git
   scribe install tool --zip https://example.com/plugin.zip
   scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0`,
@@ -38,7 +36,6 @@ Examples:
 
 func init() {
 	installCmd.Flags().StringVar(&githubRepo, "github", "", "GitHub repository (owner/repo)")
-	installCmd.Flags().StringVar(&npmPackage, "npm", "", "NPM package name")
 	installCmd.Flags().StringVar(&gitURL, "url", "", "Git URL")
 	installCmd.Flags().StringVar(&zipURL, "zip", "", "Zip file URL")
 	installCmd.Flags().StringVar(&ref, "ref", "", "Branch or tag reference")
@@ -55,10 +52,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		sourceCount++
 		sourceType = "github"
 	}
-	if npmPackage != "" {
-		sourceCount++
-		sourceType = "npm"
-	}
 	if gitURL != "" {
 		sourceCount++
 		sourceType = "url"
@@ -69,7 +62,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	if sourceCount == 0 {
-		return fmt.Errorf("exactly one source flag is required: --github, --npm, --url, or --zip")
+		return fmt.Errorf("exactly one source flag is required: --github, --url, or --zip")
 	}
 	if sourceCount > 1 {
 		return fmt.Errorf("only one source flag can be specified at a time")
@@ -84,8 +77,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	switch sourceType {
 	case "github":
 		pluginSource.Repo = githubRepo
-	case "npm":
-		pluginSource.Package = npmPackage
 	case "url":
 		pluginSource.URL = gitURL
 	case "zip":
@@ -154,8 +145,6 @@ func formatSource(source scribe.PluginSource) string {
 			return fmt.Sprintf("github:%s@%s", source.Repo, source.Ref)
 		}
 		return fmt.Sprintf("github:%s", source.Repo)
-	case "npm":
-		return fmt.Sprintf("npm:%s", source.Package)
 	case "url":
 		return fmt.Sprintf("url:%s", source.URL)
 	case "zip":

@@ -63,11 +63,6 @@ func (s *Server) Migrate() error {
 			if p.Source.Ref != "" {
 				resolvedSource.(map[string]interface{})["ref"] = p.Source.Ref
 			}
-		case "npm":
-			resolvedSource = map[string]interface{}{
-				"source":  "npm",
-				"package": p.Source.Package,
-			}
 		case "git", "url":
 			resolvedSource = map[string]interface{}{
 				"source": "url",

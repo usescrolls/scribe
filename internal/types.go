@@ -7,9 +7,9 @@ import (
 
 // PluginSource represents the source of a plugin
 type PluginSource struct {
-	Source  string `json:"source"`            // github, npm, git, url, zip
+	Source  string `json:"source"`            // github, git, url, zip
 	Repo    string `json:"repo,omitempty"`    // for github
-	Package string `json:"package,omitempty"` // for npm
+	Package string `json:"package,omitempty"` // deprecated: was for npm
 	URL     string `json:"url,omitempty"`     // for git/url/zip
 	Ref     string `json:"ref,omitempty"`     // branch/tag
 }

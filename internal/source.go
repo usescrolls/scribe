@@ -11,7 +11,7 @@ import (
 )
 
 // ResolveSource resolves the plugin source based on type
-// For github/npm/git/url sources, it passes through the source definition
+// For github/git/url sources, it passes through the source definition
 // For zip sources, it downloads and extracts the plugin files locally
 func (s *Server) ResolveSource(name string, source PluginSource) (interface{}, error) {
 	switch source.Source {
@@ -26,17 +26,6 @@ func (s *Server) ResolveSource(name string, source PluginSource) (interface{}, e
 		}
 		if source.Ref != "" {
 			resolved["ref"] = source.Ref
-		}
-		return resolved, nil
-
-	case "npm":
-		// Pass through - Claude Code handles npm sources directly
-		if source.Package == "" {
-			return nil, fmt.Errorf("npm source requires package")
-		}
-		resolved := map[string]interface{}{
-			"source":  "npm",
-			"package": source.Package,
 		}
 		return resolved, nil
 
@@ -65,7 +54,7 @@ func (s *Server) ResolveSource(name string, source PluginSource) (interface{}, e
 		return "./plugins/" + name, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported source type: %s (supported: github, npm, git, url, zip)", source.Source)
+		return nil, fmt.Errorf("unsupported source type: %s (supported: github, git, url, zip)", source.Source)
 	}
 }
 
