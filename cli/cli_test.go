@@ -2,14 +2,12 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/usescrolls/scribe/internal"
+	scribe "github.com/usescrolls/scribe/internal"
 )
 
 // setupTestServer creates a test server with a temporary directory
@@ -41,7 +39,7 @@ func setupTestServer(t *testing.T) (string, func()) {
 func TestCLICommands(t *testing.T) {
 	commands := CLICommands()
 
-	expected := []string{"install", "uninstall", "remove", "rm", "list", "ls", "info", "version", "help", "workspace"}
+	expected := []string{"install", "uninstall", "remove", "rm", "list", "ls", "info", "version", "help", "workspace", "check", "update"}
 
 	for _, exp := range expected {
 		found := false
@@ -223,185 +221,82 @@ func TestParseSource(t *testing.T) {
 	}
 }
 
-// TestFormatSourceEntry tests the formatSourceEntry function (legacy)
-func TestFormatSourceEntry(t *testing.T) {
+// TestFormatSkillSource tests the formatSkillSource function
+func TestFormatSkillSource(t *testing.T) {
 	tests := []struct {
 		name     string
-		source   scribe.PluginSource
+		info     scribe.SkillInfo
 		expected string
 	}{
 		{
 			name: "github source",
-			source: scribe.PluginSource{
-				Source: "github",
-				Repo:   "owner/repo",
+			info: scribe.SkillInfo{
+				Source:     "owner/repo",
+				SourceType: "github",
 			},
 			expected: "github:owner/repo",
 		},
 		{
-			name: "git source",
-			source: scribe.PluginSource{
-				Source: "git",
-				URL:    "https://git.example.com/repo",
+			name: "gitlab source",
+			info: scribe.SkillInfo{
+				Source:     "owner/repo",
+				SourceType: "gitlab",
 			},
-			expected: "url:https://git.example.com/repo",
+			expected: "gitlab:owner/repo",
 		},
 		{
-			name: "url source",
-			source: scribe.PluginSource{
-				Source: "url",
-				URL:    "https://example.com/repo",
+			name: "local source",
+			info: scribe.SkillInfo{
+				Source:     "/path/to/skill",
+				SourceType: "local",
 			},
-			expected: "url:https://example.com/repo",
+			expected: "local:/path/to/skill",
 		},
 		{
 			name: "zip source",
-			source: scribe.PluginSource{
-				Source: "zip",
-				URL:    "https://example.com/plugin.zip",
+			info: scribe.SkillInfo{
+				Source:     "https://example.com/plugin.zip",
+				SourceType: "zip",
 			},
-			expected: "zip:https://example.com/plugin.zip",
+			expected: "https://example.com/plugin.zip",
+		},
+		{
+			name: "empty source",
+			info: scribe.SkillInfo{
+				Source:     "",
+				SourceType: "",
+			},
+			expected: "-",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSourceEntry(tt.source)
+			result := formatSkillSource(tt.info)
 			if result != tt.expected {
-				t.Errorf("formatSourceEntry() = %q, expected %q", result, tt.expected)
+				t.Errorf("formatSkillSource() = %q, expected %q", result, tt.expected)
 			}
 		})
 	}
 }
 
-// TestListOutput tests the list command output formats (legacy plugin list)
-func TestListOutput(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
+// TestListEmptyOutput tests the list command with no skills installed
+func TestListEmptyOutput(t *testing.T) {
+	// Create a temp directory for testing
+	tmpDir, err := os.MkdirTemp("", "scribe-cli-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	// Add test plugins
-	now := time.Now()
-	server.SetRegistryEntry("plugin-a", scribe.RegistryEntry{
-		Name:    "plugin-a",
-		Version: "1.0.0",
-		Source: scribe.PluginSource{
-			Source: "github",
-			Repo:   "user/plugin-a",
-		},
-		InstalledAt: now,
-	})
-	server.SetRegistryEntry("plugin-b", scribe.RegistryEntry{
-		Name: "plugin-b",
-		Source: scribe.PluginSource{
-			Source: "url",
-			URL:    "https://github.com/scope/plugin-b.git",
-		},
-		InstalledAt: now,
-	})
+	// Override home directory for test
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", oldHome)
 
-	t.Run("table output", func(t *testing.T) {
-		// Capture stdout
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		jsonOutput = false
-		namesOnly = false
-		quiet = false
-		runList(listCmd, []string{})
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		output := buf.String()
-
-		// Verify table headers
-		if !strings.Contains(output, "NAME") {
-			t.Error("expected NAME header in table output")
-		}
-		if !strings.Contains(output, "SOURCE") {
-			t.Error("expected SOURCE header in table output")
-		}
-		if !strings.Contains(output, "plugin-a") {
-			t.Error("expected plugin-a in table output")
-		}
-		if !strings.Contains(output, "plugin-b") {
-			t.Error("expected plugin-b in table output")
-		}
-		if !strings.Contains(output, "2 plugin(s) installed") {
-			t.Error("expected plugin count in table output")
-		}
-	})
-
-	t.Run("json output", func(t *testing.T) {
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		jsonOutput = true
-		namesOnly = false
-		runList(listCmd, []string{})
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		output := buf.String()
-
-		// Verify valid JSON
-		var result struct {
-			Plugins []struct {
-				Name   string `json:"name"`
-				Source struct {
-					Source string `json:"source"`
-				} `json:"source"`
-			} `json:"plugins"`
-			Count int `json:"count"`
-		}
-		if err := json.Unmarshal([]byte(output), &result); err != nil {
-			t.Errorf("invalid JSON output: %v", err)
-		}
-		if result.Count != 2 {
-			t.Errorf("expected count=2, got %d", result.Count)
-		}
-	})
-
-	t.Run("names only output", func(t *testing.T) {
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		jsonOutput = false
-		namesOnly = true
-		runList(listCmd, []string{})
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		output := buf.String()
-
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		if len(lines) != 2 {
-			t.Errorf("expected 2 lines, got %d: %v", len(lines), lines)
-		}
-		// Should be sorted alphabetically
-		if lines[0] != "plugin-a" {
-			t.Errorf("expected first line to be 'plugin-a', got %q", lines[0])
-		}
-		if lines[1] != "plugin-b" {
-			t.Errorf("expected second line to be 'plugin-b', got %q", lines[1])
-		}
-	})
+	scribe.InitLoggerCLI(false)
 
 	t.Run("empty list", func(t *testing.T) {
-		// Clear registry
-		server.UninstallAllPlugins()
-
 		old := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
@@ -418,64 +313,15 @@ func TestListOutput(t *testing.T) {
 		buf.ReadFrom(r)
 		output := buf.String()
 
-		if !strings.Contains(output, "No plugins installed") {
-			t.Error("expected 'No plugins installed' message")
+		if !strings.Contains(output, "No skills installed") {
+			t.Errorf("expected 'No skills installed' message, got: %s", output)
 		}
 	})
 }
 
-// TestInfoCommand tests the info command
-func TestInfoCommand(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	// Add a test plugin
-	now := time.Now()
-	server.SetRegistryEntry("test-plugin", scribe.RegistryEntry{
-		Name:        "test-plugin",
-		Description: "A test plugin",
-		Version:     "1.2.3",
-		Category:    "testing",
-		Author:      &scribe.Author{Name: "Test Author"},
-		Tags:        []string{"test", "example"},
-		Source: scribe.PluginSource{
-			Source: "github",
-			Repo:   "user/test-plugin",
-		},
-		InstalledAt: now,
-	})
-
-	t.Run("existing plugin", func(t *testing.T) {
-		old := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		runInfo(infoCmd, []string{"test-plugin"})
-
-		w.Close()
-		os.Stdout = old
-
-		var buf bytes.Buffer
-		buf.ReadFrom(r)
-		output := buf.String()
-
-		expectedFields := []string{
-			"Name:        test-plugin",
-			"Source:      github:user/test-plugin",
-			"Version:     1.2.3",
-			"Category:    testing",
-			"Description: A test plugin",
-			"Author:      Test Author",
-			"Tags:        test, example",
-		}
-
-		for _, field := range expectedFields {
-			if !strings.Contains(output, field) {
-				t.Errorf("expected output to contain %q", field)
-			}
-		}
-	})
-}
+// Note: TestInfoCommand removed - info command now uses skills system
+// which requires actual skill files to be installed. See internal/skills_system_test.go
+// for comprehensive skills system tests.
 
 // TestVersionCommand tests the version command
 func TestVersionCommand(t *testing.T) {
@@ -502,10 +348,21 @@ func TestVersionCommand(t *testing.T) {
 
 // TestQuietMode tests that quiet mode suppresses output
 func TestQuietMode(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
+	// Create a temp directory for testing
+	tmpDir, err := os.MkdirTemp("", "scribe-cli-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
 
-	t.Run("quiet list with no plugins", func(t *testing.T) {
+	// Override home directory for test
+	oldHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", oldHome)
+
+	scribe.InitLoggerCLI(false)
+
+	t.Run("quiet list with no skills", func(t *testing.T) {
 		old := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
@@ -522,9 +379,9 @@ func TestQuietMode(t *testing.T) {
 		buf.ReadFrom(r)
 		output := buf.String()
 
-		// In quiet mode, "No plugins installed" should not be printed
-		if strings.Contains(output, "No plugins installed") {
-			t.Error("quiet mode should suppress 'No plugins installed' message")
+		// In quiet mode, "No skills installed" should not be printed
+		if strings.Contains(output, "No skills installed") {
+			t.Error("quiet mode should suppress 'No skills installed' message")
 		}
 	})
 }
@@ -559,78 +416,9 @@ func TestInitServer(t *testing.T) {
 	}
 }
 
-// TestListJSONFormat tests the JSON output structure
-func TestListJSONFormat(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	// Add a plugin with all fields
-	now := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-	server.SetRegistryEntry("full-plugin", scribe.RegistryEntry{
-		Name:    "full-plugin",
-		Version: "3.0.0",
-		Source: scribe.PluginSource{
-			Source: "github",
-			Repo:   "owner/full-plugin",
-			Ref:    "main",
-		},
-		InstalledAt: now,
-	})
-
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	jsonOutput = true
-	namesOnly = false
-	runList(listCmd, []string{})
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	buf.ReadFrom(r)
-	output := buf.String()
-
-	var result struct {
-		Plugins []struct {
-			Name   string `json:"name"`
-			Source struct {
-				Source string `json:"source"`
-				Repo   string `json:"repo"`
-				Ref    string `json:"ref,omitempty"`
-			} `json:"source"`
-			Version     string `json:"version,omitempty"`
-			InstalledAt string `json:"installedAt"`
-		} `json:"plugins"`
-		Count int `json:"count"`
-	}
-
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
-
-	if result.Count != 1 {
-		t.Errorf("expected count=1, got %d", result.Count)
-	}
-	if len(result.Plugins) != 1 {
-		t.Fatalf("expected 1 plugin, got %d", len(result.Plugins))
-	}
-
-	plugin := result.Plugins[0]
-	if plugin.Name != "full-plugin" {
-		t.Errorf("expected name='full-plugin', got %q", plugin.Name)
-	}
-	if plugin.Version != "3.0.0" {
-		t.Errorf("expected version='3.0.0', got %q", plugin.Version)
-	}
-	if plugin.Source.Source != "github" {
-		t.Errorf("expected source.source='github', got %q", plugin.Source.Source)
-	}
-	if plugin.Source.Repo != "owner/full-plugin" {
-		t.Errorf("expected source.repo='owner/full-plugin', got %q", plugin.Source.Repo)
-	}
-}
+// Note: TestListJSONFormat removed - list command now uses skills system
+// which returns SkillInfo instead of RegistryEntry. See internal/skills_system_test.go
+// for comprehensive skills system tests.
 
 // TestFilterSkills tests the filterSkills function
 func TestFilterSkills(t *testing.T) {

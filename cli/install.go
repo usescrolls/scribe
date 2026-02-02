@@ -1,14 +1,17 @@
 package cli
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/usescrolls/scribe/internal"
+	scribe "github.com/usescrolls/scribe/internal"
 )
 
 var (
@@ -360,10 +363,141 @@ func cloneRepository(source *scribe.SourceInfo) (string, error) {
 	return tempDir, nil
 }
 
-// downloadAndExtractZip downloads and extracts a zip file
-func downloadAndExtractZip(url string) (string, error) {
-	// TODO: Implement zip download and extraction
-	return "", fmt.Errorf("zip sources not yet implemented")
+// downloadAndExtractZip downloads and extracts a zip file to a temp directory
+func downloadAndExtractZip(zipURL string) (string, error) {
+	// Create temp directory for extraction
+	tempDir, err := os.MkdirTemp("", "scribe-zip-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	// Download the zip file
+	resp, err := http.Get(zipURL)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return "", fmt.Errorf("failed to download zip: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		os.RemoveAll(tempDir)
+		return "", fmt.Errorf("failed to download zip: status %d", resp.StatusCode)
+	}
+
+	// Create a temporary file for the zip
+	tmpFile, err := os.CreateTemp("", "scribe-download-*.zip")
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	// Copy the response body to the temp file
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		tmpFile.Close()
+		os.RemoveAll(tempDir)
+		return "", fmt.Errorf("failed to save zip: %w", err)
+	}
+	tmpFile.Close()
+
+	// Open the zip file
+	zipReader, err := zip.OpenReader(tmpPath)
+	if err != nil {
+		os.RemoveAll(tempDir)
+		return "", fmt.Errorf("failed to open zip: %w", err)
+	}
+	defer zipReader.Close()
+
+	// Check if all files share a common root directory
+	commonRoot := findCommonRoot(zipReader.File)
+
+	// Extract files
+	for _, file := range zipReader.File {
+		filePath := file.Name
+
+		// Strip common root directory if present
+		if commonRoot != "" {
+			filePath = strings.TrimPrefix(filePath, commonRoot)
+			if filePath == "" {
+				continue
+			}
+		}
+
+		destPath := filepath.Join(tempDir, filePath)
+
+		// Check for zip slip vulnerability
+		if !strings.HasPrefix(filepath.Clean(destPath), filepath.Clean(tempDir)+string(os.PathSeparator)) {
+			os.RemoveAll(tempDir)
+			return "", fmt.Errorf("invalid file path in zip: %s", file.Name)
+		}
+
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(destPath, file.Mode())
+			continue
+		}
+
+		// Create parent directories
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			os.RemoveAll(tempDir)
+			return "", fmt.Errorf("failed to create directory: %w", err)
+		}
+
+		// Extract file
+		if err := extractZipFile(file, destPath); err != nil {
+			os.RemoveAll(tempDir)
+			return "", err
+		}
+	}
+
+	return tempDir, nil
+}
+
+// findCommonRoot checks if all files in a zip share a common root directory
+func findCommonRoot(files []*zip.File) string {
+	if len(files) == 0 {
+		return ""
+	}
+
+	// Find the first directory component of the first file
+	var commonRoot string
+	for _, file := range files {
+		parts := strings.SplitN(file.Name, "/", 2)
+		if len(parts) > 1 {
+			if commonRoot == "" {
+				commonRoot = parts[0] + "/"
+			} else if parts[0]+"/" != commonRoot {
+				// Files don't share a common root
+				return ""
+			}
+		} else if !file.FileInfo().IsDir() {
+			// File at root level without directory
+			return ""
+		}
+	}
+
+	return commonRoot
+}
+
+// extractZipFile extracts a single file from a zip archive
+func extractZipFile(file *zip.File, destPath string) error {
+	srcFile, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open file in zip: %w", err)
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to extract file: %w", err)
+	}
+
+	return nil
 }
 
 // filterSkills filters skills by name

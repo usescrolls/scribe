@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/usescrolls/scribe/internal"
+	scribe "github.com/usescrolls/scribe/internal"
 )
 
 var (
@@ -18,8 +19,8 @@ var (
 	listCmd = &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "List installed plugins",
-		Long: `List installed plugins.
+		Short:   "List installed skills",
+		Long: `List installed skills.
 
 Examples:
   scribe list
@@ -31,49 +32,58 @@ Examples:
 )
 
 func init() {
-	listCmd.Flags().BoolVar(&namesOnly, "names-only", false, "Print only plugin names, one per line")
+	listCmd.Flags().BoolVar(&namesOnly, "names-only", false, "Print only skill names, one per line")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	// Initialize server
-	if err := initServer(); err != nil {
-		scribe.Logger.Error("failed to initialize", "error", err)
+	skills, err := scribe.GetAllSkillInfo()
+	if err != nil {
+		scribe.Logger.Error("failed to get skills", "error", err)
 		os.Exit(ExitRegistryError)
 	}
 
-	plugins := server.GetAllPlugins()
-
 	// Sort by name for consistent output
-	sort.Slice(plugins, func(i, j int) bool {
-		return plugins[i].Name < plugins[j].Name
+	sort.Slice(skills, func(i, j int) bool {
+		return skills[i].Name < skills[j].Name
 	})
 
 	if jsonOutput {
-		return listJSON(plugins)
+		return listSkillsJSON(skills)
 	}
 
 	if namesOnly {
-		return listNamesOnly(plugins)
+		return listSkillsNamesOnly(skills)
 	}
 
-	return listTable(plugins)
+	return listSkillsTable(skills)
 }
 
-func listJSON(plugins []scribe.RegistryEntry) error {
+type skillJSON struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Source      string   `json:"source"`
+	SourceType  string   `json:"sourceType"`
+	InstalledAt string   `json:"installedAt"`
+	Agents      []string `json:"agents"`
+}
+
+func listSkillsJSON(skills []scribe.SkillInfo) error {
 	output := struct {
-		Plugins []pluginJSON `json:"plugins"`
-		Count   int          `json:"count"`
+		Skills []skillJSON `json:"skills"`
+		Count  int         `json:"count"`
 	}{
-		Plugins: make([]pluginJSON, 0, len(plugins)),
-		Count:   len(plugins),
+		Skills: make([]skillJSON, 0, len(skills)),
+		Count:  len(skills),
 	}
 
-	for _, p := range plugins {
-		output.Plugins = append(output.Plugins, pluginJSON{
-			Name:        p.Name,
-			Source:      p.Source,
-			Version:     p.Version,
-			InstalledAt: p.InstalledAt.Format("2006-01-02T15:04:05Z"),
+	for _, s := range skills {
+		output.Skills = append(output.Skills, skillJSON{
+			Name:        s.Name,
+			Description: s.Description,
+			Source:      s.Source,
+			SourceType:  s.SourceType,
+			InstalledAt: s.InstalledAt,
+			Agents:      s.Agents,
 		})
 	}
 
@@ -85,60 +95,82 @@ func listJSON(plugins []scribe.RegistryEntry) error {
 	return nil
 }
 
-type pluginJSON struct {
-	Name        string             `json:"name"`
-	Source      scribe.PluginSource `json:"source"`
-	Version     string             `json:"version,omitempty"`
-	InstalledAt string             `json:"installedAt"`
-}
-
-func listNamesOnly(plugins []scribe.RegistryEntry) error {
-	for _, p := range plugins {
-		fmt.Println(p.Name)
+func listSkillsNamesOnly(skills []scribe.SkillInfo) error {
+	for _, s := range skills {
+		fmt.Println(s.Name)
 	}
 	return nil
 }
 
-func listTable(plugins []scribe.RegistryEntry) error {
-	if len(plugins) == 0 {
+func listSkillsTable(skills []scribe.SkillInfo) error {
+	if len(skills) == 0 {
 		if !quiet {
-			fmt.Println("No plugins installed")
+			fmt.Println("No skills installed")
 		}
 		return nil
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "NAME\tSOURCE\tVERSION\tINSTALLED")
+	fmt.Fprintln(w, "NAME\tDESCRIPTION\tSOURCE\tINSTALLED\tAGENTS")
 
-	for _, p := range plugins {
-		sourceStr := formatSourceEntry(p.Source)
-		version := p.Version
-		if version == "" {
-			version = "-"
+	for _, s := range skills {
+		desc := truncateString(s.Description, 40)
+		source := formatSkillSource(s)
+		installed := formatInstalledAt(s.InstalledAt)
+		agents := strings.Join(s.Agents, ", ")
+		if agents == "" {
+			agents = "-"
 		}
-		installed := p.InstalledAt.Format("2006-01-02")
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", p.Name, sourceStr, version, installed)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, desc, source, installed, agents)
 	}
 
 	w.Flush()
 
 	if !quiet {
-		fmt.Printf("\n%d plugin(s) installed\n", len(plugins))
+		fmt.Printf("\n%d skill(s) installed\n", len(skills))
 	}
 
 	return nil
 }
 
-// formatSourceEntry returns a human-readable source string for table display
-func formatSourceEntry(source scribe.PluginSource) string {
-	switch source.Source {
-	case "github":
-		return fmt.Sprintf("github:%s", source.Repo)
-	case "url", "git":
-		return fmt.Sprintf("url:%s", source.URL)
-	case "zip":
-		return fmt.Sprintf("zip:%s", source.URL)
-	default:
-		return source.Source
+// formatSkillSource returns a human-readable source string for table display
+func formatSkillSource(info scribe.SkillInfo) string {
+	if info.Source == "" {
+		return "-"
 	}
+	switch info.SourceType {
+	case "github":
+		return fmt.Sprintf("github:%s", info.Source)
+	case "gitlab":
+		return fmt.Sprintf("gitlab:%s", info.Source)
+	case "local":
+		return fmt.Sprintf("local:%s", info.Source)
+	case "url", "zip":
+		return info.Source
+	default:
+		return info.Source
+	}
+}
+
+// truncateString truncates a string to maxLen and adds "..." if needed
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}
+
+// formatInstalledAt formats the installed timestamp for display
+func formatInstalledAt(timestamp string) string {
+	if timestamp == "" {
+		return "-"
+	}
+	// Try to extract just the date part (YYYY-MM-DD)
+	if len(timestamp) >= 10 {
+		return timestamp[:10]
+	}
+	return timestamp
 }

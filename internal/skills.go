@@ -336,6 +336,11 @@ func GetAllSkillInfo() ([]SkillInfo, error) {
 	return infos, nil
 }
 
+// GetAgentsWithSkill returns a list of agent IDs that have the given skill installed
+func GetAgentsWithSkill(skillName string) []string {
+	return getAgentsWithSkill(skillName)
+}
+
 // getAgentsWithSkill returns a list of agent IDs that have the given skill installed
 func getAgentsWithSkill(skillName string) []string {
 	var agents []string

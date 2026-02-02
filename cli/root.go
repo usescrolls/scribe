@@ -52,6 +52,8 @@ func init() {
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(workspaceCmd)
+	rootCmd.AddCommand(checkCmd)
+	rootCmd.AddCommand(updateCmd)
 }
 
 // Execute runs the CLI
@@ -87,5 +89,7 @@ func CLICommands() []string {
 		"version",
 		"help",
 		"workspace",
+		"check",
+		"update",
 	}
 }

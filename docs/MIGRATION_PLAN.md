@@ -47,23 +47,29 @@
 
 **Test Coverage:** 63 tests across 6 test files covering composables and components.
 
+### Completed (CLI Migration) ✅
+
+| Task | File | Status |
+|------|------|--------|
+| Zip URL download & extraction | `cli/install.go` | ✅ Done |
+| `scribe check` - Check for updates | `cli/check.go` | ✅ Done |
+| `scribe update` - Update skills | `cli/update.go` | ✅ Done |
+| Update `scribe list` for skills | `cli/list.go` | ✅ Done |
+| Update `scribe info` for skills | `cli/info.go` | ✅ Done |
+| Export `GetAgentsWithSkill` | `internal/skills.go` | ✅ Done |
+| Update CLI tests for skills | `cli/cli_test.go` | ✅ Done |
+
 ### Pending Work 🚧
 
 | Task | Priority | Notes |
 |------|----------|-------|
 | **Source Types** | | |
-| Zip URL download & extraction | Medium | `downloadAndExtractZip()` stub exists |
 | Well-known endpoint (/.well-known/skills/) | Low | Not yet implemented |
 | Direct URL (single SKILL.md) | Low | Not yet implemented |
-| **CLI Commands** | | |
-| `scribe check` - Check for updates | Medium | Compare content hashes |
-| `scribe update` - Update skills | Medium | Re-fetch and reinstall |
-| Update `scribe list` for skills | Medium | Currently shows legacy plugins |
-| Update `scribe info` for skills | Medium | Currently shows legacy plugins |
 | **Cleanup** | | |
-| Remove internal/marketplace.go | Low | After full testing |
-| Remove internal/claude.go | Low | After full testing |
-| Remove internal/plugins.go | Low | After full testing |
+| Remove internal/marketplace.go | Low | After full GUI testing (main.go still uses) |
+| Remove internal/claude.go | Low | After full GUI testing |
+| Remove internal/plugins.go | Low | After full GUI testing |
 | Remove legacy types from types.go | Low | After full migration |
 | Remove old Plugin* Vue components | Low | Keep for reference during transition |
 | **URL Scheme** | | |
@@ -992,11 +998,11 @@ internal/
 └── storage.go              ✅ Canonical storage paths
 
 cli/
-├── install.go              ✅ Updated for skills (replaced old plugin install)
+├── install.go              ✅ Updated for skills + zip URL download
 ├── uninstall.go            ✅ Updated for skills (replaced old plugin uninstall)
 ├── workspace.go            ✅ Workspace commands
-├── check.go                🚧 Check for updates (pending)
-└── update.go               🚧 Update installed skills (pending)
+├── check.go                ✅ Check for skill updates (content hash comparison)
+└── update.go               ✅ Update installed skills (re-fetch and reinstall)
 ```
 
 ### Backend: Files Modified ✅
@@ -1005,12 +1011,13 @@ main.go                     ✅ Wails bindings for skills/workspaces/agents, sys
 
 internal/
 ├── types.go                ✅ New types (Skill, Agent, Workspace, etc.) + legacy types
+├── skills.go               ✅ Added GetAgentsWithSkill export
 
 cli/
-├── root.go                 ✅ Added workspace command
-├── cli_test.go             ✅ Updated tests for new system
-├── list.go                 🚧 Update for skills-only listing (pending)
-└── info.go                 🚧 Update for skill details (pending)
+├── root.go                 ✅ Added workspace, check, update commands
+├── cli_test.go             ✅ Updated tests for skills system
+├── list.go                 ✅ Updated for skills-only listing
+└── info.go                 ✅ Updated for skill details
 ```
 
 ### Backend: Files to Modify (pending)
@@ -1103,39 +1110,39 @@ func sanitizeName(name string) string {
 9. ✅ **CLI uninstall** - Remove skills
 10. ✅ **CLI workspace** - All workspace commands
 
-### MVP - Frontend 🚧 PENDING
-11. **Types** - SkillInfo, WorkspaceInfo TypeScript types
-12. **Rename components** - PluginList → SkillList, PluginCard → SkillCard
-13. **useSkills composable** - Replace usePlugins
-14. **Wails bindings** - AppService methods for skills
+### MVP - Frontend ✅ COMPLETED
+11. ✅ **Types** - SkillInfo, WorkspaceInfo TypeScript types
+12. ✅ **Rename components** - PluginList → SkillList, PluginCard → SkillCard
+13. ✅ **useSkills composable** - Replace usePlugins
+14. ✅ **Wails bindings** - AppService methods for skills
 
-### Full Feature Set - Backend 🚧 PARTIAL
+### Full Feature Set - Backend ✅ COMPLETED
 15. ✅ **Source parsing** - GitHub, GitLab, local paths implemented
-16. 🚧 **Source parsing** - Zip URLs, well-known endpoints pending
+16. ✅ **Source parsing** - Zip URLs implemented (well-known endpoints pending)
 17. ✅ **Skill discovery** - Recursive SKILL.md discovery
-18. 🚧 **Check/Update** - Update detection and execution pending
-19. 🚧 **CLI list/info** - Update for skills-only (currently legacy)
+18. ✅ **Check/Update** - `scribe check` and `scribe update` commands
+19. ✅ **CLI list/info** - Updated for skills-only system
 
-### Full Feature Set - Frontend 🚧 PENDING
-20. **WorkspaceSelector** - Dropdown component in header
-21. **AgentStatusPanel** - Agent grid with status
-22. **useWorkspaces** - Workspace state composable
-23. **useAgents** - Agent detection composable
-24. **SkillCard updates** - Show agent badges
-25. **System tray** - Workspace switching menu
+### Full Feature Set - Frontend ✅ COMPLETED
+20. ✅ **WorkspaceSelector** - Dropdown component in header
+21. ✅ **AgentStatusPanel** - Agent grid with status
+22. ✅ **useWorkspaces** - Workspace state composable
+23. ✅ **useAgents** - Agent detection composable
+24. ✅ **SkillCard updates** - Show agent badges
+25. ✅ **System tray** - Workspace switching menu
 
 ### Testing (Alongside Development)
 26. ✅ **CLI tests** - Test command parsing and execution
 27. ✅ **Backend unit tests** - 72.5% coverage (`internal/skills_system_test.go`)
 28. ✅ **Docker test infrastructure** - `test.Dockerfile`, `docker-compose.test.yml`, Makefile targets
-29. 🚧 **Frontend component tests** - Vitest + Vue Test Utils
+29. ✅ **Frontend component tests** - Vitest + Vue Test Utils (63 tests)
 30. 🚧 **Integration tests** - Full install/remove/workspace flows
 
 ### Polish 🚧 PENDING
 30. **URL scheme** - Updated agenthub:// handler
 31. **Error handling** - Comprehensive error messages
 32. **Documentation** - Update all docs
-33. **Cleanup** - Remove deprecated code
+33. **Cleanup** - Remove deprecated code (after GUI testing)
 
 ---
 
@@ -1350,7 +1357,7 @@ pnpm test:e2e                    # Playwright E2E (if added)
 **MVP Backend: COMPLETE** ✅
 
 The core backend infrastructure is implemented and working:
-- Skills can be installed from GitHub repos, local paths, and GitLab
+- Skills can be installed from GitHub repos, local paths, GitLab, and **zip URLs**
 - Skills are stored in `~/.scribe/scrolls/` with sidecar metadata
 - Symlinks are created in all detected agent directories (45 agents supported)
 - Workspace system allows organizing skills into named sets
@@ -1368,9 +1375,18 @@ The Vue 3 frontend has been fully migrated to the skills-only architecture:
 - **System tray** shows skills count and active workspace
 - **Frontend builds successfully** with TypeScript type checking
 
+**CLI Migration: COMPLETE** ✅
+
+All CLI commands have been migrated to the skills-only system:
+- **`scribe list`** - Now shows skills with description, source, agents
+- **`scribe info`** - Now shows skill details including content hash
+- **`scribe check`** - Check installed skills for updates (compares content hashes)
+- **`scribe update`** - Update outdated skills from their sources
+- **Zip URL support** - `scribe install https://example.com/skills.zip` now works
+- **Tests updated** - CLI tests migrated from legacy plugin system to skills
+
 **Next Steps:**
-1. **Update list/info commands** - Show skills instead of legacy plugins
-2. **Additional source types** - Zip URLs, well-known endpoints
-3. **Check/Update commands** - Detect and apply skill updates
-4. **End-to-end testing** - Test full GUI workflow
-5. **Cleanup** - Remove deprecated plugin code after full testing
+1. **End-to-end testing** - Test full GUI workflow with new CLI commands
+2. **Additional source types** - Well-known endpoints (/.well-known/skills/)
+3. **URL scheme** - Update agenthub:// handler for skills
+4. **Cleanup** - Remove deprecated plugin code after full GUI testing

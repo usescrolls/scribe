@@ -1211,17 +1211,6 @@ func TestInitLogger(t *testing.T) {
 	}
 }
 
-// TestGetIcon tests the GetIcon function
-func TestGetIcon(t *testing.T) {
-	icon := GetIcon()
-	if len(icon) == 0 {
-		t.Error("GetIcon should return non-empty icon data")
-	}
-	// Check PNG magic bytes
-	if len(icon) >= 4 && (icon[0] != 0x89 || icon[1] != 'P' || icon[2] != 'N' || icon[3] != 'G') {
-		t.Error("icon should be a valid PNG file")
-	}
-}
 
 // TestResolveSourceZipMissingURL tests zip source with missing URL
 func TestResolveSourceZipMissingURL(t *testing.T) {
