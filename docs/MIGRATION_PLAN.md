@@ -59,6 +59,25 @@
 | Export `GetAgentsWithSkill` | `internal/skills.go` | ✅ Done |
 | Update CLI tests for skills | `cli/cli_test.go` | ✅ Done |
 
+### Completed (Legacy Cleanup) ✅
+
+| Task | File | Status |
+|------|------|--------|
+| Remove internal/marketplace.go | Deleted | ✅ Done |
+| Remove internal/claude.go | Deleted | ✅ Done |
+| Remove internal/plugins.go | Deleted | ✅ Done |
+| Remove internal/registry.go | Deleted | ✅ Done |
+| Remove internal/url_scheme.go | Deleted | ✅ Done |
+| Remove internal/source.go | Deleted | ✅ Done |
+| Remove internal/server.go | Deleted | ✅ Done |
+| Remove legacy types from types.go | `internal/types.go` | ✅ Done |
+| Remove old Plugin* Vue components | Deleted PluginCard.vue, PluginList.vue | ✅ Done |
+| Remove legacy composables/types | Deleted usePlugins.ts, plugin.ts | ✅ Done |
+| Remove legacy tests | Deleted scribe_test.go | ✅ Done |
+| Update main.go to skills-only | `main.go` | ✅ Done |
+| Update cli/root.go | `cli/root.go` | ✅ Done |
+| Update cli/cli_test.go | `cli/cli_test.go` | ✅ Done |
+
 ### Pending Work 🚧
 
 | Task | Priority | Notes |
@@ -66,14 +85,8 @@
 | **Source Types** | | |
 | Well-known endpoint (/.well-known/skills/) | Low | Not yet implemented |
 | Direct URL (single SKILL.md) | Low | Not yet implemented |
-| **Cleanup** | | |
-| Remove internal/marketplace.go | Low | After full GUI testing (main.go still uses) |
-| Remove internal/claude.go | Low | After full GUI testing |
-| Remove internal/plugins.go | Low | After full GUI testing |
-| Remove legacy types from types.go | Low | After full migration |
-| Remove old Plugin* Vue components | Low | Keep for reference during transition |
 | **URL Scheme** | | |
-| Update agenthub:// handler for skills | Medium | |
+| Update agenthub:// handler for skills | Medium | Currently logs and no-ops |
 
 ---
 
@@ -1385,8 +1398,18 @@ All CLI commands have been migrated to the skills-only system:
 - **Zip URL support** - `scribe install https://example.com/skills.zip` now works
 - **Tests updated** - CLI tests migrated from legacy plugin system to skills
 
+**Legacy Cleanup: COMPLETE** ✅
+
+All deprecated plugin code has been removed:
+- **Removed Go files**: marketplace.go, claude.go, plugins.go, registry.go, url_scheme.go, source.go, server.go
+- **Removed legacy types**: PluginSource, Plugin, Author, RegistryEntry, PluginProvides
+- **Removed Vue components**: PluginCard.vue, PluginList.vue
+- **Removed composables/types**: usePlugins.ts, plugin.ts
+- **Updated main.go**: Skills-only API, no legacy plugin code
+- **Updated CLI**: root.go no longer uses Server
+- **All tests passing**: 54 internal tests, 12 CLI tests
+
 **Next Steps:**
-1. **End-to-end testing** - Test full GUI workflow with new CLI commands
+1. **End-to-end testing** - Test full GUI workflow with skills system
 2. **Additional source types** - Well-known endpoints (/.well-known/skills/)
-3. **URL scheme** - Update agenthub:// handler for skills
-4. **Cleanup** - Remove deprecated plugin code after full GUI testing
+3. **URL scheme** - Update agenthub:// handler for skills (currently no-ops)

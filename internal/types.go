@@ -1,10 +1,5 @@
 package scribe
 
-import (
-	"encoding/json"
-	"time"
-)
-
 // Skill represents a skill with its SKILL.md content and metadata
 type Skill struct {
 	Name        string         `json:"name"`
@@ -92,75 +87,4 @@ type AgentStatus struct {
 	Installed       bool   `json:"installed"`
 	SkillCount      int    `json:"skillCount"`
 	GlobalSkillsDir string `json:"globalSkillsDir"`
-}
-
-// ======================================================================
-// Legacy types (kept for backwards compatibility during transition)
-// ======================================================================
-
-// PluginSource represents the source of a plugin (LEGACY)
-type PluginSource struct {
-	Source  string `json:"source"`            // github, git, url, zip
-	Repo    string `json:"repo,omitempty"`    // for github
-	Package string `json:"package,omitempty"` // deprecated: was for npm
-	URL     string `json:"url,omitempty"`     // for git/url/zip
-	Ref     string `json:"ref,omitempty"`     // branch/tag
-}
-
-// PluginProvides describes what extension types a plugin provides (LEGACY)
-type PluginProvides struct {
-	Skills   []string `json:"skills,omitempty"`
-	Agents   []string `json:"agents,omitempty"`
-	Commands []string `json:"commands,omitempty"`
-	Hooks    []string `json:"hooks,omitempty"`
-}
-
-// Plugin represents a plugin entry (LEGACY)
-type Plugin struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Version     string          `json:"version,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	Source      PluginSource    `json:"source"`
-	Author      *Author         `json:"author,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	Provides    *PluginProvides `json:"provides,omitempty"`
-}
-
-// Author represents a plugin author (LEGACY)
-type Author struct {
-	Name string `json:"name"`
-}
-
-// UnmarshalJSON allows Author to be unmarshaled from either a string or an object
-func (a *Author) UnmarshalJSON(data []byte) error {
-	var name string
-	if err := json.Unmarshal(data, &name); err == nil {
-		a.Name = name
-		return nil
-	}
-
-	type authorObj struct {
-		Name string `json:"name"`
-	}
-	var obj authorObj
-	if err := json.Unmarshal(data, &obj); err != nil {
-		return err
-	}
-	a.Name = obj.Name
-	return nil
-}
-
-// RegistryEntry represents a plugin in the registry (LEGACY)
-type RegistryEntry struct {
-	Name           string          `json:"name"`
-	Description    string          `json:"description,omitempty"`
-	Version        string          `json:"version,omitempty"`
-	Category       string          `json:"category,omitempty"`
-	Author         *Author         `json:"author,omitempty"`
-	Tags           []string        `json:"tags,omitempty"`
-	Source         PluginSource    `json:"source"`
-	ResolvedSource interface{}     `json:"resolvedSource"`
-	InstalledAt    time.Time       `json:"installedAt"`
-	Provides       *PluginProvides `json:"provides,omitempty"`
 }

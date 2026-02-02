@@ -3,37 +3,11 @@ package cli
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	scribe "github.com/usescrolls/scribe/internal"
 )
-
-// setupTestServer creates a test server with a temporary directory
-func setupTestServer(t *testing.T) (string, func()) {
-	t.Helper()
-	tmpDir, err := os.MkdirTemp("", "scribe-cli-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-
-	scribe.InitLoggerCLI(false)
-	server = scribe.NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
-	if err := server.Initialize(); err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("failed to initialize server: %v", err)
-	}
-
-	// Create Claude settings directory
-	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(claudeDir, 0755)
-	os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{}"), 0644)
-
-	return tmpDir, func() {
-		os.RemoveAll(tmpDir)
-	}
-}
 
 // TestCLICommands tests that CLICommands returns the expected commands
 func TestCLICommands(t *testing.T) {
@@ -167,14 +141,14 @@ func TestParseSource(t *testing.T) {
 			expectRepo:  "repo",
 		},
 		{
-			name:        "local path relative",
-			input:       "./my-skills",
-			expectType:  "local",
+			name:       "local path relative",
+			input:      "./my-skills",
+			expectType: "local",
 		},
 		{
-			name:        "local path absolute",
-			input:       "/absolute/path",
-			expectType:  "local",
+			name:       "local path absolute",
+			input:      "/absolute/path",
+			expectType: "local",
 		},
 		{
 			name:       "zip URL",
@@ -319,10 +293,6 @@ func TestListEmptyOutput(t *testing.T) {
 	})
 }
 
-// Note: TestInfoCommand removed - info command now uses skills system
-// which requires actual skill files to be installed. See internal/skills_system_test.go
-// for comprehensive skills system tests.
-
 // TestVersionCommand tests the version command
 func TestVersionCommand(t *testing.T) {
 	old := os.Stdout
@@ -385,40 +355,6 @@ func TestQuietMode(t *testing.T) {
 		}
 	})
 }
-
-// TestInitServer tests the initServer helper function
-func TestInitServer(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "scribe-cli-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	scribe.InitLoggerCLI(false)
-	server = scribe.NewTestServer(tmpDir, filepath.Join(tmpDir, ".claude"))
-
-	err = initServer()
-	if err != nil {
-		t.Fatalf("initServer failed: %v", err)
-	}
-
-	// Verify directories were created
-	expectedDirs := []string{
-		filepath.Join(tmpDir, ".claude-plugin"),
-		filepath.Join(tmpDir, "plugins"),
-		filepath.Join(tmpDir, "data"),
-	}
-
-	for _, dir := range expectedDirs {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			t.Errorf("expected directory %q to exist", dir)
-		}
-	}
-}
-
-// Note: TestListJSONFormat removed - list command now uses skills system
-// which returns SkillInfo instead of RegistryEntry. See internal/skills_system_test.go
-// for comprehensive skills system tests.
 
 // TestFilterSkills tests the filterSkills function
 func TestFilterSkills(t *testing.T) {

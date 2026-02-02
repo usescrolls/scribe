@@ -14,27 +14,27 @@ var (
 	jsonOutput bool
 	quiet      bool
 
-	// Shared server instance
-	server *scribe.Server
-
 	// Root command
 	rootCmd = &cobra.Command{
 		Use:   "scribe",
-		Short: "Package manager for Claude Code plugins",
-		Long: `Scribe CLI provides intuitive command-line package management for Claude Code plugins.
+		Short: "Skills manager for coding agents",
+		Long: `Scribe CLI provides intuitive command-line management for skills across 45+ coding agents.
 
 Examples:
-  scribe install prettier --github usescrolls/prettier-skill
+  scribe install owner/repo
   scribe list
-  scribe uninstall prettier`,
+  scribe uninstall my-skill
+  scribe workspace list`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Initialize quiet logger for CLI mode
 			// Only shows logs when --debug flag is passed
 			scribe.InitLoggerCLI(debug)
-			// Initialize server
-			server = scribe.NewServer()
+			// Ensure scribe directories exist
+			if err := scribe.EnsureScribeDirs(); err != nil {
+				scribe.Logger.Error("failed to initialize scribe directories", "error", err)
+			}
 		},
 	}
 )
@@ -65,18 +65,6 @@ func Execute() int {
 		return ExitError
 	}
 	return ExitSuccess
-}
-
-// initServer initializes and loads the server state
-// Called by commands that need access to the registry
-func initServer() error {
-	if err := server.Initialize(); err != nil {
-		return err
-	}
-	if err := server.Load(); err != nil {
-		scribe.Logger.Warn("failed to load existing registry", "error", err)
-	}
-	return nil
 }
 
 // CLICommands returns the list of known CLI commands for detection

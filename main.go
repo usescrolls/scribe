@@ -20,7 +20,6 @@ var assets embed.FS
 //go:embed icons/icon.png
 var appIcon []byte
 
-var server *scribe.Server
 var wailsApp *application.App
 var mainWindow *application.WebviewWindow
 
@@ -67,22 +66,9 @@ func handleURLScheme(urlArg string) {
 	scribe.InitLogger(false)
 	scribe.Logger.Info("URL scheme argument detected", "url", urlArg)
 
-	server = scribe.NewServer()
-
-	if err := server.Initialize(); err != nil {
-		scribe.Logger.Error("failed to initialize", "error", err)
-		os.Exit(1)
-	}
-
-	if err := server.Load(); err != nil {
-		scribe.Logger.Warn("failed to load registry", "error", err)
-	}
-
-	server.HandleURLScheme(urlArg)
-
-	if err := server.GenerateMarketplace(); err != nil {
-		scribe.Logger.Warn("failed to generate marketplace", "error", err)
-	}
+	// TODO: Update URL scheme handler for skills-based architecture
+	// For now, log the URL - web integration will be updated separately
+	scribe.Logger.Info("URL scheme handling pending migration to skills system", "url", urlArg)
 }
 
 func runGUIMode() {
@@ -92,30 +78,17 @@ func runGUIMode() {
 	scribe.InitLogger(*debug)
 	scribe.Logger.Info("initializing scribe", "version", scribe.Version, "debug", *debug)
 
-	server = scribe.NewServer()
-
-	if err := server.Initialize(); err != nil {
-		scribe.Logger.Error("failed to initialize", "error", err)
+	// Initialize skills system directories
+	if err := scribe.EnsureScribeDirs(); err != nil {
+		scribe.Logger.Error("failed to initialize scribe directories", "error", err)
 		os.Exit(1)
 	}
 
-	if err := server.Migrate(); err != nil {
-		scribe.Logger.Warn("migration failed", "error", err)
-	}
-
-	if err := server.Load(); err != nil {
-		scribe.Logger.Warn("failed to load registry", "error", err)
-	}
-
-	if err := server.GenerateMarketplace(); err != nil {
-		scribe.Logger.Warn("failed to generate marketplace", "error", err)
-	}
-
-	appService := NewAppService(server)
+	appService := NewAppService()
 
 	wailsApp = application.New(application.Options{
 		Name:        "Scribe",
-		Description: "Plugin Manager for Claude Code",
+		Description: "Skills Manager for Coding Agents",
 		Services: []application.Service{
 			application.NewService(appService),
 		},
@@ -134,11 +107,8 @@ func runGUIMode() {
 	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
 		url := event.Context().URL()
 		scribe.Logger.Info("received URL via Wails event", "url", url)
-		server.HandleURLScheme(url)
-		if err := server.GenerateMarketplace(); err != nil {
-			scribe.Logger.Warn("failed to generate marketplace", "error", err)
-		}
-		wailsApp.Event.Emit("plugins-updated")
+		// TODO: Update URL scheme handler for skills-based architecture
+		scribe.Logger.Info("URL scheme handling pending migration to skills system", "url", url)
 	})
 
 	// Create main window (hidden initially)
@@ -216,75 +186,11 @@ func runGUIMode() {
 }
 
 // AppService provides bindings for the frontend
-type AppService struct {
-	server *scribe.Server
-}
+type AppService struct{}
 
 // NewAppService creates a new AppService
-func NewAppService(s *scribe.Server) *AppService {
-	return &AppService{server: s}
-}
-
-// PluginInfo for the frontend
-type PluginInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Version     string `json:"version,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Author      string `json:"author,omitempty"`
-	Source      string `json:"source"`
-	SourceType  string `json:"sourceType"`
-	InstalledAt string `json:"installedAt"`
-}
-
-// GetPlugins returns all installed plugins
-func (a *AppService) GetPlugins() []PluginInfo {
-	entries := a.server.GetAllPlugins()
-	result := make([]PluginInfo, 0, len(entries))
-	for _, e := range entries {
-		author := ""
-		if e.Author != nil {
-			author = e.Author.Name
-		}
-		result = append(result, PluginInfo{
-			Name:        e.Name,
-			Description: e.Description,
-			Version:     e.Version,
-			Category:    e.Category,
-			Author:      author,
-			Source:      formatSourceForUI(e.Source),
-			SourceType:  e.Source.Source,
-			InstalledAt: e.InstalledAt.Format("2006-01-02 15:04:05"),
-		})
-	}
-	return result
-}
-
-// GetPluginCount returns the number of installed plugins
-func (a *AppService) GetPluginCount() int {
-	return a.server.PluginCount()
-}
-
-// UninstallPlugin removes a plugin by name
-func (a *AppService) UninstallPlugin(name string) error {
-	scribe.Logger.Info("AppService.UninstallPlugin called", "name", name)
-	err := a.server.UninstallPlugin(name)
-	if err != nil {
-		scribe.Logger.Error("AppService.UninstallPlugin failed", "name", name, "error", err)
-	} else {
-		scribe.Logger.Info("AppService.UninstallPlugin succeeded", "name", name)
-	}
-	return err
-}
-
-// UninstallAllPlugins removes all plugins
-func (a *AppService) UninstallAllPlugins() error {
-	return a.server.UninstallAllPlugins()
-}
-
-// FullReset performs a complete reset
-func (a *AppService) FullReset() error {
-	return a.server.FullReset()
+func NewAppService() *AppService {
+	return &AppService{}
 }
 
 // GetVersion returns the application version
@@ -292,34 +198,8 @@ func (a *AppService) GetVersion() string {
 	return scribe.Version
 }
 
-// ClaudeCodeDetected checks if Claude Code is installed
-func (a *AppService) ClaudeCodeDetected() bool {
-	return a.server.ClaudeCodeDetected()
-}
-
-// HandleURL processes an agenthub:// URL
-func (a *AppService) HandleURL(urlStr string) {
-	a.server.HandleURLScheme(urlStr)
-	if wailsApp != nil {
-		wailsApp.Event.Emit("plugins-updated", nil)
-	}
-}
-
-func formatSourceForUI(source scribe.PluginSource) string {
-	switch source.Source {
-	case "github":
-		return source.Repo
-	case "npm":
-		return source.Package
-	case "url", "git", "zip":
-		return source.URL
-	default:
-		return source.Source
-	}
-}
-
 // ======================================================================
-// Skills API - New skill-based architecture
+// Skills API
 // ======================================================================
 
 // GetSkills returns all installed skills
