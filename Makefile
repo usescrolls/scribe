@@ -5,10 +5,21 @@ BINARY_NAME=scribe
 VERSION=1.0.0
 BUILD_DIR=build
 
+# macOS deployment target (set to current OS version to avoid linker warnings)
+MACOS_VERSION := $(shell sw_vers -productVersion 2>/dev/null || echo "")
+
 # Build for current platform (frontend + Go)
 build: build-frontend
 	mkdir -p $(BUILD_DIR)/bin
-	CGO_ENABLED=1 MACOSX_DEPLOYMENT_TARGET=$(shell sw_vers -productVersion) go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+ifeq ($(shell uname),Darwin)
+	CGO_ENABLED=1 \
+	MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION) \
+	CGO_CFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
+	CGO_LDFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+else
+	CGO_ENABLED=1 go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+endif
 
 # Build frontend only
 build-frontend:

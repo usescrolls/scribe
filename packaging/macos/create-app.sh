@@ -51,16 +51,20 @@ chmod +x "$APP_DIR/Contents/MacOS/scribe"
 # Copy Info.plist
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
 
-# Create/copy icon
-if [ -f "$SCRIPT_DIR/AppIcon.icns" ]; then
+# Copy icon - prefer pre-generated icns from icons directory
+if [ -f "$REPO_DIR/icons/AppIcon.icns" ]; then
+    cp "$REPO_DIR/icons/AppIcon.icns" "$APP_DIR/Contents/Resources/"
+    echo "Copied AppIcon.icns from icons directory"
+elif [ -f "$SCRIPT_DIR/AppIcon.icns" ]; then
     cp "$SCRIPT_DIR/AppIcon.icns" "$APP_DIR/Contents/Resources/"
-elif [ -f "$REPO_DIR/internal/icon.png" ]; then
-    # Convert PNG to ICNS if iconutil is available
+    echo "Copied AppIcon.icns from packaging directory"
+elif [ -f "$REPO_DIR/icons/icon.png" ]; then
+    # Fallback: Convert PNG to ICNS if pre-generated icns not available
     echo "Converting icon.png to AppIcon.icns..."
     ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
     mkdir -p "$ICONSET_DIR"
 
-    PNG_SOURCE="$REPO_DIR/internal/icon.png"
+    PNG_SOURCE="$REPO_DIR/icons/icon.png"
 
     # Create iconset with different sizes (using sips for resizing)
     sips -z 16 16     "$PNG_SOURCE" --out "$ICONSET_DIR/icon_16x16.png" 2>/dev/null || cp "$PNG_SOURCE" "$ICONSET_DIR/icon_16x16.png"

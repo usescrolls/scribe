@@ -17,6 +17,9 @@ import (
 //go:embed frontend/dist
 var assets embed.FS
 
+//go:embed icons/icon.png
+var appIcon []byte
+
 var server *scribe.Server
 var wailsApp *application.App
 var mainWindow *application.WebviewWindow
@@ -124,6 +127,9 @@ func runGUIMode() {
 		},
 	})
 
+	// Set application icon (used for dock, taskbar, and app switcher)
+	wailsApp.SetIcon(appIcon)
+
 	// Handle agenthub:// URLs when app is already running (macOS)
 	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
 		url := event.Context().URL()
@@ -158,7 +164,7 @@ func runGUIMode() {
 
 	// Create system tray
 	systray := wailsApp.SystemTray.New()
-	systray.SetIcon(scribe.GetIcon())
+	systray.SetIcon(appIcon)
 
 	// Create tray menu
 	trayMenu := wailsApp.NewMenu()

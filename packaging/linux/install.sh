@@ -62,6 +62,38 @@ else
 fi
 echo "  Binary installed: $INSTALL_DIR/$BINARY_NAME"
 
+# Install icons
+echo ""
+echo "Installing icons..."
+ICONS_BASE="$HOME/.local/share/icons/hicolor"
+
+# Check for pre-generated icons in the icons directory
+ICONS_SOURCE="$REPO_DIR/icons/linux"
+if [ -d "$ICONS_SOURCE" ]; then
+    for SIZE in 16 24 32 48 64 128 256; do
+        ICON_FILE="$ICONS_SOURCE/scribe-${SIZE}x${SIZE}.png"
+        if [ -f "$ICON_FILE" ]; then
+            ICON_DIR="$ICONS_BASE/${SIZE}x${SIZE}/apps"
+            mkdir -p "$ICON_DIR"
+            cp "$ICON_FILE" "$ICON_DIR/scribe.png"
+            echo "  Installed: ${SIZE}x${SIZE}"
+        fi
+    done
+elif [ -f "$REPO_DIR/icons/icon.png" ]; then
+    # Fallback: copy the original icon to common sizes
+    for SIZE in 48 128 256; do
+        ICON_DIR="$ICONS_BASE/${SIZE}x${SIZE}/apps"
+        mkdir -p "$ICON_DIR"
+        cp "$REPO_DIR/icons/icon.png" "$ICON_DIR/scribe.png"
+    done
+    echo "  Installed icon from icons/icon.png"
+fi
+
+# Update icon cache
+if command -v gtk-update-icon-cache &> /dev/null; then
+    gtk-update-icon-cache -f -t "$ICONS_BASE" 2>/dev/null || true
+fi
+
 # Install desktop entry
 echo ""
 echo "Installing URL scheme handler..."

@@ -1,13 +1,9 @@
 package scribe
 
 import (
-	_ "embed"
 	"log/slog"
 	"os"
 )
-
-//go:embed icon.png
-var iconData []byte
 
 const (
 	MarketplaceName  = "scribe"
@@ -60,7 +56,3 @@ func InitLoggerCLI(debug bool) {
 	slog.SetDefault(Logger)
 }
 
-// GetIcon returns the embedded icon PNG
-func GetIcon() []byte {
-	return iconData
-}
