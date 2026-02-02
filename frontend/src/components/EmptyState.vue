@@ -5,10 +5,10 @@
         <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     </div>
-    <h2>No plugins installed</h2>
-    <p>Install plugins from useScrolls.com or via the CLI</p>
+    <h2>No skills installed</h2>
+    <p>Install skills from useScrolls.com or via the CLI</p>
     <div class="instructions">
-      <code>scribe install &lt;name&gt; --github owner/repo</code>
+      <code>scribe install owner/repo</code>
     </div>
   </div>
 </template>

@@ -167,8 +167,11 @@ func runGUIMode() {
 	})
 	trayMenu.AddSeparator()
 
-	pluginCountItem := trayMenu.Add(fmt.Sprintf("%d plugins installed", server.PluginCount()))
-	pluginCountItem.SetEnabled(false)
+	skillCountItem := trayMenu.Add(getSkillCountLabel())
+	skillCountItem.SetEnabled(false)
+
+	workspaceItem := trayMenu.Add(getWorkspaceLabel())
+	workspaceItem.SetEnabled(false)
 
 	trayMenu.AddSeparator()
 	trayMenu.Add("Quit").OnClick(func(ctx *application.Context) {
@@ -187,21 +190,15 @@ func runGUIMode() {
 		}
 	})
 
-	// Update plugin count periodically
+	// Update skill count and workspace periodically
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				count := server.PluginCount()
-				var label string
-				if count == 1 {
-					label = "1 plugin installed"
-				} else {
-					label = fmt.Sprintf("%d plugins installed", count)
-				}
-				pluginCountItem.SetLabel(label)
+				skillCountItem.SetLabel(getSkillCountLabel())
+				workspaceItem.SetLabel(getWorkspaceLabel())
 			}
 		}
 	}()
@@ -313,4 +310,182 @@ func formatSourceForUI(source scribe.PluginSource) string {
 	default:
 		return source.Source
 	}
+}
+
+// ======================================================================
+// Skills API - New skill-based architecture
+// ======================================================================
+
+// GetSkills returns all installed skills
+func (a *AppService) GetSkills() ([]scribe.SkillInfo, error) {
+	return scribe.GetAllSkillInfo()
+}
+
+// GetSkillCount returns the number of installed skills
+func (a *AppService) GetSkillCount() int {
+	skills, err := scribe.ReadAllSkills()
+	if err != nil {
+		return 0
+	}
+	return len(skills)
+}
+
+// RemoveSkill removes a skill by name from all agents and workspaces
+func (a *AppService) RemoveSkill(name string) error {
+	scribe.Logger.Info("AppService.RemoveSkill called", "name", name)
+
+	// Remove from all workspaces first
+	if err := scribe.RemoveSkillFromAllWorkspaces(name); err != nil {
+		scribe.Logger.Error("failed to remove skill from workspaces", "name", name, "error", err)
+		return err
+	}
+
+	// UninstallSkill handles removing from agents and canonical location
+	if err := scribe.UninstallSkill(name); err != nil {
+		scribe.Logger.Error("failed to uninstall skill", "name", name, "error", err)
+		return err
+	}
+
+	scribe.Logger.Info("AppService.RemoveSkill succeeded", "name", name)
+
+	// Emit event to update frontend
+	if wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+
+	return nil
+}
+
+// ======================================================================
+// Workspaces API
+// ======================================================================
+
+// GetWorkspaces returns all workspaces with their active status
+func (a *AppService) GetWorkspaces() ([]scribe.WorkspaceInfo, error) {
+	return scribe.GetWorkspaceInfo()
+}
+
+// GetActiveWorkspaceName returns the name of the active workspace
+func (a *AppService) GetActiveWorkspaceName() (string, error) {
+	ws, err := scribe.GetActiveWorkspace()
+	if err != nil {
+		return "", err
+	}
+	return ws.Name, nil
+}
+
+// SetActiveWorkspace switches to a different workspace
+func (a *AppService) SetActiveWorkspace(name string) error {
+	scribe.Logger.Info("AppService.SetActiveWorkspace called", "name", name)
+
+	current, err := scribe.GetActiveWorkspace()
+	if err != nil {
+		return err
+	}
+
+	target, err := scribe.GetWorkspace(name)
+	if err != nil {
+		return err
+	}
+
+	// Sync symlinks to match target workspace
+	if err := scribe.SyncWorkspace(current, target); err != nil {
+		return err
+	}
+
+	// Update active workspace in config
+	if err := scribe.SetActiveWorkspace(name); err != nil {
+		return err
+	}
+
+	scribe.Logger.Info("AppService.SetActiveWorkspace succeeded", "name", name)
+
+	// Emit event to update frontend
+	if wailsApp != nil {
+		wailsApp.Event.Emit("workspace-changed", name)
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+
+	return nil
+}
+
+// CreateWorkspace creates a new workspace
+func (a *AppService) CreateWorkspace(name, description string) error {
+	ws := &scribe.Workspace{
+		Name:        name,
+		Description: description,
+		Skills:      []string{},
+	}
+	return scribe.CreateWorkspace(ws)
+}
+
+// DeleteWorkspace removes a workspace
+func (a *AppService) DeleteWorkspace(name string) error {
+	return scribe.DeleteWorkspace(name)
+}
+
+// AddSkillToWorkspace adds a skill to a specific workspace
+func (a *AppService) AddSkillToWorkspace(skillName, workspaceName string) error {
+	err := scribe.AddSkillToWorkspace(skillName, workspaceName)
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("workspace-changed", workspaceName)
+	}
+	return err
+}
+
+// RemoveSkillFromWorkspace removes a skill from a specific workspace
+func (a *AppService) RemoveSkillFromWorkspace(skillName, workspaceName string) error {
+	err := scribe.RemoveSkillFromWorkspace(skillName, workspaceName)
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("workspace-changed", workspaceName)
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+	return err
+}
+
+// ======================================================================
+// Agents API
+// ======================================================================
+
+// GetAgentStatus returns the status of all supported agents
+func (a *AppService) GetAgentStatus() []scribe.AgentStatus {
+	scrollsDir, err := scribe.GetScrollsDir()
+	if err != nil {
+		scribe.Logger.Error("failed to get scrolls dir", "error", err)
+		return []scribe.AgentStatus{}
+	}
+	return scribe.GetAgentStatus(scrollsDir)
+}
+
+// GetInstalledAgentCount returns how many agents are installed
+func (a *AppService) GetInstalledAgentCount() int {
+	agents := scribe.DetectInstalledAgents()
+	return len(agents)
+}
+
+// GetTotalAgentCount returns the total number of supported agents
+func (a *AppService) GetTotalAgentCount() int {
+	return len(scribe.GetAllAgents())
+}
+
+// Helper functions for system tray labels
+
+func getSkillCountLabel() string {
+	skills, err := scribe.ReadAllSkills()
+	if err != nil {
+		return "0 skills installed"
+	}
+	count := len(skills)
+	if count == 1 {
+		return "1 skill installed"
+	}
+	return fmt.Sprintf("%d skills installed", count)
+}
+
+func getWorkspaceLabel() string {
+	ws, err := scribe.GetActiveWorkspace()
+	if err != nil {
+		return "Workspace: default"
+	}
+	return fmt.Sprintf("Workspace: %s", ws.Name)
 }

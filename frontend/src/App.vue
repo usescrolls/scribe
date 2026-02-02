@@ -2,20 +2,29 @@
   <div class="app">
     <header class="header">
       <h1>Scribe</h1>
+      <WorkspaceSelector />
       <span class="version">v{{ version }}</span>
     </header>
-    <main class="main">
-      <PluginList />
-    </main>
+    <div class="content">
+      <aside class="sidebar">
+        <AgentStatusPanel @agent-selected="onAgentSelected" />
+      </aside>
+      <main class="main">
+        <SkillList :agent-filter="selectedAgent" />
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import PluginList from './components/PluginList.vue'
+import SkillList from './components/SkillList.vue'
+import WorkspaceSelector from './components/WorkspaceSelector.vue'
+import AgentStatusPanel from './components/AgentStatusPanel.vue'
 import { AppService } from './bindings/scribe'
 
 const version = ref('1.0.0')
+const selectedAgent = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -24,6 +33,10 @@ onMounted(async () => {
     console.error('Failed to get version:', e)
   }
 })
+
+function onAgentSelected(agentId: string | null) {
+  selectedAgent.value = agentId
+}
 </script>
 
 <style scoped>
@@ -57,9 +70,30 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
+.content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 1rem;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+}
+
 .main {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
+}
+
+/* Responsive: hide sidebar on small screens */
+@media (max-width: 640px) {
+  .sidebar {
+    display: none;
+  }
 }
 </style>

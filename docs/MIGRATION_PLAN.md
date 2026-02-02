@@ -24,6 +24,29 @@
 
 **Note:** The architecture has been simplified to global-only skills. There are no per-project skills. All coding agents are managed uniformly by Scribe.
 
+### Completed (MVP Frontend) ✅
+
+| Task | File | Status |
+|------|------|--------|
+| Wails bindings for skills API | `main.go` | ✅ Done |
+| Wails bindings for workspaces API | `main.go` | ✅ Done |
+| Wails bindings for agents API | `main.go` | ✅ Done |
+| TypeScript types (SkillInfo, WorkspaceInfo, AgentStatus) | `frontend/src/types/skill.ts` | ✅ Done |
+| useSkills.ts composable | `frontend/src/composables/useSkills.ts` | ✅ Done |
+| useWorkspaces.ts composable | `frontend/src/composables/useWorkspaces.ts` | ✅ Done |
+| useAgents.ts composable | `frontend/src/composables/useAgents.ts` | ✅ Done |
+| SkillList.vue component | `frontend/src/components/SkillList.vue` | ✅ Done |
+| SkillCard.vue component | `frontend/src/components/SkillCard.vue` | ✅ Done |
+| WorkspaceSelector.vue component | `frontend/src/components/WorkspaceSelector.vue` | ✅ Done |
+| AgentStatusPanel.vue component | `frontend/src/components/AgentStatusPanel.vue` | ✅ Done |
+| Updated App.vue with sidebar layout | `frontend/src/App.vue` | ✅ Done |
+| Updated EmptyState.vue for skills | `frontend/src/components/EmptyState.vue` | ✅ Done |
+| System tray shows skills count | `main.go` | ✅ Done |
+| System tray shows active workspace | `main.go` | ✅ Done |
+| **Frontend unit tests (Vitest)** | `frontend/src/**/*.test.ts` | ✅ Done |
+
+**Test Coverage:** 63 tests across 6 test files covering composables and components.
+
 ### Pending Work 🚧
 
 | Task | Priority | Notes |
@@ -37,27 +60,12 @@
 | `scribe update` - Update skills | Medium | Re-fetch and reinstall |
 | Update `scribe list` for skills | Medium | Currently shows legacy plugins |
 | Update `scribe info` for skills | Medium | Currently shows legacy plugins |
-| **Frontend (Vue 3)** | | |
-| Rename PluginList.vue → SkillList.vue | High | |
-| Rename PluginCard.vue → SkillCard.vue | High | |
-| Create WorkspaceSelector.vue | High | |
-| Create AgentStatusPanel.vue | Medium | |
-| Create useSkills.ts composable | High | |
-| Create useWorkspaces.ts composable | High | |
-| Create useAgents.ts composable | Medium | |
-| Update App.vue layout | High | |
-| **Backend Bindings (Wails)** | | |
-| AppService.GetSkills() | High | |
-| AppService.GetWorkspaces() | High | |
-| AppService.GetAgentStatus() | Medium | |
-| **System Tray** | | |
-| Show skills count | Low | |
-| Workspace switching submenu | Low | |
 | **Cleanup** | | |
-| Remove internal/marketplace.go | Low | After frontend migration |
-| Remove internal/claude.go | Low | After frontend migration |
-| Remove internal/plugins.go | Low | After frontend migration |
+| Remove internal/marketplace.go | Low | After full testing |
+| Remove internal/claude.go | Low | After full testing |
+| Remove internal/plugins.go | Low | After full testing |
 | Remove legacy types from types.go | Low | After full migration |
+| Remove old Plugin* Vue components | Low | Keep for reference during transition |
 | **URL Scheme** | | |
 | Update agenthub:// handler for skills | Medium | |
 
@@ -981,8 +989,7 @@ internal/
 ├── installer.go            ✅ Symlink-based installation to agents
 ├── workspace.go            ✅ Workspace CRUD and switching
 ├── meta.go                 ✅ Sidecar .scribe-meta.json management
-├── storage.go              ✅ Canonical storage paths
-└── app_service.go          🚧 Wails bindings for frontend (pending)
+└── storage.go              ✅ Canonical storage paths
 
 cli/
 ├── install.go              ✅ Updated for skills (replaced old plugin install)
@@ -994,6 +1001,8 @@ cli/
 
 ### Backend: Files Modified ✅
 ```
+main.go                     ✅ Wails bindings for skills/workspaces/agents, system tray updated
+
 internal/
 ├── types.go                ✅ New types (Skill, Agent, Workspace, etc.) + legacy types
 
@@ -1008,44 +1017,31 @@ cli/
 ```
 internal/
 ├── source.go               🚧 Add well-known parsing
-├── url_scheme.go           🚧 Update agenthub:// handler
-
-cmd/scribe/
-├── gui_cgo.go              🚧 Update system tray for workspaces
-└── main.go                 🚧 Update initialization
+└── url_scheme.go           🚧 Update agenthub:// handler
 ```
 
-### Frontend: Files to Rename
+### Frontend: Files Added ✅
 ```
 frontend/src/
 ├── components/
-│   ├── PluginList.vue      → SkillList.vue
-│   ├── PluginCard.vue      → SkillCard.vue
-│   └── EmptyState.vue      (keep, update text)
+│   ├── SkillList.vue           ✅ Main skill list component
+│   ├── SkillCard.vue           ✅ Individual skill card with agent badges
+│   ├── WorkspaceSelector.vue   ✅ Workspace dropdown in header
+│   └── AgentStatusPanel.vue    ✅ Sidebar with agent status grid
 ├── composables/
-│   └── usePlugins.ts       → useSkills.ts
+│   ├── useSkills.ts            ✅ Skill state management
+│   ├── useWorkspaces.ts        ✅ Workspace state management
+│   └── useAgents.ts            ✅ Agent detection and status
 └── types/
-    └── plugin.ts           → skill.ts
+    └── skill.ts                ✅ SkillInfo, WorkspaceInfo, AgentStatus types
 ```
 
-### Frontend: Files to Add
+### Frontend: Files Modified ✅
 ```
 frontend/src/
+├── App.vue                 ✅ New layout with sidebar and workspace selector
 ├── components/
-│   ├── WorkspaceSelector.vue   # Workspace dropdown
-│   └── AgentStatusPanel.vue    # Visual display of installed agents
-├── composables/
-│   ├── useWorkspaces.ts        # Workspace state management
-│   └── useAgents.ts            # Agent detection and status
-└── types/
-    ├── workspace.ts            # WorkspaceInfo type
-    └── agent.ts                # AgentStatus type
-```
-
-### Frontend: Files to Modify
-```
-frontend/src/
-├── App.vue                 # Add sidebar with AgentStatusPanel, WorkspaceSelector
+│   └── EmptyState.vue      ✅ Updated text for skills
 └── bindings/
     └── scribe.ts           # (auto-generated from Go)
 ```
@@ -1362,10 +1358,19 @@ The core backend infrastructure is implemented and working:
 - **Test coverage at 72.5%** with Docker test infrastructure for CI consistency
 - **CI workflow updated** to Go 1.25 to match go.mod requirements
 
+**MVP Frontend: COMPLETE** ✅
+
+The Vue 3 frontend has been fully migrated to the skills-only architecture:
+- **Wails bindings** expose skills, workspaces, and agents APIs to frontend
+- **New components**: SkillList, SkillCard, WorkspaceSelector, AgentStatusPanel
+- **New composables**: useSkills, useWorkspaces, useAgents
+- **Updated layout**: App.vue now has sidebar with agent panel and workspace selector
+- **System tray** shows skills count and active workspace
+- **Frontend builds successfully** with TypeScript type checking
+
 **Next Steps:**
-1. **Frontend Migration** - Update Vue components for skills-only architecture
-2. **Wails Bindings** - Expose new skill/workspace/agent APIs to frontend
-3. **Update list/info commands** - Show skills instead of legacy plugins
-4. **Additional source types** - Zip URLs, well-known endpoints
-5. **Check/Update commands** - Detect and apply skill updates
-6. **Cleanup** - Remove deprecated plugin code after full migration
+1. **Update list/info commands** - Show skills instead of legacy plugins
+2. **Additional source types** - Zip URLs, well-known endpoints
+3. **Check/Update commands** - Detect and apply skill updates
+4. **End-to-end testing** - Test full GUI workflow
+5. **Cleanup** - Remove deprecated plugin code after full testing
