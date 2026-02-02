@@ -20,12 +20,14 @@ else
 fi
 
 # Try architecture-specific binary first, then fall back to generic
-if [ -f "$BUILD_DIR/scribe-$BINARY_SUFFIX" ]; then
+if [ -f "$BUILD_DIR/bin/scribe" ]; then
+    BINARY_PATH="$BUILD_DIR/bin/scribe"
+elif [ -f "$BUILD_DIR/scribe-$BINARY_SUFFIX" ]; then
     BINARY_PATH="$BUILD_DIR/scribe-$BINARY_SUFFIX"
 elif [ -f "$BUILD_DIR/scribe" ]; then
     BINARY_PATH="$BUILD_DIR/scribe"
 else
-    BINARY_PATH="$BUILD_DIR/scribe-$BINARY_SUFFIX"
+    BINARY_PATH="$BUILD_DIR/bin/scribe"
 fi
 
 echo "Creating $APP_NAME.app bundle..."

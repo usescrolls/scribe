@@ -1,5 +1,6 @@
 .PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate \
-        docker-test docker-test-coverage docker-test-race docker-test-build docker-test-clean
+        docker-test docker-test-coverage docker-test-race docker-test-build docker-test-clean \
+        app app-run
 
 BINARY_NAME=scribe
 VERSION=1.0.0
@@ -107,3 +108,19 @@ docker-test-filter: docker-test-build
 docker-test-clean:
 	docker rmi scribe-test 2>/dev/null || true
 	rm -rf coverage/
+
+# ============================================================================
+# macOS App Bundle
+# ============================================================================
+
+# Create macOS .app bundle (requires build first)
+app: build
+	./packaging/macos/create-app.sh
+	@echo ""
+	@echo "To run the app with the proper icon:"
+	@echo "  make app-run"
+	@echo "  or: open build/Scribe.app"
+
+# Run the macOS .app bundle
+app-run:
+	open $(BUILD_DIR)/Scribe.app

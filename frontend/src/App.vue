@@ -1,6 +1,7 @@
 <template>
   <div class="app">
     <header class="header">
+      <img src="./assets/icon.png" alt="Scribe" class="app-icon" />
       <h1>Scribe</h1>
       <WorkspaceSelector />
       <span class="version">v{{ version }}</span>
@@ -55,6 +56,12 @@ function onAgentSelected(agentId: string | null) {
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   -webkit-app-region: drag;
+}
+
+.app-icon {
+  width: 24px;
+  height: 24px;
+  -webkit-app-region: no-drag;
 }
 
 .header h1 {
