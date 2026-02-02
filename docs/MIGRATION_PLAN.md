@@ -18,6 +18,9 @@
 | CLI workspace commands | `cli/workspace.go` | ✅ Done |
 | Updated tests for new system | `cli/cli_test.go` | ✅ Done |
 | **Global-only simplification** | All files | ✅ Done |
+| Backend unit tests (72.5% coverage) | `internal/skills_system_test.go` | ✅ Done |
+| Docker test infrastructure | `test.Dockerfile`, `docker-compose.test.yml` | ✅ Done |
+| CI workflow updated to Go 1.25 | `.github/workflows/release.yml` | ✅ Done |
 
 **Note:** The architecture has been simplified to global-only skills. There are no per-project skills. All coding agents are managed uniformly by Scribe.
 
@@ -1127,9 +1130,10 @@ func sanitizeName(name string) string {
 
 ### Testing (Alongside Development)
 26. ✅ **CLI tests** - Test command parsing and execution
-27. 🚧 **Backend unit tests** - Additional coverage needed
-28. 🚧 **Frontend component tests** - Vitest + Vue Test Utils
-29. 🚧 **Integration tests** - Full install/remove/workspace flows
+27. ✅ **Backend unit tests** - 72.5% coverage (`internal/skills_system_test.go`)
+28. ✅ **Docker test infrastructure** - `test.Dockerfile`, `docker-compose.test.yml`, Makefile targets
+29. 🚧 **Frontend component tests** - Vitest + Vue Test Utils
+30. 🚧 **Integration tests** - Full install/remove/workspace flows
 
 ### Polish 🚧 PENDING
 30. **URL scheme** - Updated agenthub:// handler
@@ -1325,11 +1329,17 @@ vi.mock('../bindings/scribe', () => ({
 ### Test Commands
 
 ```bash
-# Backend
+# Backend (local)
 go test ./...                    # All tests
 go test ./internal/... -v        # Verbose internal tests
 go test -race ./...              # Race detection
 go test -cover ./...             # Coverage report
+
+# Backend (Docker) - consistent isolated environment
+make docker-test                 # Run all tests in Docker
+make docker-test-coverage        # Tests with coverage report
+make docker-test-race            # Tests with race detector
+make docker-test-filter TEST_PATTERN=TestSkill  # Filter tests
 
 # Frontend
 pnpm test                        # Run Vitest
@@ -1349,6 +1359,8 @@ The core backend infrastructure is implemented and working:
 - Symlinks are created in all detected agent directories (45 agents supported)
 - Workspace system allows organizing skills into named sets
 - CLI commands: `install`, `uninstall`, `workspace list/create/use/add/remove/current/delete`
+- **Test coverage at 72.5%** with Docker test infrastructure for CI consistency
+- **CI workflow updated** to Go 1.25 to match go.mod requirements
 
 **Next Steps:**
 1. **Frontend Migration** - Update Vue components for skills-only architecture
