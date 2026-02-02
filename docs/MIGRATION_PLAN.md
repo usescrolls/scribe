@@ -17,6 +17,9 @@
 | CLI uninstall command | `cli/uninstall.go` | ✅ Done |
 | CLI workspace commands | `cli/workspace.go` | ✅ Done |
 | Updated tests for new system | `cli/cli_test.go` | ✅ Done |
+| **Global-only simplification** | All files | ✅ Done |
+
+**Note:** The architecture has been simplified to global-only skills. There are no per-project skills. All coding agents are managed uniformly by Scribe.
 
 ### Pending Work 🚧
 
@@ -75,12 +78,12 @@
 | Decision | Choice |
 |----------|--------|
 | Migration approach | Clean break (no migration) |
-| Workspace scope | Global skills only |
+| Skill scope | **Global only** - no per-project skills |
+| Agent management | **Unified** - all agents managed globally by Scribe |
 | Auto-add to workspace | Yes |
 | Agent selection | All detected agents |
 | URL scheme | Keep `agenthub://` |
 | GUI/System tray | Keep and update |
-| Project storage | `.scribe/scrolls/` |
 | Skill tracking | Sidecar `.scribe-meta.json` per skill (no central lock file) |
 
 ---
@@ -108,11 +111,11 @@ Migrate Scribe from a multi-purpose plugin manager (skills, agents, hooks, comma
 
 ### 1. Canonical Storage (`~/.scribe/scrolls/`)
 
-All skills stored in a single canonical location:
+All skills are stored globally in a single canonical location. Scribe manages all coding agents uniformly - there are no per-project skills.
 
 ```
 ~/.scribe/
-├── scrolls/                    # Canonical skill storage (global)
+├── scrolls/                    # Canonical skill storage (global only)
 │   ├── react-best-practices/
 │   │   ├── SKILL.md
 │   │   └── .scribe-meta.json   # Source tracking (sidecar)
@@ -125,17 +128,9 @@ All skills stored in a single canonical location:
 │   ├── web-dev.json
 │   └── backend.json
 └── config.json                 # Global config (active workspace)
-
-# Project-level storage
-<project>/
-├── .scribe/
-│   └── scrolls/                # Project-specific skills
-│       └── project-skill/
-│           └── SKILL.md
-└── ...
 ```
 
-**Note:** Workspaces only affect global skills (`~/.scribe/scrolls/`). Project-level skills are always active within their project.
+**Note:** All skills are global. Workspaces control which global skills are active across all agents.
 
 ### 2. Skill Format (SKILL.md)
 
@@ -157,23 +152,23 @@ Detailed instructions for AI agents...
 
 ### 3. Supported Agents (40+)
 
-Skills are symlinked to each agent's skills directory:
+Skills are symlinked to each agent's global skills directory. Scribe manages all agents uniformly.
 
-| Agent | Project Dir | Global Dir |
-|-------|-------------|------------|
-| Claude Code | `.claude/skills/` | `~/.claude/skills/` |
-| Cursor | `.cursor/skills/` | `~/.cursor/skills/` |
-| GitHub Copilot | `.github/skills/` | `~/.copilot/skills/` |
-| Cline | `.cline/skills/` | `~/.cline/skills/` |
-| Continue | `.continue/skills/` | `~/.continue/skills/` |
-| Windsurf | `.windsurf/skills/` | `~/.codeium/windsurf/skills/` |
-| OpenCode | `.opencode/skills/` | `~/.config/opencode/skills/` |
-| Codex | `.codex/skills/` | `~/.codex/skills/` |
-| Gemini CLI | `.gemini/skills/` | `~/.gemini/skills/` |
-| Goose | `.goose/skills/` | `~/.config/goose/skills/` |
-| + 30 more... | | |
+| Agent | Global Skills Dir |
+|-------|------------------|
+| Claude Code | `~/.claude/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| GitHub Copilot | `~/.copilot/skills/` |
+| Cline | `~/.cline/skills/` |
+| Continue | `~/.continue/skills/` |
+| Windsurf | `~/.codeium/windsurf/skills/` |
+| OpenCode | `~/.config/opencode/skills/` |
+| Codex | `~/.codex/skills/` |
+| Gemini CLI | `~/.gemini/skills/` |
+| Goose | `~/.config/goose/skills/` |
+| + 35 more... | |
 
-**Key rule**: Only create symlinks to agent directories that already exist.
+**Key rule**: Only create symlinks to agent directories that already exist (agent is installed).
 
 ### 4. Workspace System
 
@@ -325,13 +320,14 @@ scribe workspace current
 scribe install owner/repo [flags]
 
 Flags:
-  -g, --global           Install globally (default: true)
   -a, --agent <agents>   Target specific agents (comma-separated)
   -s, --skill <skills>   Select specific skills to install
   -l, --list             List available skills without installing
   -y, --yes              Skip interactive prompts
   --all                  Install all skills to all detected agents
 ```
+
+**Note:** All skills are installed globally. There is no project-level installation.
 
 ---
 
@@ -542,12 +538,12 @@ func detectInstalledAgents() []Agent {
       UpdatedAt   string `json:"updatedAt"`
   }
 
+  // Agent - all agents managed globally by Scribe
   type Agent struct {
       ID              string
       DisplayName     string
-      ProjectSkillsDir string        // e.g., ".claude/skills"
-      GlobalSkillsDir  string        // e.g., "~/.claude/skills"
-      GlobalConfigDir  string        // For detection, e.g., "~/.claude"
+      GlobalSkillsDir string        // e.g., "~/.claude/skills"
+      GlobalConfigDir string        // For detection, e.g., "~/.claude"
   }
 
   type Workspace struct {
@@ -558,9 +554,6 @@ func detectInstalledAgents() []Agent {
 
   type Config struct {
       ActiveWorkspace string `json:"activeWorkspace"`
-      Preferences     struct {
-          DefaultScope string `json:"defaultScope"` // "global" or "project"
-      } `json:"preferences"`
   }
   ```
 
@@ -570,9 +563,8 @@ func detectInstalledAgents() []Agent {
   - `GetAgent(id string)` - Get agent by ID
 
 - `internal/storage.go` - Canonical storage management:
-  - `GetScrollsDir(global bool, cwd string)` → `~/.scribe/scrolls/` or `.scribe/scrolls/`
+  - `GetScrollsDir()` → `~/.scribe/scrolls/` (global only)
   - `GetWorkspacesDir()` → `~/.scribe/workspaces/`
-  - `GetLockFilePath()` → `~/.scribe/scrolls.lock.json`
   - `GetConfigPath()` → `~/.scribe/config.json`
 
 ### Phase 2: Skill Discovery & Parsing
@@ -957,12 +949,13 @@ type AgentStatus struct {
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | **Migration** | Clean break | No migration of existing `~/.scribe` data |
+| **Skill Scope** | **Global only** | No per-project skills - all skills managed globally |
+| **Agent Management** | **Unified** | All coding agents managed globally by Scribe |
 | **Workspace Scope** | Global only | Workspaces manage `~/.scribe/scrolls/` symlinks only |
 | **Auto-add to Workspace** | Yes | Skills automatically added to active workspace on install |
 | **Agent Selection** | All detected | Install to all agents with existing config directories |
 | **URL Scheme** | Keep `agenthub://` | Maintain web integration compatibility |
 | **GUI/System Tray** | Keep and update | Maintain GUI for non-technical users |
-| **Project Storage** | `.scribe/scrolls/` | Consistent naming with global storage |
 
 ---
 

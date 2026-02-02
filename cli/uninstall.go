@@ -60,7 +60,7 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 	}
 
 	// Uninstall the skill (removes symlinks and canonical copy)
-	if err := scribe.UninstallSkill(skillName, true, ""); err != nil {
+	if err := scribe.UninstallSkill(skillName); err != nil {
 		return fmt.Errorf("failed to remove skill: %w", err)
 	}
 
@@ -93,7 +93,7 @@ func runUninstallAll() error {
 		scribe.RemoveSkillFromAllWorkspaces(skillName)
 
 		// Uninstall the skill
-		if err := scribe.UninstallSkill(skillName, true, ""); err != nil {
+		if err := scribe.UninstallSkill(skillName); err != nil {
 			fmt.Fprintf(os.Stderr, "  x Failed to remove %s: %v\n", skillName, err)
 			continue
 		}

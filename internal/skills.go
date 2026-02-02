@@ -258,8 +258,8 @@ func skillInList(skills []*Skill, name string) bool {
 }
 
 // ReadSkill reads a skill from the canonical storage location
-func ReadSkill(global bool, cwd, skillName string) (*Skill, error) {
-	skillPath, err := GetSkillPath(global, cwd, skillName)
+func ReadSkill(skillName string) (*Skill, error) {
+	skillPath, err := GetSkillPath(skillName)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func ReadSkill(global bool, cwd, skillName string) (*Skill, error) {
 	}
 
 	// Load metadata if available
-	metaPath, err := GetMetaPath(global, cwd, skillName)
+	metaPath, err := GetMetaPath(skillName)
 	if err != nil {
 		return skill, nil // Return skill without meta
 	}
@@ -284,23 +284,15 @@ func ReadSkill(global bool, cwd, skillName string) (*Skill, error) {
 }
 
 // ReadAllSkills reads all skills from the canonical storage location
-func ReadAllSkills(global bool, cwd string) ([]*Skill, error) {
-	var names []string
-	var err error
-
-	if global {
-		names, err = ListInstalledSkills()
-	} else {
-		names, err = ListProjectSkills(cwd)
-	}
-
+func ReadAllSkills() ([]*Skill, error) {
+	names, err := ListInstalledSkills()
 	if err != nil {
 		return nil, err
 	}
 
 	var skills []*Skill
 	for _, name := range names {
-		skill, err := ReadSkill(global, cwd, name)
+		skill, err := ReadSkill(name)
 		if err != nil {
 			continue // Skip invalid skills
 		}
@@ -329,7 +321,7 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 
 // GetAllSkillInfo returns SkillInfo for all installed skills
 func GetAllSkillInfo() ([]SkillInfo, error) {
-	skills, err := ReadAllSkills(true, "")
+	skills, err := ReadAllSkills()
 	if err != nil {
 		return nil, err
 	}

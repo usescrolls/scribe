@@ -28,12 +28,12 @@ type SkillMeta struct {
 }
 
 // Agent represents a coding agent with its skill directories
+// All skills are managed globally - scribe manages all agents uniformly
 type Agent struct {
-	ID               string `json:"id"`               // Unique identifier (e.g., "claude-code")
-	DisplayName      string `json:"displayName"`      // Human-readable name (e.g., "Claude Code")
-	ProjectSkillsDir string `json:"projectSkillsDir"` // Relative path for project skills (e.g., ".claude/skills")
-	GlobalSkillsDir  string `json:"globalSkillsDir"`  // Absolute path for global skills (e.g., "~/.claude/skills")
-	GlobalConfigDir  string `json:"globalConfigDir"`  // For detection (e.g., "~/.claude")
+	ID              string `json:"id"`              // Unique identifier (e.g., "claude-code")
+	DisplayName     string `json:"displayName"`     // Human-readable name (e.g., "Claude Code")
+	GlobalSkillsDir string `json:"globalSkillsDir"` // Absolute path for global skills (e.g., "~/.claude/skills")
+	GlobalConfigDir string `json:"globalConfigDir"` // For detection (e.g., "~/.claude")
 }
 
 // Workspace defines which skills are active globally
@@ -45,22 +45,15 @@ type Workspace struct {
 
 // Config represents the global Scribe configuration
 type Config struct {
-	ActiveWorkspace string      `json:"activeWorkspace"`
-	Preferences     Preferences `json:"preferences"`
-}
-
-// Preferences holds user preferences
-type Preferences struct {
-	DefaultScope string `json:"defaultScope"` // "global" or "project"
+	ActiveWorkspace string `json:"activeWorkspace"`
 }
 
 // InstallOptions configures skill installation behavior
 type InstallOptions struct {
-	Global  bool     // Install globally (vs project-level)
-	Agents  []string // Target specific agents (empty = all detected)
-	Skills  []string // Select specific skills to install (empty = all found)
-	Yes     bool     // Skip interactive prompts
-	ListOnly bool    // List available skills without installing
+	Agents   []string // Target specific agents (empty = all detected)
+	Skills   []string // Select specific skills to install (empty = all found)
+	Yes      bool     // Skip interactive prompts
+	ListOnly bool     // List available skills without installing
 }
 
 // SourceInfo represents a parsed source reference

@@ -10,8 +10,8 @@ import (
 
 // InstallSkill installs a skill to the canonical location and syncs to agents
 func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
-	// Determine target directory
-	scrollsDir, err := GetScrollsDir(opts.Global, "")
+	// Determine target directory (always global)
+	scrollsDir, err := GetScrollsDir()
 	if err != nil {
 		return fmt.Errorf("failed to get scrolls directory: %w", err)
 	}
@@ -64,7 +64,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
 }
 
 // UninstallSkill removes a skill from canonical storage and all agents
-func UninstallSkill(skillName string, global bool, cwd string) error {
+func UninstallSkill(skillName string) error {
 	// Remove symlinks from all agents first
 	agents := DetectInstalledAgents()
 	agentIDs := make([]string, len(agents))
@@ -77,7 +77,7 @@ func UninstallSkill(skillName string, global bool, cwd string) error {
 	}
 
 	// Remove from canonical location
-	skillDir, err := GetSkillDir(global, cwd, skillName)
+	skillDir, err := GetSkillDir(skillName)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func UninstallSkill(skillName string, global bool, cwd string) error {
 
 // SyncSkillToAgents creates symlinks for a skill in all specified agents' directories
 func SyncSkillToAgents(skillName string, agentIDs []string) error {
-	scrollsDir, err := GetScrollsDir(true, "")
+	scrollsDir, err := GetScrollsDir()
 	if err != nil {
 		return err
 	}

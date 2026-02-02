@@ -17,6 +17,98 @@ make build-all
 
 ---
 
+## Testing
+
+### Local Testing
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+make test-verbose
+
+# Run tests with coverage
+make coverage
+
+# Generate HTML coverage report
+make coverage-html
+```
+
+### Docker Testing
+
+Docker testing provides a consistent, isolated environment for running tests. This is useful for CI/CD pipelines and ensuring tests pass across different environments.
+
+#### Quick Commands
+
+```bash
+# Run all tests in Docker
+make docker-test
+
+# Run tests with coverage report
+make docker-test-coverage
+
+# Run tests with race detector
+make docker-test-race
+
+# Run specific tests by pattern
+make docker-test-filter TEST_PATTERN=TestSkill
+
+# Clean Docker test artifacts
+make docker-test-clean
+```
+
+#### Manual Docker Commands
+
+```bash
+# Build the test image
+docker build -f test.Dockerfile -t scribe-test .
+
+# Run tests
+docker run --rm scribe-test
+
+# Run with coverage output
+docker run --rm -v $(pwd)/coverage:/coverage scribe-test \
+  sh -c "go test -coverprofile=/coverage/coverage.out ./internal/... && \
+         go tool cover -func=/coverage/coverage.out"
+
+# Run specific test pattern
+docker run --rm scribe-test go test -v -run "TestWorkspace" ./internal/...
+```
+
+#### Docker Compose
+
+For more complex test scenarios, use `docker-compose.test.yml`:
+
+```bash
+# Run standard tests
+docker-compose -f docker-compose.test.yml run --rm test
+
+# Run with coverage
+docker-compose -f docker-compose.test.yml run --rm test-coverage
+
+# Run with race detector
+docker-compose -f docker-compose.test.yml run --rm test-race
+
+# Run filtered tests
+TEST_PATTERN=TestInstall docker-compose -f docker-compose.test.yml run --rm test-filter
+```
+
+#### Test Coverage
+
+Current test coverage is approximately **72.5%** for the internal package. Coverage reports can be generated in multiple formats:
+
+```bash
+# Terminal output
+make docker-test-coverage
+
+# HTML report (local)
+make coverage-html
+open build/coverage.html
+```
+
+---
+
 ## Building the macOS DMG Installer
 
 ```bash

@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Run unit tests
+  test:
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    volumes:
+      # Mount source for faster iteration (optional, comment out for CI)
+      # - .:/app:ro
+      # Mount coverage output
+      - ./coverage:/coverage
+    environment:
+      - CGO_ENABLED=1
+      - HOME=/tmp/test-home
+    command: go test -v -count=1 ./internal/...
+
+  # Run tests with coverage report
+  test-coverage:
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    volumes:
+      - ./coverage:/coverage
+    environment:
+      - CGO_ENABLED=1
+      - HOME=/tmp/test-home
+    command: >
+      sh -c "go test -v -count=1 -coverprofile=/coverage/coverage.out ./internal/... &&
+             go tool cover -func=/coverage/coverage.out &&
+             echo '--- Coverage report saved to coverage/coverage.out ---'"
+
+  # Run tests with race detector
+  test-race:
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    environment:
+      - CGO_ENABLED=1
+      - HOME=/tmp/test-home
+    command: go test -v -race -count=1 ./internal/...
+
+  # Run specific test pattern
+  test-filter:
+    build:
+      context: .
+      dockerfile: test.Dockerfile
+    environment:
+      - CGO_ENABLED=1
+      - HOME=/tmp/test-home
+      - TEST_PATTERN=${TEST_PATTERN:-TestSkill}
+    command: sh -c 'go test -v -count=1 -run "$$TEST_PATTERN" ./internal/...'
