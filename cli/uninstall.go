@@ -3,109 +3,111 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/usescrolls/scribe/internal"
 )
 
 var (
-	// Uninstall flags
 	uninstallAll bool
 
 	uninstallCmd = &cobra.Command{
-		Use:     "uninstall <name>",
+		Use:     "uninstall <skill-name>",
 		Aliases: []string{"remove", "rm"},
-		Short:   "Remove an installed plugin",
-		Long: `Remove an installed plugin.
+		Short:   "Remove an installed skill",
+		Long: `Remove a skill from canonical storage and all agent directories.
 
 Examples:
-  scribe uninstall prettier
-  scribe rm prettier
+  scribe uninstall react-best-practices
+  scribe rm typescript-patterns
   scribe uninstall --all`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if uninstallAll {
-				if len(args) > 0 {
-					return fmt.Errorf("--all flag cannot be used with plugin name")
-				}
-				return nil
-			}
-			if len(args) != 1 {
-				return fmt.Errorf("requires exactly one plugin name (or use --all)")
-			}
-			return nil
-		},
+		Args: cobra.MaximumNArgs(1),
 		RunE: runUninstall,
 	}
 )
 
 func init() {
-	uninstallCmd.Flags().BoolVar(&uninstallAll, "all", false, "Remove all installed plugins")
+	uninstallCmd.Flags().BoolVar(&uninstallAll, "all", false, "Remove all installed skills")
 }
 
 func runUninstall(cmd *cobra.Command, args []string) error {
-	// Initialize server
-	if err := initServer(); err != nil {
-		scribe.Logger.Error("failed to initialize", "error", err)
-		os.Exit(ExitRegistryError)
-	}
-
 	if uninstallAll {
 		return runUninstallAll()
 	}
 
-	name := args[0]
-	return runUninstallSingle(name)
-}
+	if len(args) == 0 {
+		return fmt.Errorf("skill name is required (or use --all to remove all skills)")
+	}
 
-func runUninstallSingle(name string) error {
-	// Check if plugin exists
-	if _, exists := server.GetRegistryEntry(name); !exists {
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "Plugin '%s' not found\n", name)
-		}
-		os.Exit(ExitNotFound)
+	skillName := args[0]
+
+	// Check if skill exists
+	exists, err := scribe.SkillExists(skillName)
+	if err != nil {
+		return fmt.Errorf("failed to check skill: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("skill '%s' not found", skillName)
 	}
 
 	if !quiet {
-		fmt.Printf("Uninstalling plugin '%s'...\n", name)
+		fmt.Printf("Removing skill '%s'...\n", skillName)
 	}
 
-	if err := server.UninstallPlugin(name); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			os.Exit(ExitNotFound)
-		}
-		scribe.Logger.Error("failed to uninstall plugin", "error", err)
-		os.Exit(ExitRegistryError)
+	// Remove from all workspaces
+	if err := scribe.RemoveSkillFromAllWorkspaces(skillName); err != nil {
+		scribe.Logger.Warn("failed to remove from workspaces", "skill", skillName, "error", err)
+	}
+
+	// Uninstall the skill (removes symlinks and canonical copy)
+	if err := scribe.UninstallSkill(skillName, true, ""); err != nil {
+		return fmt.Errorf("failed to remove skill: %w", err)
 	}
 
 	if !quiet {
-		fmt.Printf("Plugin '%s' uninstalled successfully\n", name)
+		fmt.Printf("Skill '%s' removed successfully\n", skillName)
 	}
 
 	return nil
 }
 
 func runUninstallAll() error {
-	count := server.PluginCount()
-	if count == 0 {
+	skills, err := scribe.ListInstalledSkills()
+	if err != nil {
+		return fmt.Errorf("failed to list skills: %w", err)
+	}
+
+	if len(skills) == 0 {
 		if !quiet {
-			fmt.Println("No plugins installed")
+			fmt.Println("No skills installed")
 		}
 		return nil
 	}
 
 	if !quiet {
-		fmt.Printf("Uninstalling all %d plugin(s)...\n", count)
+		fmt.Printf("Removing %d skill(s)...\n", len(skills))
 	}
 
-	if err := server.UninstallAllPlugins(); err != nil {
-		scribe.Logger.Error("failed to uninstall all plugins", "error", err)
-		os.Exit(ExitRegistryError)
+	for _, skillName := range skills {
+		// Remove from all workspaces
+		scribe.RemoveSkillFromAllWorkspaces(skillName)
+
+		// Uninstall the skill
+		if err := scribe.UninstallSkill(skillName, true, ""); err != nil {
+			fmt.Fprintf(os.Stderr, "  x Failed to remove %s: %v\n", skillName, err)
+			continue
+		}
+
+		if !quiet {
+			fmt.Printf("  Removed %s\n", skillName)
+		}
 	}
+
+	// Rebuild default workspace (should now be empty)
+	scribe.RebuildDefaultWorkspace()
 
 	if !quiet {
-		fmt.Printf("All plugins uninstalled successfully\n")
+		fmt.Println("All skills removed")
 	}
 
 	return nil

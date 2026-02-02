@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"time"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/usescrolls/scribe/internal"
@@ -11,145 +13,412 @@ import (
 
 var (
 	// Install flags
-	githubRepo string
-	gitURL     string
-	zipURL     string
-	ref        string
-	noEnable   bool
+	installGlobal   bool
+	installAgents   string
+	installSkills   string
+	installListOnly bool
+	installYes      bool
+	installAll      bool
 
 	installCmd = &cobra.Command{
-		Use:   "install [name]",
-		Short: "Install a plugin from a source",
-		Long: `Install a plugin from a source.
+		Use:   "install <source>",
+		Short: "Install skills from a source",
+		Long: `Install skills from various sources.
 
-Exactly one source flag must be specified: --github, --url, or --zip.
+Sources can be:
+  owner/repo                    GitHub shorthand
+  https://github.com/owner/repo Full GitHub URL
+  ./local/path                  Local directory
+  https://example.com           Well-known endpoint
 
 Examples:
-  scribe install prettier --github usescrolls/prettier-skill
-  scribe install custom --url https://github.com/user/plugin.git
-  scribe install tool --zip https://example.com/plugin.zip
-  scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0`,
+  scribe install vercel-labs/agent-skills
+  scribe install https://github.com/owner/repo
+  scribe install ./my-skills
+  scribe install owner/repo --global
+  scribe install owner/repo --agent claude-code,cursor
+  scribe install owner/repo --list`,
 		Args: cobra.ExactArgs(1),
 		RunE: runInstall,
 	}
 )
 
 func init() {
-	installCmd.Flags().StringVar(&githubRepo, "github", "", "GitHub repository (owner/repo)")
-	installCmd.Flags().StringVar(&gitURL, "url", "", "Git URL")
-	installCmd.Flags().StringVar(&zipURL, "zip", "", "Zip file URL")
-	installCmd.Flags().StringVar(&ref, "ref", "", "Branch or tag reference")
-	installCmd.Flags().BoolVar(&noEnable, "no-enable", false, "Don't auto-enable in Claude settings")
+	installCmd.Flags().BoolVarP(&installGlobal, "global", "g", true, "Install globally (default)")
+	installCmd.Flags().StringVarP(&installAgents, "agent", "a", "", "Target specific agents (comma-separated)")
+	installCmd.Flags().StringVarP(&installSkills, "skill", "s", "", "Select specific skills to install (comma-separated)")
+	installCmd.Flags().BoolVarP(&installListOnly, "list", "l", false, "List available skills without installing")
+	installCmd.Flags().BoolVarP(&installYes, "yes", "y", false, "Skip interactive prompts")
+	installCmd.Flags().BoolVar(&installAll, "all", false, "Install all skills to all detected agents")
 }
 
 func runInstall(cmd *cobra.Command, args []string) error {
-	name := args[0]
+	sourceArg := args[0]
 
-	// Validate exactly one source flag is set
-	sourceCount := 0
-	var sourceType string
-	if githubRepo != "" {
-		sourceCount++
-		sourceType = "github"
-	}
-	if gitURL != "" {
-		sourceCount++
-		sourceType = "url"
-	}
-	if zipURL != "" {
-		sourceCount++
-		sourceType = "zip"
-	}
-
-	if sourceCount == 0 {
-		return fmt.Errorf("exactly one source flag is required: --github, --url, or --zip")
-	}
-	if sourceCount > 1 {
-		return fmt.Errorf("only one source flag can be specified at a time")
-	}
-
-	// Build plugin source
-	pluginSource := scribe.PluginSource{
-		Source: sourceType,
-		Ref:    ref,
-	}
-
-	switch sourceType {
-	case "github":
-		pluginSource.Repo = githubRepo
-	case "url":
-		pluginSource.URL = gitURL
-	case "zip":
-		pluginSource.URL = zipURL
-	}
-
-	// Initialize server
-	if err := initServer(); err != nil {
-		scribe.Logger.Error("failed to initialize", "error", err)
-		os.Exit(ExitRegistryError)
+	// Parse the source
+	source, err := parseSource(sourceArg)
+	if err != nil {
+		return fmt.Errorf("invalid source: %w", err)
 	}
 
 	if !quiet {
-		fmt.Printf("Installing plugin '%s' from %s...\n", name, formatSource(pluginSource))
+		fmt.Printf("Fetching skills from %s...\n", formatSourceInfo(source))
 	}
 
-	// Resolve the source
-	resolvedSource, err := server.ResolveSource(name, pluginSource)
+	// Fetch and discover skills
+	skills, tempDir, err := fetchAndDiscoverSkills(source)
 	if err != nil {
-		scribe.Logger.Error("failed to resolve source", "name", name, "error", err)
-		os.Exit(ExitSourceFailed)
+		return fmt.Errorf("failed to fetch skills: %w", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up temp directory
+
+	if len(skills) == 0 {
+		return fmt.Errorf("no skills found in source")
 	}
 
-	// Create registry entry
-	entry := scribe.RegistryEntry{
-		Name:           name,
-		Source:         pluginSource,
-		ResolvedSource: resolvedSource,
-		InstalledAt:    time.Now(),
+	// List only mode
+	if installListOnly {
+		fmt.Printf("\nFound %d skill(s):\n", len(skills))
+		for _, skill := range skills {
+			fmt.Printf("  - %s - %s\n", skill.Name, skill.Description)
+		}
+		return nil
 	}
 
-	// Add to registry
-	server.SetRegistryEntry(name, entry)
-
-	// Persist registry
-	if err := server.SaveRegistry(); err != nil {
-		scribe.Logger.Error("failed to save registry", "error", err)
-		os.Exit(ExitRegistryError)
-	}
-
-	// Regenerate marketplace.json
-	if err := server.GenerateMarketplace(); err != nil {
-		scribe.Logger.Error("failed to regenerate marketplace", "error", err)
-		os.Exit(ExitRegistryError)
-	}
-
-	// Auto-enable unless --no-enable
-	if !noEnable {
-		if err := server.UpdateClaudeSettings(name, true); err != nil {
-			scribe.Logger.Warn("failed to update claude settings", "name", name, "error", err)
+	// Filter skills if --skill flag is provided
+	if installSkills != "" {
+		skillNames := strings.Split(installSkills, ",")
+		skills = filterSkills(skills, skillNames)
+		if len(skills) == 0 {
+			return fmt.Errorf("no matching skills found for: %s", installSkills)
 		}
 	}
 
+	// Parse agent filter
+	var targetAgents []string
+	if installAgents != "" {
+		targetAgents = strings.Split(installAgents, ",")
+	}
+
+	// Detect installed agents
+	installedAgents := scribe.DetectInstalledAgents()
+	if len(installedAgents) == 0 {
+		return fmt.Errorf("no coding agents detected. Please install at least one agent (Claude Code, Cursor, etc.)")
+	}
+
 	if !quiet {
-		fmt.Printf("Plugin '%s' installed successfully\n", name)
+		fmt.Printf("\nFound %d skill(s) to install:\n", len(skills))
+		for _, skill := range skills {
+			fmt.Printf("  - %s - %s\n", skill.Name, skill.Description)
+		}
+
+		fmt.Printf("\nDetected %d agent(s):\n", len(installedAgents))
+		for _, agent := range installedAgents {
+			fmt.Printf("  - %s\n", agent.DisplayName)
+		}
+		fmt.Println()
+	}
+
+	// Ensure Scribe directories exist
+	if err := scribe.EnsureScribeDirs(); err != nil {
+		return fmt.Errorf("failed to create Scribe directories: %w", err)
+	}
+
+	// Ensure default workspace exists
+	if err := scribe.EnsureDefaultWorkspace(); err != nil {
+		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
+	}
+
+	// Install each skill
+	opts := scribe.InstallOptions{
+		Global: installGlobal,
+		Agents: targetAgents,
+		Yes:    installYes,
+	}
+
+	successCount := 0
+	for _, skill := range skills {
+		if !quiet {
+			fmt.Printf("Installing %s...\n", skill.Name)
+		}
+
+		if err := scribe.InstallSkill(skill, source, opts); err != nil {
+			fmt.Fprintf(os.Stderr, "  x Failed to install %s: %v\n", skill.Name, err)
+			continue
+		}
+
+		// Add to workspaces
+		if err := scribe.AddSkillToActiveAndDefaultWorkspace(skill.Name); err != nil {
+			scribe.Logger.Warn("failed to add to workspace", "skill", skill.Name, "error", err)
+		}
+
+		if !quiet {
+			fmt.Printf("  Installed %s\n", skill.Name)
+		}
+		successCount++
+	}
+
+	if !quiet {
+		fmt.Printf("\nInstalled %d/%d skill(s)\n", successCount, len(skills))
 	}
 
 	return nil
 }
 
-// formatSource returns a human-readable source string
-func formatSource(source scribe.PluginSource) string {
-	switch source.Source {
-	case "github":
-		if source.Ref != "" {
-			return fmt.Sprintf("github:%s@%s", source.Repo, source.Ref)
+// parseSource parses a source argument into a SourceInfo
+func parseSource(arg string) (*scribe.SourceInfo, error) {
+	source := &scribe.SourceInfo{}
+
+	// Check for local path
+	if strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "/") || strings.HasPrefix(arg, "~") {
+		absPath, err := filepath.Abs(arg)
+		if err != nil {
+			return nil, err
 		}
-		return fmt.Sprintf("github:%s", source.Repo)
-	case "url":
-		return fmt.Sprintf("url:%s", source.URL)
-	case "zip":
-		return fmt.Sprintf("zip:%s", source.URL)
-	default:
-		return source.Source
+		source.Type = "local"
+		source.LocalPath = absPath
+		return source, nil
 	}
+
+	// Check for GitHub URL
+	if strings.HasPrefix(arg, "https://github.com/") {
+		return parseGitHubURL(arg)
+	}
+
+	// Check for GitLab URL
+	if strings.HasPrefix(arg, "https://gitlab.com/") {
+		return parseGitLabURL(arg)
+	}
+
+	// Check for generic URL
+	if strings.HasPrefix(arg, "https://") || strings.HasPrefix(arg, "http://") {
+		// Check if it's a zip URL
+		if strings.HasSuffix(arg, ".zip") {
+			source.Type = "zip"
+			source.URL = arg
+			return source, nil
+		}
+		// Treat as well-known URL
+		source.Type = "well-known"
+		source.URL = arg
+		return source, nil
+	}
+
+	// Assume GitHub shorthand: owner/repo or owner/repo#branch or owner/repo/path
+	return parseGitHubShorthand(arg)
+}
+
+// parseGitHubShorthand parses formats like:
+// owner/repo
+// owner/repo#branch
+// owner/repo/path/to/skills
+// owner/repo/path#branch
+func parseGitHubShorthand(arg string) (*scribe.SourceInfo, error) {
+	source := &scribe.SourceInfo{Type: "github"}
+
+	// Check for branch/ref
+	if idx := strings.Index(arg, "#"); idx != -1 {
+		source.Ref = arg[idx+1:]
+		arg = arg[:idx]
+	}
+
+	parts := strings.Split(arg, "/")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid GitHub shorthand: expected owner/repo")
+	}
+
+	source.Owner = parts[0]
+	source.Repo = parts[1]
+
+	// Check for subpath
+	if len(parts) > 2 {
+		source.Subpath = strings.Join(parts[2:], "/")
+	}
+
+	source.URL = fmt.Sprintf("https://github.com/%s/%s", source.Owner, source.Repo)
+
+	return source, nil
+}
+
+// parseGitHubURL parses a full GitHub URL
+func parseGitHubURL(url string) (*scribe.SourceInfo, error) {
+	source := &scribe.SourceInfo{Type: "github", URL: url}
+
+	// Remove https://github.com/ prefix
+	path := strings.TrimPrefix(url, "https://github.com/")
+
+	// Check for branch in URL (tree/branch/...)
+	if idx := strings.Index(path, "/tree/"); idx != -1 {
+		beforeTree := path[:idx]
+		afterTree := path[idx+6:] // Skip "/tree/"
+
+		parts := strings.Split(beforeTree, "/")
+		if len(parts) >= 2 {
+			source.Owner = parts[0]
+			source.Repo = parts[1]
+		}
+
+		// afterTree is branch/path or just branch
+		afterParts := strings.SplitN(afterTree, "/", 2)
+		source.Ref = afterParts[0]
+		if len(afterParts) > 1 {
+			source.Subpath = afterParts[1]
+		}
+	} else {
+		parts := strings.Split(path, "/")
+		if len(parts) >= 2 {
+			source.Owner = parts[0]
+			source.Repo = strings.TrimSuffix(parts[1], ".git")
+		}
+		if len(parts) > 2 {
+			source.Subpath = strings.Join(parts[2:], "/")
+		}
+	}
+
+	return source, nil
+}
+
+// parseGitLabURL parses a GitLab URL
+func parseGitLabURL(url string) (*scribe.SourceInfo, error) {
+	source := &scribe.SourceInfo{Type: "gitlab", URL: url}
+
+	path := strings.TrimPrefix(url, "https://gitlab.com/")
+	parts := strings.Split(path, "/")
+	if len(parts) >= 2 {
+		source.Owner = parts[0]
+		source.Repo = strings.TrimSuffix(parts[1], ".git")
+	}
+
+	return source, nil
+}
+
+// fetchAndDiscoverSkills fetches content from source and discovers skills
+// Returns the skills and a temp directory that should be cleaned up by caller
+func fetchAndDiscoverSkills(source *scribe.SourceInfo) ([]*scribe.Skill, string, error) {
+	var skillsDir string
+	var tempDir string
+
+	switch source.Type {
+	case "local":
+		skillsDir = source.LocalPath
+		if source.Subpath != "" {
+			skillsDir = filepath.Join(skillsDir, source.Subpath)
+		}
+	case "github", "gitlab":
+		// Clone repository to temp directory
+		var err error
+		tempDir, err = cloneRepository(source)
+		if err != nil {
+			return nil, "", err
+		}
+		skillsDir = tempDir
+		if source.Subpath != "" {
+			skillsDir = filepath.Join(tempDir, source.Subpath)
+		}
+	case "zip":
+		var err error
+		tempDir, err = downloadAndExtractZip(source.URL)
+		if err != nil {
+			return nil, "", err
+		}
+		skillsDir = tempDir
+	case "well-known":
+		return nil, "", fmt.Errorf("well-known sources not yet implemented")
+	default:
+		return nil, "", fmt.Errorf("unsupported source type: %s", source.Type)
+	}
+
+	// Discover skills in the directory
+	skills, err := scribe.DiscoverSkills(skillsDir)
+	if err != nil {
+		if tempDir != "" {
+			os.RemoveAll(tempDir)
+		}
+		return nil, "", err
+	}
+
+	return skills, tempDir, nil
+}
+
+// cloneRepository clones a git repository to a temp directory
+func cloneRepository(source *scribe.SourceInfo) (string, error) {
+	tempDir, err := os.MkdirTemp("", "scribe-clone-*")
+	if err != nil {
+		return "", err
+	}
+
+	// Build clone URL
+	cloneURL := source.URL
+	if !strings.HasSuffix(cloneURL, ".git") {
+		cloneURL += ".git"
+	}
+
+	if err := cloneWithGit(cloneURL, tempDir, source.Ref); err != nil {
+		os.RemoveAll(tempDir)
+		return "", err
+	}
+
+	return tempDir, nil
+}
+
+// downloadAndExtractZip downloads and extracts a zip file
+func downloadAndExtractZip(url string) (string, error) {
+	// TODO: Implement zip download and extraction
+	return "", fmt.Errorf("zip sources not yet implemented")
+}
+
+// filterSkills filters skills by name
+func filterSkills(skills []*scribe.Skill, names []string) []*scribe.Skill {
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[strings.TrimSpace(n)] = true
+	}
+
+	var filtered []*scribe.Skill
+	for _, skill := range skills {
+		if nameSet[skill.Name] {
+			filtered = append(filtered, skill)
+		}
+	}
+	return filtered
+}
+
+// formatSourceInfo formats a SourceInfo for display
+func formatSourceInfo(source *scribe.SourceInfo) string {
+	switch source.Type {
+	case "github":
+		s := source.Owner + "/" + source.Repo
+		if source.Ref != "" {
+			s += "#" + source.Ref
+		}
+		if source.Subpath != "" {
+			s += "/" + source.Subpath
+		}
+		return "github:" + s
+	case "gitlab":
+		return "gitlab:" + source.Owner + "/" + source.Repo
+	case "local":
+		return "local:" + source.LocalPath
+	case "zip":
+		return "zip:" + source.URL
+	case "well-known":
+		return source.URL
+	default:
+		return source.URL
+	}
+}
+
+// cloneWithGit clones a repository using the git command
+func cloneWithGit(cloneURL, targetDir, ref string) error {
+	args := []string{"clone", "--depth", "1"}
+	if ref != "" {
+		args = append(args, "--branch", ref)
+	}
+	args = append(args, cloneURL, targetDir)
+
+	cmd := exec.Command("git", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone failed: %w\n%s", err, string(output))
+	}
+	return nil
 }

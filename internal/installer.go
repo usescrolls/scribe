@@ -1,0 +1,268 @@
+package scribe
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
+)
+
+// InstallSkill installs a skill to the canonical location and syncs to agents
+func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
+	// Determine target directory
+	scrollsDir, err := GetScrollsDir(opts.Global, "")
+	if err != nil {
+		return fmt.Errorf("failed to get scrolls directory: %w", err)
+	}
+
+	skillDir := filepath.Join(scrollsDir, skill.Name)
+
+	// Check if skill already exists
+	if _, err := os.Stat(skillDir); err == nil {
+		return fmt.Errorf("skill '%s' already exists", skill.Name)
+	}
+
+	// Copy skill to canonical location
+	if err := copySkillDir(skill.Path, skillDir); err != nil {
+		return fmt.Errorf("failed to copy skill: %w", err)
+	}
+
+	// Write metadata
+	skillPathInSource := ""
+	if source.Subpath != "" {
+		skillPathInSource = source.Subpath
+	}
+
+	// Read the SKILL.md content for hashing
+	skillContent, err := os.ReadFile(filepath.Join(skillDir, SkillFileName))
+	if err != nil {
+		return fmt.Errorf("failed to read skill content: %w", err)
+	}
+
+	meta := NewSkillMeta(source, skillPathInSource, string(skillContent))
+	metaPath := filepath.Join(skillDir, MetaFileName)
+	if err := WriteSkillMeta(metaPath, meta); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+
+	// Sync to agents
+	agents := opts.Agents
+	if len(agents) == 0 {
+		// Default to all detected agents
+		detected := DetectInstalledAgents()
+		for _, a := range detected {
+			agents = append(agents, a.ID)
+		}
+	}
+
+	if err := SyncSkillToAgents(skill.Name, agents); err != nil {
+		return fmt.Errorf("failed to sync to agents: %w", err)
+	}
+
+	return nil
+}
+
+// UninstallSkill removes a skill from canonical storage and all agents
+func UninstallSkill(skillName string, global bool, cwd string) error {
+	// Remove symlinks from all agents first
+	agents := DetectInstalledAgents()
+	agentIDs := make([]string, len(agents))
+	for i, a := range agents {
+		agentIDs[i] = a.ID
+	}
+
+	if err := RemoveSkillFromAgents(skillName, agentIDs); err != nil {
+		// Log but continue - we still want to remove the canonical copy
+	}
+
+	// Remove from canonical location
+	skillDir, err := GetSkillDir(global, cwd, skillName)
+	if err != nil {
+		return err
+	}
+
+	return os.RemoveAll(skillDir)
+}
+
+// SyncSkillToAgents creates symlinks for a skill in all specified agents' directories
+func SyncSkillToAgents(skillName string, agentIDs []string) error {
+	scrollsDir, err := GetScrollsDir(true, "")
+	if err != nil {
+		return err
+	}
+
+	skillDir := filepath.Join(scrollsDir, skillName)
+
+	for _, agentID := range agentIDs {
+		agent := GetAgent(agentID)
+		if agent == nil {
+			continue
+		}
+
+		agentSkillsDir := expandPath(agent.GlobalSkillsDir)
+
+		// Ensure agent skills directory exists
+		if err := EnsureDir(agentSkillsDir); err != nil {
+			continue
+		}
+
+		linkPath := filepath.Join(agentSkillsDir, skillName)
+
+		// Remove existing link/directory if present
+		os.RemoveAll(linkPath)
+
+		// Create symlink
+		if err := CreateSymlink(skillDir, linkPath); err != nil {
+			// Fall back to copy if symlink fails
+			if err := copySkillDir(skillDir, linkPath); err != nil {
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
+// RemoveSkillFromAgents removes symlinks for a skill from all specified agents' directories
+func RemoveSkillFromAgents(skillName string, agentIDs []string) error {
+	for _, agentID := range agentIDs {
+		agent := GetAgent(agentID)
+		if agent == nil {
+			continue
+		}
+
+		agentSkillsDir := expandPath(agent.GlobalSkillsDir)
+		linkPath := filepath.Join(agentSkillsDir, skillName)
+
+		// Remove the symlink or directory
+		os.RemoveAll(linkPath)
+	}
+
+	return nil
+}
+
+// CreateSymlink creates a symlink from target to link
+// On Windows, it creates a junction for directories
+func CreateSymlink(target, link string) error {
+	// Use relative paths for portability
+	relPath, err := filepath.Rel(filepath.Dir(link), target)
+	if err != nil {
+		// Fall back to absolute path
+		relPath = target
+	}
+
+	// On Windows, use junction for directories
+	if runtime.GOOS == "windows" {
+		return createWindowsJunction(target, link)
+	}
+
+	return os.Symlink(relPath, link)
+}
+
+// createWindowsJunction creates a directory junction on Windows
+func createWindowsJunction(target, link string) error {
+	// On Windows, we need to use absolute paths for junctions
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return err
+	}
+
+	// Use mklink /J command via cmd
+	// This requires the link path to not exist
+	if err := os.RemoveAll(link); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// For simplicity, fall back to regular symlink
+	// Windows 10+ with developer mode supports symlinks without admin
+	return os.Symlink(absTarget, link)
+}
+
+// copySkillDir copies a skill directory to a new location
+func copySkillDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Calculate relative path
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+
+		return copyFile(path, targetPath)
+	})
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+
+	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
+}
+
+// SyncAllSkillsToAgents syncs all installed skills to all detected agents
+func SyncAllSkillsToAgents() error {
+	skills, err := ListInstalledSkills()
+	if err != nil {
+		return err
+	}
+
+	agents := DetectInstalledAgents()
+	agentIDs := make([]string, len(agents))
+	for i, a := range agents {
+		agentIDs[i] = a.ID
+	}
+
+	for _, skillName := range skills {
+		if err := SyncSkillToAgents(skillName, agentIDs); err != nil {
+			// Log but continue with other skills
+			continue
+		}
+	}
+
+	return nil
+}
+
+// IsSymlink checks if a path is a symbolic link
+func IsSymlink(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink != 0
+}
+
+// GetSymlinkTarget returns the target of a symbolic link
+func GetSymlinkTarget(path string) (string, error) {
+	return os.Readlink(path)
+}

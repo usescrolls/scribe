@@ -45,12 +45,13 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output in JSON format (where applicable)")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "Suppress non-essential output")
 
-	// Add subcommands
+	// Subcommands
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(uninstallCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(workspaceCmd)
 }
 
 // Execute runs the CLI
@@ -85,5 +86,6 @@ func CLICommands() []string {
 		"info",
 		"version",
 		"help",
+		"workspace",
 	}
 }

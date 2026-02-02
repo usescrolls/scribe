@@ -1,0 +1,501 @@
+package scribe
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// ListWorkspaces returns all workspace definitions
+func ListWorkspaces() ([]*Workspace, error) {
+	workspacesDir, err := GetWorkspacesDir()
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(workspacesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Return default workspace if directory doesn't exist
+			return []*Workspace{createDefaultWorkspace()}, nil
+		}
+		return nil, err
+	}
+
+	var workspaces []*Workspace
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		ws, err := GetWorkspace(name)
+		if err != nil {
+			continue
+		}
+		workspaces = append(workspaces, ws)
+	}
+
+	// Ensure default workspace exists
+	hasDefault := false
+	for _, ws := range workspaces {
+		if ws.Name == DefaultWorkspaceName {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		workspaces = append([]*Workspace{createDefaultWorkspace()}, workspaces...)
+	}
+
+	return workspaces, nil
+}
+
+// GetWorkspace reads a workspace definition by name
+func GetWorkspace(name string) (*Workspace, error) {
+	wsPath, err := GetWorkspacePath(name)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(wsPath)
+	if err != nil {
+		if os.IsNotExist(err) && name == DefaultWorkspaceName {
+			return createDefaultWorkspace(), nil
+		}
+		return nil, err
+	}
+
+	var ws Workspace
+	if err := json.Unmarshal(data, &ws); err != nil {
+		return nil, err
+	}
+
+	return &ws, nil
+}
+
+// CreateWorkspace creates a new workspace definition
+func CreateWorkspace(ws *Workspace) error {
+	if ws.Name == "" {
+		return fmt.Errorf("workspace name is required")
+	}
+
+	// Check if workspace already exists
+	wsPath, err := GetWorkspacePath(ws.Name)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(wsPath); err == nil {
+		return fmt.Errorf("workspace '%s' already exists", ws.Name)
+	}
+
+	return saveWorkspace(ws)
+}
+
+// UpdateWorkspace updates an existing workspace definition
+func UpdateWorkspace(ws *Workspace) error {
+	return saveWorkspace(ws)
+}
+
+// DeleteWorkspace removes a workspace definition
+func DeleteWorkspace(name string) error {
+	if name == DefaultWorkspaceName {
+		return fmt.Errorf("cannot delete the default workspace")
+	}
+
+	wsPath, err := GetWorkspacePath(name)
+	if err != nil {
+		return err
+	}
+
+	// Check if this is the active workspace
+	config, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	if config.ActiveWorkspace == name {
+		// Switch to default before deleting
+		if err := SetActiveWorkspace(DefaultWorkspaceName); err != nil {
+			return err
+		}
+	}
+
+	return os.Remove(wsPath)
+}
+
+// GetActiveWorkspace returns the currently active workspace
+func GetActiveWorkspace() (*Workspace, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetWorkspace(config.ActiveWorkspace)
+}
+
+// SetActiveWorkspace switches to a different workspace
+// This updates symlinks to match the target workspace's skill set
+func SetActiveWorkspace(name string) error {
+	// Load target workspace
+	targetWs, err := GetWorkspace(name)
+	if err != nil {
+		return fmt.Errorf("workspace '%s' not found: %w", name, err)
+	}
+
+	// Load current workspace
+	config, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	currentWs, err := GetWorkspace(config.ActiveWorkspace)
+	if err != nil {
+		// If current workspace doesn't exist, create empty one for comparison
+		currentWs = &Workspace{Name: config.ActiveWorkspace, Skills: []string{}}
+	}
+
+	// Sync workspace (add/remove symlinks)
+	if err := SyncWorkspace(currentWs, targetWs); err != nil {
+		return err
+	}
+
+	// Update config
+	config.ActiveWorkspace = name
+	return SaveConfig(config)
+}
+
+// SyncWorkspace updates agent symlinks to match the target workspace
+func SyncWorkspace(current, target *Workspace) error {
+	agents := DetectInstalledAgents()
+	agentIDs := make([]string, len(agents))
+	for i, a := range agents {
+		agentIDs[i] = a.ID
+	}
+
+	// Find skills to remove (in current but not in target)
+	toRemove := skillDiff(current.Skills, target.Skills)
+
+	// Find skills to add (in target but not in current)
+	toAdd := skillDiff(target.Skills, current.Skills)
+
+	// Remove symlinks for skills no longer in workspace
+	for _, skillName := range toRemove {
+		if err := RemoveSkillFromAgents(skillName, agentIDs); err != nil {
+			// Log but continue
+		}
+	}
+
+	// Add symlinks for new skills in workspace
+	for _, skillName := range toAdd {
+		// Verify skill exists in canonical location
+		exists, _ := SkillExists(skillName)
+		if !exists {
+			continue
+		}
+		if err := SyncSkillToAgents(skillName, agentIDs); err != nil {
+			// Log but continue
+		}
+	}
+
+	return nil
+}
+
+// AddSkillToWorkspace adds a skill to a workspace
+func AddSkillToWorkspace(skillName, workspaceName string) error {
+	ws, err := GetWorkspace(workspaceName)
+	if err != nil {
+		return err
+	}
+
+	// Check if already in workspace
+	for _, s := range ws.Skills {
+		if s == skillName {
+			return nil // Already present
+		}
+	}
+
+	ws.Skills = append(ws.Skills, skillName)
+
+	if err := saveWorkspace(ws); err != nil {
+		return err
+	}
+
+	// If this is the active workspace, sync symlinks
+	config, err := LoadConfig()
+	if err != nil {
+		return nil // Workspace saved, just can't sync
+	}
+
+	if config.ActiveWorkspace == workspaceName {
+		agents := DetectInstalledAgents()
+		agentIDs := make([]string, len(agents))
+		for i, a := range agents {
+			agentIDs[i] = a.ID
+		}
+		return SyncSkillToAgents(skillName, agentIDs)
+	}
+
+	return nil
+}
+
+// RemoveSkillFromWorkspace removes a skill from a workspace
+func RemoveSkillFromWorkspace(skillName, workspaceName string) error {
+	ws, err := GetWorkspace(workspaceName)
+	if err != nil {
+		return err
+	}
+
+	// Find and remove skill
+	found := false
+	newSkills := make([]string, 0, len(ws.Skills))
+	for _, s := range ws.Skills {
+		if s == skillName {
+			found = true
+			continue
+		}
+		newSkills = append(newSkills, s)
+	}
+
+	if !found {
+		return nil // Not in workspace
+	}
+
+	ws.Skills = newSkills
+
+	if err := saveWorkspace(ws); err != nil {
+		return err
+	}
+
+	// If this is the active workspace, remove symlinks
+	config, err := LoadConfig()
+	if err != nil {
+		return nil
+	}
+
+	if config.ActiveWorkspace == workspaceName {
+		agents := DetectInstalledAgents()
+		agentIDs := make([]string, len(agents))
+		for i, a := range agents {
+			agentIDs[i] = a.ID
+		}
+		return RemoveSkillFromAgents(skillName, agentIDs)
+	}
+
+	return nil
+}
+
+// GetWorkspaceInfo returns WorkspaceInfo for all workspaces (for frontend)
+func GetWorkspaceInfo() ([]WorkspaceInfo, error) {
+	workspaces, err := ListWorkspaces()
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	infos := make([]WorkspaceInfo, len(workspaces))
+	for i, ws := range workspaces {
+		infos[i] = WorkspaceInfo{
+			Name:        ws.Name,
+			Description: ws.Description,
+			Skills:      ws.Skills,
+			IsActive:    ws.Name == config.ActiveWorkspace,
+		}
+	}
+
+	return infos, nil
+}
+
+// EnsureDefaultWorkspace creates the default workspace if it doesn't exist
+func EnsureDefaultWorkspace() error {
+	if err := EnsureScribeDirs(); err != nil {
+		return err
+	}
+
+	wsPath, err := GetWorkspacePath(DefaultWorkspaceName)
+	if err != nil {
+		return err
+	}
+
+	// Check if default workspace exists
+	if _, err := os.Stat(wsPath); err == nil {
+		return nil // Already exists
+	}
+
+	// Create default workspace with all installed skills
+	skills, err := ListInstalledSkills()
+	if err != nil {
+		skills = []string{}
+	}
+
+	ws := &Workspace{
+		Name:        DefaultWorkspaceName,
+		Description: "All installed skills",
+		Skills:      skills,
+	}
+
+	return saveWorkspace(ws)
+}
+
+// saveWorkspace writes a workspace definition to disk
+func saveWorkspace(ws *Workspace) error {
+	if err := EnsureScribeDirs(); err != nil {
+		return err
+	}
+
+	wsPath, err := GetWorkspacePath(ws.Name)
+	if err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(ws, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(wsPath, data, 0644)
+}
+
+// createDefaultWorkspace creates a default workspace with all installed skills
+func createDefaultWorkspace() *Workspace {
+	skills, _ := ListInstalledSkills()
+	return &Workspace{
+		Name:        DefaultWorkspaceName,
+		Description: "All installed skills",
+		Skills:      skills,
+	}
+}
+
+// skillDiff returns skills in a that are not in b
+func skillDiff(a, b []string) []string {
+	bSet := make(map[string]bool, len(b))
+	for _, s := range b {
+		bSet[s] = true
+	}
+
+	var diff []string
+	for _, s := range a {
+		if !bSet[s] {
+			diff = append(diff, s)
+		}
+	}
+	return diff
+}
+
+// AddSkillToActiveAndDefaultWorkspace adds a skill to both the active workspace and default workspace
+// This is called when installing a new skill
+func AddSkillToActiveAndDefaultWorkspace(skillName string) error {
+	config, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	// Always add to default workspace
+	if err := AddSkillToWorkspace(skillName, DefaultWorkspaceName); err != nil {
+		return err
+	}
+
+	// Add to active workspace if different from default
+	if config.ActiveWorkspace != DefaultWorkspaceName {
+		if err := AddSkillToWorkspace(skillName, config.ActiveWorkspace); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RemoveSkillFromAllWorkspaces removes a skill from all workspaces
+// This is called when uninstalling a skill
+func RemoveSkillFromAllWorkspaces(skillName string) error {
+	workspaces, err := ListWorkspaces()
+	if err != nil {
+		return err
+	}
+
+	for _, ws := range workspaces {
+		// Find and remove skill
+		newSkills := make([]string, 0, len(ws.Skills))
+		for _, s := range ws.Skills {
+			if s != skillName {
+				newSkills = append(newSkills, s)
+			}
+		}
+		ws.Skills = newSkills
+		if err := saveWorkspace(ws); err != nil {
+			// Continue with other workspaces
+		}
+	}
+
+	return nil
+}
+
+// RebuildDefaultWorkspace rebuilds the default workspace to include all installed skills
+func RebuildDefaultWorkspace() error {
+	skills, err := ListInstalledSkills()
+	if err != nil {
+		return err
+	}
+
+	ws := &Workspace{
+		Name:        DefaultWorkspaceName,
+		Description: "All installed skills",
+		Skills:      skills,
+	}
+
+	return saveWorkspace(ws)
+}
+
+// CleanWorkspaces removes references to skills that no longer exist
+func CleanWorkspaces() error {
+	installed, err := ListInstalledSkills()
+	if err != nil {
+		return err
+	}
+
+	installedSet := make(map[string]bool, len(installed))
+	for _, s := range installed {
+		installedSet[s] = true
+	}
+
+	workspaces, err := ListWorkspaces()
+	if err != nil {
+		return err
+	}
+
+	workspacesDir, err := GetWorkspacesDir()
+	if err != nil {
+		return err
+	}
+
+	for _, ws := range workspaces {
+		changed := false
+		newSkills := make([]string, 0, len(ws.Skills))
+		for _, s := range ws.Skills {
+			if installedSet[s] {
+				newSkills = append(newSkills, s)
+			} else {
+				changed = true
+			}
+		}
+
+		if changed {
+			ws.Skills = newSkills
+			wsPath := filepath.Join(workspacesDir, ws.Name+".json")
+			data, err := json.MarshalIndent(ws, "", "  ")
+			if err != nil {
+				continue
+			}
+			os.WriteFile(wsPath, data, 0644)
+		}
+	}
+
+	return nil
+}

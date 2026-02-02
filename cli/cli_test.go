@@ -41,7 +41,7 @@ func setupTestServer(t *testing.T) (string, func()) {
 func TestCLICommands(t *testing.T) {
 	commands := CLICommands()
 
-	expected := []string{"install", "uninstall", "remove", "rm", "list", "ls", "info", "version", "help"}
+	expected := []string{"install", "uninstall", "remove", "rm", "list", "ls", "info", "version", "help", "workspace"}
 
 	for _, exp := range expected {
 		found := false
@@ -81,66 +81,149 @@ func TestExitCodes(t *testing.T) {
 	}
 }
 
-// TestFormatSource tests the formatSource function
-func TestFormatSource(t *testing.T) {
+// TestFormatSourceInfo tests the formatSourceInfo function
+func TestFormatSourceInfo(t *testing.T) {
 	tests := []struct {
 		name     string
-		source   scribe.PluginSource
+		source   *scribe.SourceInfo
 		expected string
 	}{
 		{
 			name: "github source",
-			source: scribe.PluginSource{
-				Source: "github",
-				Repo:   "user/repo",
+			source: &scribe.SourceInfo{
+				Type:  "github",
+				Owner: "user",
+				Repo:  "repo",
 			},
 			expected: "github:user/repo",
 		},
 		{
 			name: "github source with ref",
-			source: scribe.PluginSource{
-				Source: "github",
-				Repo:   "user/repo",
-				Ref:    "v1.0.0",
+			source: &scribe.SourceInfo{
+				Type:  "github",
+				Owner: "user",
+				Repo:  "repo",
+				Ref:   "v1.0.0",
 			},
-			expected: "github:user/repo@v1.0.0",
+			expected: "github:user/repo#v1.0.0",
 		},
 		{
-			name: "url source",
-			source: scribe.PluginSource{
-				Source: "url",
-				URL:    "https://example.com/repo.git",
+			name: "local source",
+			source: &scribe.SourceInfo{
+				Type:      "local",
+				LocalPath: "/path/to/skills",
 			},
-			expected: "url:https://example.com/repo.git",
+			expected: "local:/path/to/skills",
 		},
 		{
 			name: "zip source",
-			source: scribe.PluginSource{
-				Source: "zip",
-				URL:    "https://example.com/plugin.zip",
+			source: &scribe.SourceInfo{
+				Type: "zip",
+				URL:  "https://example.com/plugin.zip",
 			},
 			expected: "zip:https://example.com/plugin.zip",
-		},
-		{
-			name: "unknown source",
-			source: scribe.PluginSource{
-				Source: "custom",
-			},
-			expected: "custom",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSource(tt.source)
+			result := formatSourceInfo(tt.source)
 			if result != tt.expected {
-				t.Errorf("formatSource() = %q, expected %q", result, tt.expected)
+				t.Errorf("formatSourceInfo() = %q, expected %q", result, tt.expected)
 			}
 		})
 	}
 }
 
-// TestFormatSourceEntry tests the formatSourceEntry function
+// TestParseSource tests the parseSource function
+func TestParseSource(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectType  string
+		expectOwner string
+		expectRepo  string
+		expectRef   string
+		expectError bool
+	}{
+		{
+			name:        "github shorthand",
+			input:       "owner/repo",
+			expectType:  "github",
+			expectOwner: "owner",
+			expectRepo:  "repo",
+		},
+		{
+			name:        "github shorthand with ref",
+			input:       "owner/repo#v1.0.0",
+			expectType:  "github",
+			expectOwner: "owner",
+			expectRepo:  "repo",
+			expectRef:   "v1.0.0",
+		},
+		{
+			name:        "github URL",
+			input:       "https://github.com/owner/repo",
+			expectType:  "github",
+			expectOwner: "owner",
+			expectRepo:  "repo",
+		},
+		{
+			name:        "local path relative",
+			input:       "./my-skills",
+			expectType:  "local",
+		},
+		{
+			name:        "local path absolute",
+			input:       "/absolute/path",
+			expectType:  "local",
+		},
+		{
+			name:       "zip URL",
+			input:      "https://example.com/skills.zip",
+			expectType: "zip",
+		},
+		{
+			name:       "well-known URL",
+			input:      "https://example.com",
+			expectType: "well-known",
+		},
+		{
+			name:        "invalid shorthand",
+			input:       "invalid",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, err := parseSource(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if source.Type != tt.expectType {
+				t.Errorf("expected type %q, got %q", tt.expectType, source.Type)
+			}
+			if tt.expectOwner != "" && source.Owner != tt.expectOwner {
+				t.Errorf("expected owner %q, got %q", tt.expectOwner, source.Owner)
+			}
+			if tt.expectRepo != "" && source.Repo != tt.expectRepo {
+				t.Errorf("expected repo %q, got %q", tt.expectRepo, source.Repo)
+			}
+			if tt.expectRef != "" && source.Ref != tt.expectRef {
+				t.Errorf("expected ref %q, got %q", tt.expectRef, source.Ref)
+			}
+		})
+	}
+}
+
+// TestFormatSourceEntry tests the formatSourceEntry function (legacy)
 func TestFormatSourceEntry(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -191,85 +274,7 @@ func TestFormatSourceEntry(t *testing.T) {
 	}
 }
 
-// TestInstallValidation tests install command validation
-func TestInstallValidation(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	tests := []struct {
-		name        string
-		args        []string
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "no source flag",
-			args:        []string{"test-plugin"},
-			expectError: true,
-			errorMsg:    "exactly one source flag is required",
-		},
-		{
-			name:        "multiple source flags",
-			args:        []string{"test-plugin", "--github", "user/repo", "--url", "https://example.com/repo.git"},
-			expectError: true,
-			errorMsg:    "only one source flag can be specified",
-		},
-		{
-			name:        "valid github source",
-			args:        []string{"test-plugin", "--github", "user/repo"},
-			expectError: false,
-		},
-		{
-			name:        "valid url source",
-			args:        []string{"url-plugin", "--url", "https://example.com/repo.git"},
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Reset flags for each test
-			githubRepo = ""
-			gitURL = ""
-			zipURL = ""
-			ref = ""
-			noEnable = false
-
-			// Parse flags manually
-			cmd := installCmd
-			cmd.ResetFlags()
-			cmd.Flags().StringVar(&githubRepo, "github", "", "")
-			cmd.Flags().StringVar(&gitURL, "url", "", "")
-			cmd.Flags().StringVar(&zipURL, "zip", "", "")
-			cmd.Flags().StringVar(&ref, "ref", "", "")
-			cmd.Flags().BoolVar(&noEnable, "no-enable", false, "")
-
-			err := cmd.ParseFlags(tt.args[1:])
-			if err != nil {
-				if !tt.expectError {
-					t.Fatalf("unexpected flag parse error: %v", err)
-				}
-				return
-			}
-
-			// Run the command
-			err = runInstall(cmd, tt.args[:1])
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("expected error containing %q, got nil", tt.errorMsg)
-				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("expected error containing %q, got %q", tt.errorMsg, err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-			}
-		})
-	}
-}
-
-// TestListOutput tests the list command output formats
+// TestListOutput tests the list command output formats (legacy plugin list)
 func TestListOutput(t *testing.T) {
 	_, cleanup := setupTestServer(t)
 	defer cleanup()
@@ -472,102 +477,6 @@ func TestInfoCommand(t *testing.T) {
 	})
 }
 
-// TestUninstallCommand tests the uninstall command
-func TestUninstallCommand(t *testing.T) {
-	tmpDir, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	t.Run("uninstall single plugin", func(t *testing.T) {
-		// Add a test plugin
-		server.SetRegistryEntry("to-uninstall", scribe.RegistryEntry{
-			Name: "to-uninstall",
-			Source: scribe.PluginSource{
-				Source: "github",
-				Repo:   "user/repo",
-			},
-			ResolvedSource: map[string]interface{}{
-				"source": "github",
-				"repo":   "user/repo",
-			},
-		})
-		server.SaveRegistry()
-		server.GenerateMarketplace()
-
-		if server.PluginCount() != 1 {
-			t.Fatalf("expected 1 plugin, got %d", server.PluginCount())
-		}
-
-		quiet = false
-		uninstallAll = false
-		err := runUninstallSingle("to-uninstall")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if server.PluginCount() != 0 {
-			t.Errorf("expected 0 plugins after uninstall, got %d", server.PluginCount())
-		}
-	})
-
-	t.Run("uninstall all plugins", func(t *testing.T) {
-		// Add multiple plugins
-		server.SetRegistryEntry("plugin1", scribe.RegistryEntry{
-			Name: "plugin1",
-			ResolvedSource: map[string]interface{}{
-				"source": "github",
-				"repo":   "user/plugin1",
-			},
-		})
-		server.SetRegistryEntry("plugin2", scribe.RegistryEntry{
-			Name: "plugin2",
-			ResolvedSource: map[string]interface{}{
-				"source": "url",
-				"url":    "https://github.com/scope/plugin2.git",
-			},
-		})
-		server.SaveRegistry()
-
-		if server.PluginCount() != 2 {
-			t.Fatalf("expected 2 plugins, got %d", server.PluginCount())
-		}
-
-		quiet = false
-		err := runUninstallAll()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		if server.PluginCount() != 0 {
-			t.Errorf("expected 0 plugins after uninstall --all, got %d", server.PluginCount())
-		}
-	})
-
-	t.Run("uninstall with relative source deletes files", func(t *testing.T) {
-		// Add a plugin with relative source (like zip-installed)
-		pluginDir := filepath.Join(tmpDir, "plugins", "local-plugin")
-		os.MkdirAll(pluginDir, 0755)
-		os.WriteFile(filepath.Join(pluginDir, "plugin.json"), []byte("{}"), 0644)
-
-		server.SetRegistryEntry("local-plugin", scribe.RegistryEntry{
-			Name:           "local-plugin",
-			ResolvedSource: "./plugins/local-plugin",
-		})
-		server.SaveRegistry()
-
-		// Verify directory exists
-		if _, err := os.Stat(pluginDir); os.IsNotExist(err) {
-			t.Fatal("plugin directory should exist before uninstall")
-		}
-
-		runUninstallSingle("local-plugin")
-
-		// Verify directory was deleted
-		if _, err := os.Stat(pluginDir); !os.IsNotExist(err) {
-			t.Error("plugin directory should be deleted after uninstall")
-		}
-	})
-}
-
 // TestVersionCommand tests the version command
 func TestVersionCommand(t *testing.T) {
 	old := os.Stdout
@@ -650,65 +559,6 @@ func TestInitServer(t *testing.T) {
 	}
 }
 
-// TestInstallWithRef tests install command with --ref flag
-func TestInstallWithRef(t *testing.T) {
-	_, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	githubRepo = "user/repo"
-	gitURL = ""
-	zipURL = ""
-	ref = "v2.0.0"
-	noEnable = true
-
-	err := runInstall(installCmd, []string{"versioned-plugin"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	entry, ok := server.GetRegistryEntry("versioned-plugin")
-	if !ok {
-		t.Fatal("plugin not found after install")
-	}
-
-	if entry.Source.Ref != "v2.0.0" {
-		t.Errorf("expected ref 'v2.0.0', got %q", entry.Source.Ref)
-	}
-}
-
-// TestInstallNoEnable tests install command with --no-enable flag
-func TestInstallNoEnable(t *testing.T) {
-	tmpDir, cleanup := setupTestServer(t)
-	defer cleanup()
-
-	githubRepo = "user/repo"
-	gitURL = ""
-	zipURL = ""
-	ref = ""
-	noEnable = true
-
-	err := runInstall(installCmd, []string{"no-enable-plugin"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Read Claude settings to verify plugin is NOT enabled
-	settingsPath := filepath.Join(tmpDir, ".claude", "settings.json")
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		t.Fatalf("failed to read settings: %v", err)
-	}
-
-	var settings map[string]interface{}
-	json.Unmarshal(data, &settings)
-
-	enabledPlugins, _ := settings["enabledPlugins"].(map[string]interface{})
-	pluginID := "no-enable-plugin@" + scribe.MarketplaceName
-	if _, exists := enabledPlugins[pluginID]; exists {
-		t.Error("plugin should not be enabled when --no-enable flag is used")
-	}
-}
-
 // TestListJSONFormat tests the JSON output structure
 func TestListJSONFormat(t *testing.T) {
 	_, cleanup := setupTestServer(t)
@@ -744,8 +594,8 @@ func TestListJSONFormat(t *testing.T) {
 
 	var result struct {
 		Plugins []struct {
-			Name        string `json:"name"`
-			Source      struct {
+			Name   string `json:"name"`
+			Source struct {
 				Source string `json:"source"`
 				Repo   string `json:"repo"`
 				Ref    string `json:"ref,omitempty"`
@@ -780,4 +630,37 @@ func TestListJSONFormat(t *testing.T) {
 	if plugin.Source.Repo != "owner/full-plugin" {
 		t.Errorf("expected source.repo='owner/full-plugin', got %q", plugin.Source.Repo)
 	}
+}
+
+// TestFilterSkills tests the filterSkills function
+func TestFilterSkills(t *testing.T) {
+	skills := []*scribe.Skill{
+		{Name: "react-best-practices", Description: "React patterns"},
+		{Name: "typescript-patterns", Description: "TypeScript tips"},
+		{Name: "go-patterns", Description: "Go idioms"},
+	}
+
+	t.Run("filter single skill", func(t *testing.T) {
+		filtered := filterSkills(skills, []string{"react-best-practices"})
+		if len(filtered) != 1 {
+			t.Errorf("expected 1 skill, got %d", len(filtered))
+		}
+		if filtered[0].Name != "react-best-practices" {
+			t.Errorf("expected react-best-practices, got %s", filtered[0].Name)
+		}
+	})
+
+	t.Run("filter multiple skills", func(t *testing.T) {
+		filtered := filterSkills(skills, []string{"react-best-practices", "go-patterns"})
+		if len(filtered) != 2 {
+			t.Errorf("expected 2 skills, got %d", len(filtered))
+		}
+	})
+
+	t.Run("filter non-existent skill", func(t *testing.T) {
+		filtered := filterSkills(skills, []string{"non-existent"})
+		if len(filtered) != 0 {
+			t.Errorf("expected 0 skills, got %d", len(filtered))
+		}
+	})
 }
