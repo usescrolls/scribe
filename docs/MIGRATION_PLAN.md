@@ -85,8 +85,6 @@
 | **Source Types** | | |
 | Well-known endpoint (/.well-known/skills/) | Low | Not yet implemented |
 | Direct URL (single SKILL.md) | Low | Not yet implemented |
-| **URL Scheme** | | |
-| Update agenthub:// handler for skills | Medium | Currently logs and no-ops |
 
 ---
 
@@ -1008,7 +1006,8 @@ internal/
 ├── installer.go            ✅ Symlink-based installation to agents
 ├── workspace.go            ✅ Workspace CRUD and switching
 ├── meta.go                 ✅ Sidecar .scribe-meta.json management
-└── storage.go              ✅ Canonical storage paths
+├── storage.go              ✅ Canonical storage paths
+└── url_scheme.go           ✅ agenthub:// URL scheme handler
 
 cli/
 ├── install.go              ✅ Updated for skills + zip URL download
@@ -1036,8 +1035,7 @@ cli/
 ### Backend: Files to Modify (pending)
 ```
 internal/
-├── source.go               🚧 Add well-known parsing
-└── url_scheme.go           🚧 Update agenthub:// handler
+└── source.go               🚧 Add well-known parsing (optional)
 ```
 
 ### Frontend: Files Added ✅
@@ -1152,7 +1150,7 @@ func sanitizeName(name string) string {
 30. 🚧 **Integration tests** - Full install/remove/workspace flows
 
 ### Polish 🚧 PENDING
-30. **URL scheme** - Updated agenthub:// handler
+30. ✅ **URL scheme** - Updated agenthub:// handler (internal/url_scheme.go)
 31. **Error handling** - Comprehensive error messages
 32. **Documentation** - Update all docs
 33. **Cleanup** - Remove deprecated code (after GUI testing)
@@ -1412,4 +1410,3 @@ All deprecated plugin code has been removed:
 **Next Steps:**
 1. **End-to-end testing** - Test full GUI workflow with skills system
 2. **Additional source types** - Well-known endpoints (/.well-known/skills/)
-3. **URL scheme** - Update agenthub:// handler for skills (currently no-ops)

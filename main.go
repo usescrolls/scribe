@@ -66,9 +66,19 @@ func handleURLScheme(urlArg string) {
 	scribe.InitLogger(false)
 	scribe.Logger.Info("URL scheme argument detected", "url", urlArg)
 
-	// TODO: Update URL scheme handler for skills-based architecture
-	// For now, log the URL - web integration will be updated separately
-	scribe.Logger.Info("URL scheme handling pending migration to skills system", "url", urlArg)
+	// Handle the installation
+	result := scribe.HandleInstallURL(urlArg)
+
+	if result.Success {
+		scribe.Logger.Info("URL scheme installation complete",
+			"skills_installed", result.SkillsCount,
+			"skill_names", result.SkillNames)
+		fmt.Printf("Successfully installed %d skill(s): %v\n", result.SkillsCount, result.SkillNames)
+	} else {
+		scribe.Logger.Error("URL scheme installation failed", "error", result.ErrorMessage)
+		fmt.Fprintf(os.Stderr, "Installation failed: %s\n", result.ErrorMessage)
+		os.Exit(1)
+	}
 }
 
 func runGUIMode() {
@@ -105,10 +115,29 @@ func runGUIMode() {
 
 	// Handle agenthub:// URLs when app is already running (macOS)
 	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
-		url := event.Context().URL()
-		scribe.Logger.Info("received URL via Wails event", "url", url)
-		// TODO: Update URL scheme handler for skills-based architecture
-		scribe.Logger.Info("URL scheme handling pending migration to skills system", "url", url)
+		urlString := event.Context().URL()
+		scribe.Logger.Info("received URL via Wails event", "url", urlString)
+
+		// Run installation in background to not block the event handler
+		go func() {
+			result := scribe.HandleInstallURL(urlString)
+
+			if result.Success {
+				scribe.Logger.Info("URL scheme installation complete",
+					"skills_installed", result.SkillsCount,
+					"skill_names", result.SkillNames)
+
+				// Emit events to update frontend
+				wailsApp.Event.Emit("skills-updated", nil)
+
+				// Show the window to confirm installation
+				if mainWindow != nil {
+					mainWindow.Show()
+				}
+			} else {
+				scribe.Logger.Error("URL scheme installation failed", "error", result.ErrorMessage)
+			}
+		}()
 	})
 
 	// Create main window (hidden initially)

@@ -2047,3 +2047,145 @@ description: Skill for save test
 		t.Errorf("meta.SkillPath = %q, want 'skills/save-skill'", meta.SkillPath)
 	}
 }
+
+// ======================================================================
+// URL Scheme Tests
+// ======================================================================
+
+func TestParseInstallURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		wantType    string
+		wantOwner   string
+		wantRepo    string
+		wantSkill   string
+		wantRef     string
+		wantErr     bool
+	}{
+		{
+			name:      "GitHub shorthand",
+			url:       "agenthub://install?repo=user/repo",
+			wantType:  "github",
+			wantOwner: "user",
+			wantRepo:  "repo",
+		},
+		{
+			name:      "GitHub with source type",
+			url:       "agenthub://install?source=github&repo=owner/myrepo",
+			wantType:  "github",
+			wantOwner: "owner",
+			wantRepo:  "myrepo",
+		},
+		{
+			name:      "GitHub with skill filter",
+			url:       "agenthub://install?repo=user/repo&name=my-skill",
+			wantType:  "github",
+			wantOwner: "user",
+			wantRepo:  "repo",
+			wantSkill: "my-skill",
+		},
+		{
+			name:      "GitHub with ref",
+			url:       "agenthub://install?repo=user/repo&ref=main",
+			wantType:  "github",
+			wantOwner: "user",
+			wantRepo:  "repo",
+			wantRef:   "main",
+		},
+		{
+			name:      "GitLab source",
+			url:       "agenthub://install?source=gitlab&repo=user/project",
+			wantType:  "gitlab",
+			wantOwner: "user",
+			wantRepo:  "project",
+		},
+		{
+			name:    "Missing repo parameter",
+			url:     "agenthub://install?source=github",
+			wantErr: true,
+		},
+		{
+			name:    "Wrong scheme",
+			url:     "https://install?repo=user/repo",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid repo format",
+			url:     "agenthub://install?repo=noslash",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source, skill, err := ParseInstallURL(tt.url)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Error("ParseInstallURL() expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ParseInstallURL() error = %v", err)
+			}
+
+			if source.Type != tt.wantType {
+				t.Errorf("Type = %q, want %q", source.Type, tt.wantType)
+			}
+			if source.Owner != tt.wantOwner {
+				t.Errorf("Owner = %q, want %q", source.Owner, tt.wantOwner)
+			}
+			if source.Repo != tt.wantRepo {
+				t.Errorf("Repo = %q, want %q", source.Repo, tt.wantRepo)
+			}
+			if skill != tt.wantSkill {
+				t.Errorf("skillFilter = %q, want %q", skill, tt.wantSkill)
+			}
+			if source.Ref != tt.wantRef {
+				t.Errorf("Ref = %q, want %q", source.Ref, tt.wantRef)
+			}
+		})
+	}
+}
+
+func TestParseInstallURL_Subpath(t *testing.T) {
+	source, _, err := ParseInstallURL("agenthub://install?repo=user/repo/path/to/skills")
+	if err != nil {
+		t.Fatalf("ParseInstallURL() error = %v", err)
+	}
+
+	if source.Owner != "user" {
+		t.Errorf("Owner = %q, want 'user'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
+	}
+	if source.Subpath != "path/to/skills" {
+		t.Errorf("Subpath = %q, want 'path/to/skills'", source.Subpath)
+	}
+}
+
+func TestFilterSkillsByName(t *testing.T) {
+	skills := []*Skill{
+		{Name: "skill-a", Description: "A"},
+		{Name: "skill-b", Description: "B"},
+		{Name: "skill-c", Description: "C"},
+	}
+
+	filtered := filterSkillsByName(skills, "skill-b")
+	if len(filtered) != 1 {
+		t.Fatalf("filterSkillsByName() returned %d skills, want 1", len(filtered))
+	}
+	if filtered[0].Name != "skill-b" {
+		t.Errorf("filterSkillsByName() returned %q, want 'skill-b'", filtered[0].Name)
+	}
+
+	// Non-existent skill
+	filtered = filterSkillsByName(skills, "nonexistent")
+	if len(filtered) != 0 {
+		t.Errorf("filterSkillsByName() returned %d skills, want 0", len(filtered))
+	}
+}
