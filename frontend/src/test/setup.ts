@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
 
 // Mock AppService from Wails bindings
 export const mockAppService = {
