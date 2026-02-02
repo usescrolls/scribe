@@ -1,5 +1,62 @@
 # Scribe Architecture Migration Plan
 
+## Implementation Progress
+
+### Completed (MVP Backend) ✅
+
+| Task | File | Status |
+|------|------|--------|
+| New types (Skill, SkillMeta, Agent, Workspace, Config, SourceInfo) | `internal/types.go` | ✅ Done |
+| 45 coding agent definitions with detection | `internal/agents.go` | ✅ Done |
+| Canonical storage paths (~/.scribe/scrolls/) | `internal/storage.go` | ✅ Done |
+| SKILL.md parsing with YAML frontmatter | `internal/skills.go` | ✅ Done |
+| Sidecar .scribe-meta.json management | `internal/meta.go` | ✅ Done |
+| Symlink-based installation to agents | `internal/installer.go` | ✅ Done |
+| Workspace system (CRUD, switching) | `internal/workspace.go` | ✅ Done |
+| CLI install command (GitHub, local, GitLab) | `cli/install.go` | ✅ Done |
+| CLI uninstall command | `cli/uninstall.go` | ✅ Done |
+| CLI workspace commands | `cli/workspace.go` | ✅ Done |
+| Updated tests for new system | `cli/cli_test.go` | ✅ Done |
+
+### Pending Work 🚧
+
+| Task | Priority | Notes |
+|------|----------|-------|
+| **Source Types** | | |
+| Zip URL download & extraction | Medium | `downloadAndExtractZip()` stub exists |
+| Well-known endpoint (/.well-known/skills/) | Low | Not yet implemented |
+| Direct URL (single SKILL.md) | Low | Not yet implemented |
+| **CLI Commands** | | |
+| `scribe check` - Check for updates | Medium | Compare content hashes |
+| `scribe update` - Update skills | Medium | Re-fetch and reinstall |
+| Update `scribe list` for skills | Medium | Currently shows legacy plugins |
+| Update `scribe info` for skills | Medium | Currently shows legacy plugins |
+| **Frontend (Vue 3)** | | |
+| Rename PluginList.vue → SkillList.vue | High | |
+| Rename PluginCard.vue → SkillCard.vue | High | |
+| Create WorkspaceSelector.vue | High | |
+| Create AgentStatusPanel.vue | Medium | |
+| Create useSkills.ts composable | High | |
+| Create useWorkspaces.ts composable | High | |
+| Create useAgents.ts composable | Medium | |
+| Update App.vue layout | High | |
+| **Backend Bindings (Wails)** | | |
+| AppService.GetSkills() | High | |
+| AppService.GetWorkspaces() | High | |
+| AppService.GetAgentStatus() | Medium | |
+| **System Tray** | | |
+| Show skills count | Low | |
+| Workspace switching submenu | Low | |
+| **Cleanup** | | |
+| Remove internal/marketplace.go | Low | After frontend migration |
+| Remove internal/claude.go | Low | After frontend migration |
+| Remove internal/plugins.go | Low | After frontend migration |
+| Remove legacy types from types.go | Low | After full migration |
+| **URL Scheme** | | |
+| Update agenthub:// handler for skills | Medium | |
+
+---
+
 ## Executive Summary
 
 **Goal:** Transform Scribe from a multi-purpose plugin manager into a focused skills-only manager with workspace support for 40+ coding agents.
@@ -212,30 +269,31 @@ Global configuration only:
 
 ## CLI Commands
 
-### Core Commands
+### Core Commands ✅ IMPLEMENTED
 
 ```bash
 # Install skills from various sources
-scribe add owner/repo                    # GitHub shorthand
-scribe add https://github.com/owner/repo # Full GitHub URL
-scribe add ./local/path                  # Local directory
-scribe add https://example.com           # Well-known endpoint
+scribe install owner/repo                    # GitHub shorthand
+scribe install https://github.com/owner/repo # Full GitHub URL
+scribe install ./local/path                  # Local directory
+scribe install https://example.com           # Well-known endpoint (pending)
 
 # List installed skills
-scribe list
+scribe list                                  # (currently shows legacy plugins)
 scribe ls
 
 # Remove skills
+scribe uninstall <skill-name>
 scribe remove <skill-name>
 scribe rm <skill-name>
 
 # Show skill info
-scribe info <skill-name>
+scribe info <skill-name>                     # (currently shows legacy plugins)
 
-# Check for updates
+# Check for updates (pending)
 scribe check
 
-# Update all skills
+# Update all skills (pending)
 scribe update
 ```
 
@@ -261,13 +319,13 @@ scribe workspace remove <skill-name>
 scribe workspace current
 ```
 
-### Installation Options
+### Installation Options ✅ IMPLEMENTED
 
 ```bash
-scribe add owner/repo [flags]
+scribe install owner/repo [flags]
 
 Flags:
-  -g, --global           Install globally (default: project-level)
+  -g, --global           Install globally (default: true)
   -a, --agent <agents>   Target specific agents (comma-separated)
   -s, --skill <skills>   Select specific skills to install
   -l, --list             List available skills without installing
@@ -910,7 +968,7 @@ type AgentStatus struct {
 
 ## File Changes Summary
 
-### Backend: Files to Remove
+### Backend: Files to Remove (pending cleanup)
 ```
 internal/
 ├── marketplace.go          # No longer generating marketplace.json
@@ -919,42 +977,46 @@ internal/
 └── registry.go             # Replaced by meta.go
 ```
 
-### Backend: Files to Add
+### Backend: Files Added ✅
 ```
 internal/
-├── agents.go               # 40+ agent definitions with detection
-├── skills.go               # Skill discovery and SKILL.md parsing
-├── installer.go            # Symlink-based installation to agents
-├── workspace.go            # Workspace CRUD and switching
-├── meta.go                 # Sidecar .scribe-meta.json management
-├── storage.go              # Canonical storage paths
-└── app_service.go          # Wails bindings for frontend
+├── agents.go               ✅ 45 agent definitions with detection
+├── skills.go               ✅ Skill discovery and SKILL.md parsing
+├── installer.go            ✅ Symlink-based installation to agents
+├── workspace.go            ✅ Workspace CRUD and switching
+├── meta.go                 ✅ Sidecar .scribe-meta.json management
+├── storage.go              ✅ Canonical storage paths
+└── app_service.go          🚧 Wails bindings for frontend (pending)
 
 cli/
-├── add.go                  # Install skills (replaces install.go)
-├── remove.go               # Remove skills (replaces uninstall.go)
-├── workspace.go            # Workspace commands
-├── check.go                # Check for updates
-└── update.go               # Update installed skills
+├── install.go              ✅ Updated for skills (replaced old plugin install)
+├── uninstall.go            ✅ Updated for skills (replaced old plugin uninstall)
+├── workspace.go            ✅ Workspace commands
+├── check.go                🚧 Check for updates (pending)
+└── update.go               🚧 Update installed skills (pending)
 ```
 
-### Backend: Files to Modify
+### Backend: Files Modified ✅
 ```
 internal/
-├── types.go                # Rewrite with Skill, Agent, Workspace types
-├── source.go               # Add GitHub, GitLab, well-known parsing
-├── config.go               # Update for new config structure
-├── server.go               # Update for new architecture
-└── url_scheme.go           # Update agenthub:// handler
+├── types.go                ✅ New types (Skill, Agent, Workspace, etc.) + legacy types
 
 cli/
-├── root.go                 # Add new subcommands
-├── list.go                 # Update for skills-only listing
-└── info.go                 # Update for skill details
+├── root.go                 ✅ Added workspace command
+├── cli_test.go             ✅ Updated tests for new system
+├── list.go                 🚧 Update for skills-only listing (pending)
+└── info.go                 🚧 Update for skill details (pending)
+```
+
+### Backend: Files to Modify (pending)
+```
+internal/
+├── source.go               🚧 Add well-known parsing
+├── url_scheme.go           🚧 Update agenthub:// handler
 
 cmd/scribe/
-├── gui_cgo.go              # Update system tray for workspaces
-└── main.go                 # Update initialization
+├── gui_cgo.go              🚧 Update system tray for workspaces
+└── main.go                 🚧 Update initialization
 ```
 
 ### Frontend: Files to Rename
@@ -1037,47 +1099,50 @@ func sanitizeName(name string) string {
 
 ## Implementation Order
 
-### MVP (Minimum Viable Product) - Backend
-1. **Types** - Define Skill, SkillMeta, Agent, Workspace, Config structs
-2. **Agents** - Port 40+ agents from Vercel's skills CLI (agents.ts → agents.go)
-3. **Skills** - SKILL.md parsing with frontmatter extraction
-4. **Storage** - Canonical paths and directory creation
-5. **Installer** - Symlink creation with copy fallback
-6. **Meta** - Sidecar .scribe-meta.json read/write
-7. **CLI add** - Install skills from GitHub shorthand
-8. **CLI list** - List installed skills
-9. **CLI remove** - Remove skills
+### MVP (Minimum Viable Product) - Backend ✅ COMPLETED
+1. ✅ **Types** - Define Skill, SkillMeta, Agent, Workspace, Config structs
+2. ✅ **Agents** - Port 45 agents (agents.ts → agents.go)
+3. ✅ **Skills** - SKILL.md parsing with frontmatter extraction
+4. ✅ **Storage** - Canonical paths and directory creation
+5. ✅ **Installer** - Symlink creation with copy fallback
+6. ✅ **Meta** - Sidecar .scribe-meta.json read/write
+7. ✅ **Workspaces** - Full workspace system
+8. ✅ **CLI install** - Install skills from GitHub/local/GitLab
+9. ✅ **CLI uninstall** - Remove skills
+10. ✅ **CLI workspace** - All workspace commands
 
-### MVP - Frontend
-10. **Types** - SkillInfo, WorkspaceInfo TypeScript types
-11. **Rename components** - PluginList → SkillList, PluginCard → SkillCard
-12. **useSkills composable** - Replace usePlugins
-13. **Wails bindings** - AppService methods for skills
+### MVP - Frontend 🚧 PENDING
+11. **Types** - SkillInfo, WorkspaceInfo TypeScript types
+12. **Rename components** - PluginList → SkillList, PluginCard → SkillCard
+13. **useSkills composable** - Replace usePlugins
+14. **Wails bindings** - AppService methods for skills
 
-### Full Feature Set - Backend
-14. **Source parsing** - All source types (GitLab, local, URL, well-known)
-15. **Skill discovery** - Recursive SKILL.md discovery
-16. **Workspaces** - Full workspace system
-17. **CLI workspace** - All workspace commands
-18. **Check/Update** - Update detection and execution
+### Full Feature Set - Backend 🚧 PARTIAL
+15. ✅ **Source parsing** - GitHub, GitLab, local paths implemented
+16. 🚧 **Source parsing** - Zip URLs, well-known endpoints pending
+17. ✅ **Skill discovery** - Recursive SKILL.md discovery
+18. 🚧 **Check/Update** - Update detection and execution pending
+19. 🚧 **CLI list/info** - Update for skills-only (currently legacy)
 
-### Full Feature Set - Frontend
-19. **WorkspaceSelector** - Dropdown component in header
-20. **useWorkspaces** - Workspace state composable
-21. **SkillCard updates** - Show agent badges
-22. **System tray** - Workspace switching menu
+### Full Feature Set - Frontend 🚧 PENDING
+20. **WorkspaceSelector** - Dropdown component in header
+21. **AgentStatusPanel** - Agent grid with status
+22. **useWorkspaces** - Workspace state composable
+23. **useAgents** - Agent detection composable
+24. **SkillCard updates** - Show agent badges
+25. **System tray** - Workspace switching menu
 
 ### Testing (Alongside Development)
-23. **Backend unit tests** - Write tests as each module is implemented
-24. **CLI tests** - Test command parsing and execution
-25. **Frontend component tests** - Vitest + Vue Test Utils
-26. **Integration tests** - Full install/remove/workspace flows
+26. ✅ **CLI tests** - Test command parsing and execution
+27. 🚧 **Backend unit tests** - Additional coverage needed
+28. 🚧 **Frontend component tests** - Vitest + Vue Test Utils
+29. 🚧 **Integration tests** - Full install/remove/workspace flows
 
-### Polish
-27. **URL scheme** - Updated agenthub:// handler
-28. **Error handling** - Comprehensive error messages
-29. **Documentation** - Update all docs
-30. **Cleanup** - Remove deprecated code
+### Polish 🚧 PENDING
+30. **URL scheme** - Updated agenthub:// handler
+31. **Error handling** - Comprehensive error messages
+32. **Documentation** - Update all docs
+33. **Cleanup** - Remove deprecated code
 
 ---
 
@@ -1281,6 +1346,21 @@ pnpm test:e2e                    # Playwright E2E (if added)
 
 ---
 
-## Ready for Implementation
+## Current Status
 
-All architecture decisions have been finalized. The next step is to begin Phase 1 implementation starting with the new type definitions and agent registry.
+**MVP Backend: COMPLETE** ✅
+
+The core backend infrastructure is implemented and working:
+- Skills can be installed from GitHub repos, local paths, and GitLab
+- Skills are stored in `~/.scribe/scrolls/` with sidecar metadata
+- Symlinks are created in all detected agent directories (45 agents supported)
+- Workspace system allows organizing skills into named sets
+- CLI commands: `install`, `uninstall`, `workspace list/create/use/add/remove/current/delete`
+
+**Next Steps:**
+1. **Frontend Migration** - Update Vue components for skills-only architecture
+2. **Wails Bindings** - Expose new skill/workspace/agent APIs to frontend
+3. **Update list/info commands** - Show skills instead of legacy plugins
+4. **Additional source types** - Zip URLs, well-known endpoints
+5. **Check/Update commands** - Detect and apply skill updates
+6. **Cleanup** - Remove deprecated plugin code after full migration
