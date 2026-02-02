@@ -8,7 +8,7 @@ BUILD_DIR=build
 # Build for current platform (frontend + Go)
 build: build-frontend
 	mkdir -p $(BUILD_DIR)/bin
-	go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+	CGO_ENABLED=1 MACOSX_DEPLOYMENT_TARGET=$(shell sw_vers -productVersion) go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 
 # Build frontend only
 build-frontend:
