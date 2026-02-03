@@ -13,13 +13,13 @@ type Skill struct {
 // SkillMeta tracks the source and installation info for a skill
 // Stored in .scribe-meta.json sidecar file alongside SKILL.md
 type SkillMeta struct {
-	Source      string `json:"source"`               // e.g., "owner/repo"
-	SourceType  string `json:"sourceType"`           // github, gitlab, local, url, well-known
-	SourceURL   string `json:"sourceUrl,omitempty"`  // Full URL if applicable
-	SkillPath   string `json:"skillPath,omitempty"`  // Path within source repo
-	ContentHash string `json:"contentHash"`          // SHA256 hash of SKILL.md content
-	InstalledAt string `json:"installedAt"`          // ISO 8601 timestamp
-	UpdatedAt   string `json:"updatedAt"`            // ISO 8601 timestamp
+	Source      string `json:"source"`              // e.g., "owner/repo"
+	SourceType  string `json:"sourceType"`          // github, gitlab, local, url, well-known
+	SourceURL   string `json:"sourceUrl,omitempty"` // Full URL if applicable
+	SkillPath   string `json:"skillPath,omitempty"` // Path within source repo
+	ContentHash string `json:"contentHash"`         // SHA256 hash of SKILL.md content
+	InstalledAt string `json:"installedAt"`         // ISO 8601 timestamp
+	UpdatedAt   string `json:"updatedAt"`           // ISO 8601 timestamp
 }
 
 // Agent represents a coding agent with its skill directories

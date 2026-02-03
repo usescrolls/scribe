@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/usescrolls/scribe/cli"
-	"github.com/usescrolls/scribe/internal"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+
+	"github.com/usescrolls/scribe/cli"
+	scribe "github.com/usescrolls/scribe/internal"
 )
 
 //go:embed frontend/dist

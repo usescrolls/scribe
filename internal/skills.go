@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	ErrNoSkillsFound     = errors.New("no skills found in source")
-	ErrInvalidSkill      = errors.New("invalid skill: missing required fields")
-	ErrSkillNotFound     = errors.New("skill not found")
-	ErrMissingName       = errors.New("skill missing required 'name' field in frontmatter")
-	ErrMissingDesc       = errors.New("skill missing required 'description' field in frontmatter")
+	ErrNoSkillsFound = errors.New("no skills found in source")
+	ErrInvalidSkill  = errors.New("invalid skill: missing required fields")
+	ErrSkillNotFound = errors.New("skill not found")
+	ErrMissingName   = errors.New("skill missing required 'name' field in frontmatter")
+	ErrMissingDesc   = errors.New("skill missing required 'description' field in frontmatter")
 )
 
 // Frontmatter patterns for parsing SKILL.md

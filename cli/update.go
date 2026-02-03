@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+
 	scribe "github.com/usescrolls/scribe/internal"
 )
 

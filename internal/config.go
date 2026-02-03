@@ -55,4 +55,3 @@ func InitLoggerCLI(debug bool) {
 	Logger = slog.New(handler)
 	slog.SetDefault(Logger)
 }
-

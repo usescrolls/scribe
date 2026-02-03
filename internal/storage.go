@@ -123,7 +123,6 @@ func EnsureScribeDirs() error {
 	return nil
 }
 
-
 // LoadConfig loads the global config from ~/.scribe/config.json
 // Returns a default config if the file doesn't exist
 func LoadConfig() (*Config, error) {

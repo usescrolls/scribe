@@ -2055,14 +2055,14 @@ description: Skill for save test
 
 func TestParseInstallURL(t *testing.T) {
 	tests := []struct {
-		name        string
-		url         string
-		wantType    string
-		wantOwner   string
-		wantRepo    string
-		wantSkill   string
-		wantRef     string
-		wantErr     bool
+		name      string
+		url       string
+		wantType  string
+		wantOwner string
+		wantRepo  string
+		wantSkill string
+		wantRef   string
+		wantErr   bool
 	}{
 		{
 			name:      "GitHub shorthand",
