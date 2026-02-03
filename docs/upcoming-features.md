@@ -106,3 +106,16 @@ Add intro comparing Scribe with similar tools:
 - Comparison with Vercel Skills CLI
 - Unique value proposition (multi-agent support, workspaces)
 - When to use Scribe vs alternatives
+
+### Install Button for GitHub READMEs
+Showcase how skill authors can add an "Install with Scribe" button to their repositories:
+
+```markdown
+[![Install with Scribe](https://usescrolls.com/badge/install.svg)](agenthub://install?source=github&repo=owner/repo)
+```
+
+Features to implement:
+- Badge SVG hosted on usescrolls.com
+- Documentation for skill authors
+- Example README templates
+- Support for branch/tag specification in URL
