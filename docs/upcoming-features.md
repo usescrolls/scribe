@@ -2,6 +2,25 @@
 
 This document tracks planned features and improvements for Scribe.
 
+## User Experience
+
+### First Run Setup Instructions
+Add onboarding flow for new users:
+- Welcome screen explaining what Scribe does
+- Guide to install first skill
+- Show detected agents
+
+### Workspace Selector in Sidebar
+Move workspace selection from header to left sidebar for better UX:
+- Workspace list always visible
+- Quick switching without dropdown
+- Visual indicator of active workspace
+
+### Global Hotkeys for Workspace Switching
+Add keyboard shortcuts to switch workspaces system-wide:
+- Configurable hotkey bindings
+- Quick switch between recent workspaces
+
 ## Source Types
 
 ### Well-Known Endpoint
@@ -59,3 +78,31 @@ Automate release artifact publishing:
 - Build binaries for macOS (arm64, amd64), Linux, Windows
 - Create DMG installer for macOS
 - Publish to GitHub Releases
+
+### Code Coverage Badges
+Add coverage badges to README:
+- Backend coverage (Go)
+- Frontend coverage (Vitest)
+- Integration with codecov or similar
+
+## Developer Experience
+
+### Code Formatter and Linter (Go)
+Add consistent code formatting and linting:
+- `gofmt` / `goimports` for formatting
+- `golangci-lint` for linting
+- Editor integration configs
+
+### Oxy Tools and Pre-commit Hooks
+Configure development tooling:
+- Pre-commit hooks for formatting and linting
+- Automated checks before commit
+- CI integration
+
+## Documentation
+
+### Marketing Comparison
+Add intro comparing Scribe with similar tools:
+- Comparison with Vercel Skills CLI
+- Unique value proposition (multi-agent support, workspaces)
+- When to use Scribe vs alternatives
