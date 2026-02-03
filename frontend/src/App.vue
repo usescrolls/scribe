@@ -3,11 +3,11 @@
     <header class="header">
       <img src="./assets/icon.png" alt="Scribe" class="app-icon" />
       <h1>Scribe</h1>
-      <WorkspaceSelector />
       <span class="version">v{{ version }}</span>
     </header>
     <div class="content">
       <aside class="sidebar">
+        <SidebarWorkspaceList />
         <AgentStatusPanel @agent-selected="onAgentSelected" />
       </aside>
       <main class="main">
@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import SkillList from './components/SkillList.vue'
-import WorkspaceSelector from './components/WorkspaceSelector.vue'
+import SidebarWorkspaceList from './components/SidebarWorkspaceList.vue'
 import AgentStatusPanel from './components/AgentStatusPanel.vue'
 import { AppService } from './bindings/scribe'
 
@@ -89,6 +89,9 @@ function onAgentSelected(agentId: string | null) {
   padding: 1rem;
   border-right: 1px solid var(--border-color);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .main {

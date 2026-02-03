@@ -29,13 +29,43 @@ Note: `create-app.sh` expects binary at `build/scribe`, not `build/bin/scribe`.
 
 ## Wails v3 Dialogs
 
-Browser APIs like `confirm()`, `alert()`, `prompt()` are silently blocked in Wails apps. Use Wails runtime dialogs:
+Browser APIs like `confirm()`, `alert()`, `prompt()` are silently blocked in Wails apps.
+
+### Option 1: Inline Confirmation (Preferred for UX)
+
+Use Vue reactive state to show/hide an inline confirmation UI:
 
 ```typescript
-// WRONG - silently fails
-if (confirm('Are you sure?')) { ... }
+const pendingAction = ref<string | null>(null)
 
-// CORRECT - use Wails Dialogs
+function handleClick(item: string) {
+  pendingAction.value = item  // Show confirmation
+}
+
+function cancel() {
+  pendingAction.value = null
+}
+
+async function confirm() {
+  const item = pendingAction.value
+  pendingAction.value = null
+  await performAction(item)
+}
+```
+
+```vue
+<div v-if="pendingAction" class="confirm-dialog">
+  <p>Confirm action on "{{ pendingAction }}"?</p>
+  <button @click="cancel">Cancel</button>
+  <button @click="confirm">Confirm</button>
+</div>
+```
+
+### Option 2: Wails Runtime Dialogs
+
+For native OS dialogs:
+
+```typescript
 import { Dialogs } from '@wailsio/runtime'
 
 const result = await Dialogs.Question({
