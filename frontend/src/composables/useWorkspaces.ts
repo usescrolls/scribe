@@ -8,7 +8,7 @@ export function useWorkspaces() {
   const activeWorkspace = ref<string>("default")
   const loading = ref(true)
   const error = ref<string | null>(null)
-  let unsubscribe: () => void | null = null
+  let unsubscribe: { (): void } | null = null
 
   async function fetchWorkspaces() {
     try {

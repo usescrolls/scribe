@@ -36,10 +36,10 @@ jobs:
           cd frontend
           npm install
           npm install @vitest/coverage-v8 --save-dev
-          npm run test:coverage -- --reporter=json --outputFile=coverage-report.json || true
-          # Extract coverage from vitest json output
+          npm run test:coverage -- --coverage.reporter=json-summary || true
+          # Extract coverage from vitest json-summary output
           if [ -f coverage/coverage-summary.json ]; then
-            FE_COV=$(cat coverage/coverage-summary.json | jq '.total.statements.pct')
+            FE_COV=$(jq '.total.statements.pct' coverage/coverage-summary.json)
             echo "FE_COVERAGE=$FE_COV" >> $GITHUB_ENV
           else
             echo "FE_COVERAGE=0" >> $GITHUB_ENV

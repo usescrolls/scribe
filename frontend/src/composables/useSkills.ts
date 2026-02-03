@@ -7,8 +7,8 @@ export function useSkills() {
   const skills = ref<SkillInfo[]>([])
   const loading = ref(true)
   const error = ref<string | null>(null)
-  let unsubscribeSkills: () => void | null = null
-  let unsubscribeWorkspace: () => void | null = null
+  let unsubscribeSkills: { (): void } | null = null
+  let unsubscribeWorkspace: { (): void } | null = null
 
   async function fetchSkills() {
     try {

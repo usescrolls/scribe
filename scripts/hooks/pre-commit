@@ -85,6 +85,20 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
 
     echo "Frontend formatting & linting passed."
 
+    # Run TypeScript type check
+    echo "Running TypeScript check..."
+    cd frontend && npx vue-tsc --noEmit
+    TSC_EXIT=$?
+    cd ..
+
+    if [ $TSC_EXIT -ne 0 ]; then
+        echo ""
+        echo "TypeScript check failed. Please fix the type errors above."
+        exit 1
+    fi
+
+    echo "TypeScript check passed."
+
     # Run frontend tests
     echo "Running frontend tests..."
     cd frontend && npm run test:run
