@@ -1,5 +1,5 @@
 #!/bin/sh
-# Pre-commit hook: runs linters with auto-fix on staged files
+# Pre-commit hook: runs linters, formatters, and tests on staged files
 
 # Get staged files
 STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
@@ -34,6 +34,16 @@ if [ -n "$STAGED_GO_FILES" ]; then
     fi
 
     echo "Go linting passed."
+
+    # Run Go tests
+    echo "Running Go tests..."
+    if ! go test ./...; then
+        echo ""
+        echo "Go tests failed. Please fix the issues above."
+        exit 1
+    fi
+
+    echo "Go tests passed."
 fi
 
 # --- Frontend formatting & linting ---
@@ -74,4 +84,18 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
     fi
 
     echo "Frontend formatting & linting passed."
+
+    # Run frontend tests
+    echo "Running frontend tests..."
+    cd frontend && npm run test:run
+    VITEST_EXIT=$?
+    cd ..
+
+    if [ $VITEST_EXIT -ne 0 ]; then
+        echo ""
+        echo "Frontend tests failed. Please fix the issues above."
+        exit 1
+    fi
+
+    echo "Frontend tests passed."
 fi
