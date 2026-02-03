@@ -30,7 +30,7 @@ func WriteSkillMeta(metaPath string, meta *SkillMeta) error {
 		return err
 	}
 
-	return os.WriteFile(metaPath, data, 0644)
+	return os.WriteFile(metaPath, data, 0o644)
 }
 
 // ComputeContentHash computes a SHA256 hash of the content
@@ -153,7 +153,7 @@ func SaveSkillWithMeta(skillDir string, skill *Skill, source *SourceInfo, skillP
 
 	// Write SKILL.md
 	skillPath := skillDir + "/" + SkillFileName
-	if err := os.WriteFile(skillPath, originalContent, 0644); err != nil {
+	if err := os.WriteFile(skillPath, originalContent, 0o644); err != nil {
 		return err
 	}
 

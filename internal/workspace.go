@@ -184,9 +184,8 @@ func SyncWorkspace(current, target *Workspace) error {
 
 	// Remove symlinks for skills no longer in workspace
 	for _, skillName := range toRemove {
-		if err := RemoveSkillFromAgents(skillName, agentIDs); err != nil {
-			// Log but continue
-		}
+		// Log but continue on error
+		_ = RemoveSkillFromAgents(skillName, agentIDs)
 	}
 
 	// Add symlinks for new skills in workspace
@@ -196,9 +195,8 @@ func SyncWorkspace(current, target *Workspace) error {
 		if !exists {
 			continue
 		}
-		if err := SyncSkillToAgents(skillName, agentIDs); err != nil {
-			// Log but continue
-		}
+		// Log but continue on error
+		_ = SyncSkillToAgents(skillName, agentIDs)
 	}
 
 	return nil
@@ -360,7 +358,7 @@ func saveWorkspace(ws *Workspace) error {
 		return err
 	}
 
-	return os.WriteFile(wsPath, data, 0644)
+	return os.WriteFile(wsPath, data, 0o644)
 }
 
 // createDefaultWorkspace creates a default workspace with all installed skills
@@ -429,9 +427,8 @@ func RemoveSkillFromAllWorkspaces(skillName string) error {
 			}
 		}
 		ws.Skills = newSkills
-		if err := saveWorkspace(ws); err != nil {
-			// Continue with other workspaces
-		}
+		// Continue with other workspaces on error
+		_ = saveWorkspace(ws)
 	}
 
 	return nil
@@ -493,7 +490,7 @@ func CleanWorkspaces() error {
 			if err != nil {
 				continue
 			}
-			os.WriteFile(wsPath, data, 0644)
+			_ = os.WriteFile(wsPath, data, 0o644)
 		}
 	}
 

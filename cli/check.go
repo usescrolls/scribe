@@ -101,11 +101,7 @@ func checkSkill(skillName string) CheckResult {
 	}
 
 	// Reconstruct source info
-	source, err := reconstructSource(skill.Meta)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to reconstruct source: %v", err)
-		return result
-	}
+	source := reconstructSource(skill.Meta)
 
 	// Fetch remote content
 	skills, tempDir, err := fetchAndDiscoverSkills(source)
@@ -113,7 +109,7 @@ func checkSkill(skillName string) CheckResult {
 		result.Error = fmt.Sprintf("failed to fetch: %v", err)
 		return result
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Find the specific skill in fetched content
 	var remoteSkill *scribe.Skill
@@ -144,7 +140,7 @@ func checkSkill(skillName string) CheckResult {
 }
 
 // reconstructSource creates a SourceInfo from SkillMeta
-func reconstructSource(meta *scribe.SkillMeta) (*scribe.SourceInfo, error) {
+func reconstructSource(meta *scribe.SkillMeta) *scribe.SourceInfo {
 	source := &scribe.SourceInfo{
 		Type: meta.SourceType,
 		URL:  meta.SourceURL,
@@ -202,7 +198,7 @@ func reconstructSource(meta *scribe.SkillMeta) (*scribe.SourceInfo, error) {
 		source.Subpath = meta.SkillPath
 	}
 
-	return source, nil
+	return source
 }
 
 func checkOutputJSON(results []CheckResult) error {
@@ -211,11 +207,12 @@ func checkOutputJSON(results []CheckResult) error {
 	errors := 0
 
 	for _, r := range results {
-		if r.Error != "" {
+		switch {
+		case r.Error != "":
 			errors++
-		} else if r.NeedsUpdate {
+		case r.NeedsUpdate:
 			outdated++
-		} else {
+		default:
 			upToDate++
 		}
 	}
@@ -246,7 +243,7 @@ func checkOutputJSON(results []CheckResult) error {
 
 func checkOutputTable(results []CheckResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "NAME\tSTATUS\tCURRENT\tREMOTE")
+	_, _ = fmt.Fprintln(w, "NAME\tSTATUS\tCURRENT\tREMOTE")
 
 	outdated := 0
 	upToDate := 0
@@ -257,22 +254,23 @@ func checkOutputTable(results []CheckResult) error {
 		current := truncateHash(r.CurrentHash)
 		remote := truncateHash(r.RemoteHash)
 
-		if r.Error != "" {
+		switch {
+		case r.Error != "":
 			status = "error: " + r.Error
 			current = "-"
 			remote = "-"
 			errors++
-		} else if r.NeedsUpdate {
+		case r.NeedsUpdate:
 			status = "outdated"
 			outdated++
-		} else {
+		default:
 			upToDate++
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Name, status, current, remote)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Name, status, current, remote)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 
 	if !quiet {
 		fmt.Printf("\n%d skill(s) checked: %d outdated, %d up-to-date", len(results), outdated, upToDate)

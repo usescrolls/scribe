@@ -45,7 +45,7 @@ func ParseSkillMd(path string) (*Skill, error) {
 }
 
 // ParseSkillContent parses SKILL.md content and returns a Skill
-func ParseSkillContent(content string, skillDir string) (*Skill, error) {
+func ParseSkillContent(content, skillDir string) (*Skill, error) {
 	// Extract frontmatter and body
 	matches := frontmatterPattern.FindStringSubmatch(content)
 	if matches == nil {
@@ -144,12 +144,8 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 		"target":       true, // Rust/Java builds
 	}
 
-	// Check for legacy plugin.json (for warning purposes only)
-	legacyPluginPath := filepath.Join(root, ".claude-plugin", "plugin.json")
-	if _, err := os.Stat(legacyPluginPath); err == nil {
-		// Legacy plugin format detected - just log and continue
-		// The recursive search will find any SKILL.md files in skills/ subdirectory
-	}
+	// Legacy plugin format check removed - the recursive search will find
+	// any SKILL.md files in skills/ subdirectory
 
 	// First, check for SKILL.md directly in root (single-skill repo)
 	rootSkillPath := filepath.Join(root, SkillFileName)

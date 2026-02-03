@@ -91,7 +91,7 @@ func runUninstallAll() error {
 
 	for _, skillName := range skills {
 		// Remove from all workspaces
-		scribe.RemoveSkillFromAllWorkspaces(skillName)
+		_ = scribe.RemoveSkillFromAllWorkspaces(skillName)
 
 		// Uninstall the skill
 		if err := scribe.UninstallSkill(skillName); err != nil {
@@ -105,7 +105,7 @@ func runUninstallAll() error {
 	}
 
 	// Rebuild default workspace (should now be empty)
-	scribe.RebuildDefaultWorkspace()
+	_ = scribe.RebuildDefaultWorkspace()
 
 	if !quiet {
 		fmt.Println("All skills removed")

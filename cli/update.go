@@ -116,10 +116,7 @@ func updateSkill(skillName string, force bool) error {
 	}
 
 	// Reconstruct source
-	source, err := reconstructSource(skill.Meta)
-	if err != nil {
-		return fmt.Errorf("failed to reconstruct source: %w", err)
-	}
+	source := reconstructSource(skill.Meta)
 
 	if !quiet {
 		fmt.Printf("Updating %s from %s...\n", skillName, formatSourceInfo(source))
@@ -130,7 +127,7 @@ func updateSkill(skillName string, force bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch from source: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Find the specific skill
 	var newSkill *scribe.Skill
@@ -232,7 +229,7 @@ func copySkillDir(src, dst string) error {
 	}
 
 	// Create destination directory
-	if err := os.MkdirAll(dst, 0755); err != nil {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 

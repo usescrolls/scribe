@@ -69,12 +69,12 @@ func TestListInstalledSkills_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Override home directory for test
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	skills, err := ListInstalledSkills()
 	if err != nil {
@@ -91,23 +91,23 @@ func TestListInstalledSkills_WithSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Create skill directories
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skill1Dir := filepath.Join(scrollsDir, "skill-one")
 	skill2Dir := filepath.Join(scrollsDir, "skill-two")
 
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
 
 	// Create SKILL.md files
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill One"), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill Two"), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill One"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill Two"), 0o644)
 
 	skills, err := ListInstalledSkills()
 	if err != nil {
@@ -124,11 +124,11 @@ func TestSkillExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Test non-existent skill
 	exists, err := SkillExists("non-existent")
@@ -141,8 +141,8 @@ func TestSkillExists(t *testing.T) {
 
 	// Create a skill
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls", "existing-skill")
-	os.MkdirAll(scrollsDir, 0755)
-	os.WriteFile(filepath.Join(scrollsDir, "SKILL.md"), []byte("# Existing"), 0644)
+	_ = os.MkdirAll(scrollsDir, 0o755)
+	_ = os.WriteFile(filepath.Join(scrollsDir, "SKILL.md"), []byte("# Existing"), 0o644)
 
 	// Test existing skill
 	exists, err = SkillExists("existing-skill")
@@ -227,11 +227,11 @@ func TestDetectInstalledAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// No agents installed initially
 	agents := DetectInstalledAgents()
@@ -241,7 +241,7 @@ func TestDetectInstalledAgents(t *testing.T) {
 
 	// Create Claude config directory
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(claudeDir, 0755)
+	_ = os.MkdirAll(claudeDir, 0o755)
 
 	// Now should detect Claude
 	agents = DetectInstalledAgents()
@@ -260,7 +260,7 @@ func TestExpandPath(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"~/.claude/skills", filepath.Join(home, ".claude/skills")},
+		{"~/.claude/skills", filepath.Join(home, ".claude", "skills")},
 		{"/absolute/path", "/absolute/path"},
 		{"relative/path", "relative/path"},
 	}
@@ -284,11 +284,11 @@ func TestParseSkillMd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a valid SKILL.md
 	skillDir := filepath.Join(tmpDir, "test-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 	skillContent := `---
 name: test-skill
 description: A test skill for testing
@@ -299,7 +299,7 @@ description: A test skill for testing
 This is a test skill.
 `
 	skillPath := filepath.Join(skillDir, "SKILL.md")
-	os.WriteFile(skillPath, []byte(skillContent), 0644)
+	_ = os.WriteFile(skillPath, []byte(skillContent), 0o644)
 
 	skill, err := ParseSkillMd(skillPath)
 	if err != nil {
@@ -319,16 +319,16 @@ func TestParseSkillMd_MissingFrontmatter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	skillDir := filepath.Join(tmpDir, "no-frontmatter")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 	skillContent := `# No Frontmatter
 
 This skill has no YAML frontmatter.
 `
 	skillPath := filepath.Join(skillDir, "SKILL.md")
-	os.WriteFile(skillPath, []byte(skillContent), 0644)
+	_ = os.WriteFile(skillPath, []byte(skillContent), 0o644)
 
 	_, err = ParseSkillMd(skillPath)
 	if err == nil {
@@ -341,13 +341,13 @@ func TestDiscoverSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create skill directories with SKILL.md files
 	skill1Dir := filepath.Join(tmpDir, "skills", "skill-one")
 	skill2Dir := filepath.Join(tmpDir, "skills", "skill-two")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
 
 	skill1Content := `---
 name: skill-one
@@ -361,8 +361,8 @@ description: Second skill
 ---
 # Skill Two
 `
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skill1Content), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skill2Content), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skill1Content), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skill2Content), 0o644)
 
 	skills, err := DiscoverSkills(tmpDir)
 	if err != nil {
@@ -423,7 +423,7 @@ func TestSkillMetaReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	metaPath := filepath.Join(tmpDir, ".scribe-meta.json")
 
@@ -467,14 +467,14 @@ func TestWorkspaceCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Ensure directories exist
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create workspace
 	ws := &Workspace{
@@ -540,20 +540,20 @@ func TestAddSkillToWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create workspace
 	ws := &Workspace{
 		Name:   "test-ws",
 		Skills: []string{},
 	}
-	CreateWorkspace(ws)
+	_ = CreateWorkspace(ws)
 
 	// Add skill
 	err = AddSkillToWorkspace("new-skill", "test-ws")
@@ -586,20 +586,20 @@ func TestRemoveSkillFromWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create workspace with skills
 	ws := &Workspace{
 		Name:   "test-ws",
 		Skills: []string{"skill-1", "skill-2", "skill-3"},
 	}
-	CreateWorkspace(ws)
+	_ = CreateWorkspace(ws)
 
 	// Remove skill
 	err = RemoveSkillFromWorkspace("skill-2", "test-ws")
@@ -628,24 +628,24 @@ func TestInstallAndUninstallSkill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a source skill directory
 	sourceDir := filepath.Join(tmpDir, "source", "test-skill")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 	skillContent := `---
 name: test-skill
 description: Test skill for installation
 ---
 # Test Skill
 `
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	// Parse the skill
 	skill, err := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
@@ -698,22 +698,22 @@ func TestSyncSkillToAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a skill in scrolls
 	skillDir, _ := GetSkillDir("sync-test")
-	os.MkdirAll(skillDir, 0755)
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test"), 0644)
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Test"), 0o644)
 
 	// Create Claude agent directory
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	// Sync to Claude
 	err = SyncSkillToAgents("sync-test", []string{"claude-code"})
@@ -733,17 +733,17 @@ func TestRemoveSkillFromAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Create a skill symlink in Claude directory
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 	linkPath := filepath.Join(claudeSkillsDir, "remove-test")
-	os.MkdirAll(linkPath, 0755) // Create as directory for test
+	_ = os.MkdirAll(linkPath, 0o755) // Create as directory for test
 
 	// Remove
 	err = RemoveSkillFromAgents("remove-test", []string{"claude-code"})
@@ -766,11 +766,11 @@ func TestLoadConfigDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Load config when file doesn't exist
 	config, err := LoadConfig()
@@ -788,13 +788,13 @@ func TestSaveAndLoadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	config := &Config{
 		ActiveWorkspace: "custom-workspace",
@@ -824,22 +824,22 @@ func TestFullInstallWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create Claude agent directory (simulating Claude Code is installed)
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	claudeSkillsDir := filepath.Join(claudeDir, "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	// Create source skill
 	sourceDir := filepath.Join(tmpDir, "source", "my-skill")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 	skillContent := `---
 name: my-skill
 description: My awesome skill
@@ -848,7 +848,7 @@ description: My awesome skill
 
 This skill does cool things.
 `
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	// Parse and install
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
@@ -867,8 +867,8 @@ This skill does cool things.
 	}
 
 	// Add to workspace
-	EnsureDefaultWorkspace()
-	AddSkillToActiveAndDefaultWorkspace("my-skill")
+	_ = EnsureDefaultWorkspace()
+	_ = AddSkillToActiveAndDefaultWorkspace("my-skill")
 
 	// Verify installation
 	exists, _ := SkillExists("my-skill")
@@ -896,8 +896,8 @@ This skill does cool things.
 	}
 
 	// Uninstall
-	RemoveSkillFromAllWorkspaces("my-skill")
-	UninstallSkill("my-skill")
+	_ = RemoveSkillFromAllWorkspaces("my-skill")
+	_ = UninstallSkill("my-skill")
 
 	// Verify uninstallation
 	exists, _ = SkillExists("my-skill")
@@ -919,11 +919,11 @@ func TestGetAgentStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 
@@ -943,12 +943,12 @@ func TestGetAgentStatus(t *testing.T) {
 	// Create Claude directory with some skills
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	claudeSkillsDir := filepath.Join(claudeDir, "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	// Create a skill directory
 	skill1Dir := filepath.Join(claudeSkillsDir, "test-skill")
-	os.MkdirAll(skill1Dir, 0755)
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Test"), 0644)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Test"), 0o644)
 
 	statuses = GetAgentStatus(scrollsDir)
 
@@ -976,7 +976,7 @@ func TestExpandAgentPath(t *testing.T) {
 	home, _ := os.UserHomeDir()
 
 	result := ExpandAgentPath("~/.claude/skills")
-	expected := filepath.Join(home, ".claude/skills")
+	expected := filepath.Join(home, ".claude", "skills")
 
 	if result != expected {
 		t.Errorf("ExpandAgentPath() = %q, want %q", result, expected)
@@ -988,7 +988,7 @@ func TestCountSkillsInDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Empty directory
 	count := countSkillsInDir(tmpDir)
@@ -1007,13 +1007,13 @@ func TestCountSkillsInDir(t *testing.T) {
 	skill2Dir := filepath.Join(tmpDir, "skill2")
 	noSkillDir := filepath.Join(tmpDir, "no-skill")
 
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
-	os.MkdirAll(noSkillDir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.MkdirAll(noSkillDir, 0o755)
 
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0644)
-	os.WriteFile(filepath.Join(noSkillDir, "README.md"), []byte("# Not a skill"), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0o644)
+	_ = os.WriteFile(filepath.Join(noSkillDir, "README.md"), []byte("# Not a skill"), 0o644)
 
 	count = countSkillsInDir(tmpDir)
 	if count != 2 {
@@ -1026,11 +1026,11 @@ func TestIsSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a regular file
 	regularFile := filepath.Join(tmpDir, "regular.txt")
-	os.WriteFile(regularFile, []byte("test"), 0644)
+	_ = os.WriteFile(regularFile, []byte("test"), 0o644)
 
 	if IsSymlink(regularFile) {
 		t.Error("Regular file should not be a symlink")
@@ -1038,7 +1038,7 @@ func TestIsSymlink(t *testing.T) {
 
 	// Create a directory
 	dir := filepath.Join(tmpDir, "dir")
-	os.MkdirAll(dir, 0755)
+	_ = os.MkdirAll(dir, 0o755)
 
 	if IsSymlink(dir) {
 		t.Error("Directory should not be a symlink")
@@ -1046,7 +1046,7 @@ func TestIsSymlink(t *testing.T) {
 
 	// Create a symlink
 	symlinkPath := filepath.Join(tmpDir, "link")
-	os.Symlink(regularFile, symlinkPath)
+	_ = os.Symlink(regularFile, symlinkPath)
 
 	if !IsSymlink(symlinkPath) {
 		t.Error("Symlink should be detected as symlink")
@@ -1063,15 +1063,15 @@ func TestGetSymlinkTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create target file
 	targetFile := filepath.Join(tmpDir, "target.txt")
-	os.WriteFile(targetFile, []byte("test"), 0644)
+	_ = os.WriteFile(targetFile, []byte("test"), 0o644)
 
 	// Create symlink
 	symlinkPath := filepath.Join(tmpDir, "link")
-	os.Symlink(targetFile, symlinkPath)
+	_ = os.Symlink(targetFile, symlinkPath)
 
 	target, err := GetSymlinkTarget(symlinkPath)
 	if err != nil {
@@ -1117,10 +1117,10 @@ func TestLoadSkillWithMeta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	skillDir := filepath.Join(tmpDir, "test-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 
 	// Create SKILL.md
 	skillContent := `---
@@ -1129,7 +1129,7 @@ description: A test skill
 ---
 # Test Skill
 `
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	// Load without meta
 	skill, err := LoadSkillWithMeta(skillDir)
@@ -1147,7 +1147,7 @@ description: A test skill
 	// Create meta file
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
 	meta := NewSkillMeta(source, "", skillContent)
-	WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
+	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	// Load with meta
 	skill, err = LoadSkillWithMeta(skillDir)
@@ -1165,7 +1165,7 @@ func TestListSkillsWithMeta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	scrollsDir := filepath.Join(tmpDir, "scrolls")
 
@@ -1179,12 +1179,12 @@ func TestListSkillsWithMeta(t *testing.T) {
 	}
 
 	// Create skills directory with skills
-	os.MkdirAll(scrollsDir, 0755)
+	_ = os.MkdirAll(scrollsDir, 0o755)
 
 	skill1Dir := filepath.Join(scrollsDir, "skill-one")
 	skill2Dir := filepath.Join(scrollsDir, "skill-two")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
 
 	skill1Content := `---
 name: skill-one
@@ -1198,8 +1198,8 @@ description: Second skill
 ---
 # Skill Two
 `
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skill1Content), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skill2Content), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skill1Content), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skill2Content), 0o644)
 
 	skills, err = ListSkillsWithMeta(scrollsDir)
 	if err != nil {
@@ -1216,10 +1216,10 @@ func TestSkillNeedsUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	skillDir := filepath.Join(tmpDir, "test-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 
 	content := "original content"
 
@@ -1235,7 +1235,7 @@ func TestSkillNeedsUpdate(t *testing.T) {
 	// Create meta file
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
 	meta := NewSkillMeta(source, "", content)
-	WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
+	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	// Same content - should not need update
 	needsUpdate, err = SkillNeedsUpdate(skillDir, content)
@@ -1351,13 +1351,13 @@ func TestGetWorkspaceInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a test workspace
 	ws := &Workspace{
@@ -1365,7 +1365,7 @@ func TestGetWorkspaceInfo(t *testing.T) {
 		Description: "A test workspace",
 		Skills:      []string{"skill-1", "skill-2"},
 	}
-	CreateWorkspace(ws)
+	_ = CreateWorkspace(ws)
 
 	// GetWorkspaceInfo returns info for all workspaces
 	infos, err := GetWorkspaceInfo()
@@ -1435,29 +1435,29 @@ func TestSyncAllSkillsToAgents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create skills
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skill1Dir := filepath.Join(scrollsDir, "skill-one")
 	skill2Dir := filepath.Join(scrollsDir, "skill-two")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
 
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0o644)
 
 	// Create agent directories
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
 	cursorSkillsDir := filepath.Join(tmpDir, ".cursor", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
-	os.MkdirAll(cursorSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
+	_ = os.MkdirAll(cursorSkillsDir, 0o755)
 
 	// Sync all
 	err = SyncAllSkillsToAgents()
@@ -1487,12 +1487,12 @@ func TestCreateSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create target directory
 	targetDir := filepath.Join(tmpDir, "target")
-	os.MkdirAll(targetDir, 0755)
-	os.WriteFile(filepath.Join(targetDir, "test.txt"), []byte("test"), 0644)
+	_ = os.MkdirAll(targetDir, 0o755)
+	_ = os.WriteFile(filepath.Join(targetDir, "test.txt"), []byte("test"), 0o644)
 
 	// Create symlink
 	linkPath := filepath.Join(tmpDir, "link")
@@ -1521,7 +1521,7 @@ func TestDirExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Directory exists
 	if !dirExists(tmpDir) {
@@ -1530,7 +1530,7 @@ func TestDirExists(t *testing.T) {
 
 	// File is not a directory
 	filePath := filepath.Join(tmpDir, "file.txt")
-	os.WriteFile(filePath, []byte("test"), 0644)
+	_ = os.WriteFile(filePath, []byte("test"), 0o644)
 	if dirExists(filePath) {
 		t.Error("dirExists() should return false for file")
 	}
@@ -1611,17 +1611,17 @@ func TestReadSkill(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a skill with valid SKILL.md
 	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "test-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 
 	skillContent := `---
 name: test-skill
@@ -1629,7 +1629,7 @@ description: A test skill
 ---
 # Test Skill Content
 `
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	// Read skill without meta
 	skill, err := ReadSkill("test-skill")
@@ -1644,7 +1644,7 @@ description: A test skill
 	// Add meta and read again
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
 	meta := NewSkillMeta(source, "", skillContent)
-	WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
+	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	skill, err = ReadSkill("test-skill")
 	if err != nil {
@@ -1661,13 +1661,13 @@ func TestReadAllSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Empty initially
 	skills, err := ReadAllSkills()
@@ -1683,8 +1683,8 @@ func TestReadAllSkills(t *testing.T) {
 
 	skill1Dir := filepath.Join(scrollsDir, "skill-1")
 	skill2Dir := filepath.Join(scrollsDir, "skill-2")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
 
 	skillContent1 := `---
 name: skill-1
@@ -1698,8 +1698,8 @@ description: Second skill
 ---
 # Skill 2
 `
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skillContent1), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skillContent2), 0644)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte(skillContent1), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte(skillContent2), 0o644)
 
 	skills, err = ReadAllSkills()
 	if err != nil {
@@ -1715,18 +1715,18 @@ func TestGetAllSkillInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a skill
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skillDir := filepath.Join(scrollsDir, "info-skill")
-	os.MkdirAll(skillDir, 0755)
+	_ = os.MkdirAll(skillDir, 0o755)
 
 	skillContent := `---
 name: info-skill
@@ -1734,13 +1734,13 @@ description: Skill for info test
 ---
 # Info Skill
 `
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	// Create Claude agent directory with the skill
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
-	os.MkdirAll(filepath.Join(claudeSkillsDir, "info-skill"), 0755)
-	os.WriteFile(filepath.Join(claudeSkillsDir, "info-skill", "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
+	_ = os.MkdirAll(filepath.Join(claudeSkillsDir, "info-skill"), 0o755)
+	_ = os.WriteFile(filepath.Join(claudeSkillsDir, "info-skill", "SKILL.md"), []byte(skillContent), 0o644)
 
 	infos, err := GetAllSkillInfo()
 	if err != nil {
@@ -1767,14 +1767,14 @@ func TestGetActiveWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Default should be active
 	ws, err := GetActiveWorkspace()
@@ -1792,14 +1792,14 @@ func TestSetActiveWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create a new workspace
 	ws := &Workspace{
@@ -1807,7 +1807,7 @@ func TestSetActiveWorkspace(t *testing.T) {
 		Description: "A new workspace",
 		Skills:      []string{},
 	}
-	CreateWorkspace(ws)
+	_ = CreateWorkspace(ws)
 
 	// Set it as active
 	err = SetActiveWorkspace("new-workspace")
@@ -1838,26 +1838,26 @@ func TestSyncWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create skills
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skill1Dir := filepath.Join(scrollsDir, "sync-skill-1")
 	skill2Dir := filepath.Join(scrollsDir, "sync-skill-2")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0644)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0o644)
 
 	// Create Claude directory
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	current := &Workspace{Name: "current", Skills: []string{"sync-skill-1"}}
 	target := &Workspace{Name: "target", Skills: []string{"sync-skill-2"}}
@@ -1910,22 +1910,22 @@ func TestRebuildDefaultWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create some skills
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skill1Dir := filepath.Join(scrollsDir, "rebuild-skill-1")
 	skill2Dir := filepath.Join(scrollsDir, "rebuild-skill-2")
-	os.MkdirAll(skill1Dir, 0755)
-	os.MkdirAll(skill2Dir, 0755)
-	os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0644)
-	os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0644)
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0o644)
 
 	// Rebuild default workspace
 	err = RebuildDefaultWorkspace()
@@ -1949,26 +1949,26 @@ func TestCleanWorkspaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
+	_ = EnsureScribeDirs()
 
 	// Create a skill
 	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
 	skillDir := filepath.Join(scrollsDir, "existing-skill")
-	os.MkdirAll(skillDir, 0755)
-	os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Existing"), 0644)
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Existing"), 0o644)
 
 	// Create workspace with existing and non-existing skills
 	ws := &Workspace{
 		Name:   "test-ws",
 		Skills: []string{"existing-skill", "deleted-skill"},
 	}
-	CreateWorkspace(ws)
+	_ = CreateWorkspace(ws)
 
 	// Clean workspaces
 	err = CleanWorkspaces()
@@ -1991,11 +1991,11 @@ func TestSaveSkillWithMeta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create source skill
 	sourceDir := filepath.Join(tmpDir, "source")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 
 	skillContent := `---
 name: save-skill
@@ -2003,7 +2003,7 @@ description: Skill for save test
 ---
 # Save Skill Content
 `
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0o644)
 
 	skill := &Skill{
 		Name:        "save-skill",
@@ -2202,21 +2202,21 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Initialize Scribe directories
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create mock agent directories (Claude and Cursor)
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
 	cursorSkillsDir := filepath.Join(tmpDir, ".cursor", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
-	os.MkdirAll(cursorSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
+	_ = os.MkdirAll(cursorSkillsDir, 0o755)
 
 	// Create source directory with multiple skills
 	sourceDir := filepath.Join(tmpDir, "source-repo")
@@ -2232,9 +2232,9 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 
 	for _, s := range skills {
 		skillDir := filepath.Join(sourceDir, "skills", s.name)
-		os.MkdirAll(skillDir, 0755)
+		_ = os.MkdirAll(skillDir, 0o755)
 		content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n%s\n", s.name, s.description, s.content)
-		os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0644)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0o644)
 	}
 
 	// Discover skills from source
@@ -2253,7 +2253,7 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 		if err != nil {
 			t.Fatalf("InstallSkill(%s) error: %v", skill.Name, err)
 		}
-		AddSkillToActiveAndDefaultWorkspace(skill.Name)
+		_ = AddSkillToActiveAndDefaultWorkspace(skill.Name)
 	}
 
 	// Verify all skills exist in canonical location
@@ -2292,8 +2292,8 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 	}
 
 	// Remove one skill
-	RemoveSkillFromAllWorkspaces("typescript-tips")
-	UninstallSkill("typescript-tips")
+	_ = RemoveSkillFromAllWorkspaces("typescript-tips")
+	_ = UninstallSkill("typescript-tips")
 
 	// Verify it's gone
 	exists, _ := SkillExists("typescript-tips")
@@ -2316,8 +2316,8 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 
 	// Remove all remaining skills
 	for _, name := range []string{"react-patterns", "go-idioms"} {
-		RemoveSkillFromAllWorkspaces(name)
-		UninstallSkill(name)
+		_ = RemoveSkillFromAllWorkspaces(name)
+		_ = UninstallSkill(name)
 	}
 
 	// Verify all gone
@@ -2334,42 +2334,42 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
 	// Initialize
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create mock agent directory
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	// Create and install 4 skills
 	skillNames := []string{"frontend-skill", "backend-skill", "devops-skill", "testing-skill"}
 	for _, name := range skillNames {
 		sourceDir := filepath.Join(tmpDir, "source", name)
-		os.MkdirAll(sourceDir, 0755)
+		_ = os.MkdirAll(sourceDir, 0o755)
 		content := fmt.Sprintf("---\nname: %s\ndescription: %s skill\n---\n# %s\n", name, name, name)
-		os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+		_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0o644)
 
 		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-		InstallSkill(skill, source, InstallOptions{})
-		AddSkillToActiveAndDefaultWorkspace(name)
+		_ = InstallSkill(skill, source, InstallOptions{})
+		_ = AddSkillToActiveAndDefaultWorkspace(name)
 	}
 
 	// Create workspaces with different skill sets
-	CreateWorkspace(&Workspace{
+	_ = CreateWorkspace(&Workspace{
 		Name:        "frontend",
 		Description: "Frontend development",
 		Skills:      []string{"frontend-skill", "testing-skill"},
 	})
 
-	CreateWorkspace(&Workspace{
+	_ = CreateWorkspace(&Workspace{
 		Name:        "backend",
 		Description: "Backend development",
 		Skills:      []string{"backend-skill", "devops-skill", "testing-skill"},
@@ -2384,8 +2384,8 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 	// Switch to frontend workspace
 	current, _ := GetActiveWorkspace()
 	frontend, _ := GetWorkspace("frontend")
-	SyncWorkspace(current, frontend)
-	SetActiveWorkspace("frontend")
+	_ = SyncWorkspace(current, frontend)
+	_ = SetActiveWorkspace("frontend")
 
 	// Verify only frontend skills are symlinked
 	frontendLinks := []string{"frontend-skill", "testing-skill"}
@@ -2405,8 +2405,8 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 	// Switch to backend workspace
 	current, _ = GetActiveWorkspace()
 	backend, _ := GetWorkspace("backend")
-	SyncWorkspace(current, backend)
-	SetActiveWorkspace("backend")
+	_ = SyncWorkspace(current, backend)
+	_ = SetActiveWorkspace("backend")
 
 	// Verify backend skills are symlinked
 	expectedBackend := []string{"backend-skill", "devops-skill", "testing-skill"}
@@ -2426,8 +2426,8 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 	// Switch back to default
 	current, _ = GetActiveWorkspace()
 	defaultWs, _ = GetWorkspace("default")
-	SyncWorkspace(current, defaultWs)
-	SetActiveWorkspace("default")
+	_ = SyncWorkspace(current, defaultWs)
+	_ = SetActiveWorkspace("default")
 
 	// Verify all skills are symlinked again
 	for _, name := range skillNames {
@@ -2444,7 +2444,7 @@ func TestIntegration_SkillDiscoveryFromNestedStructure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a complex nested structure like a real repo might have
 	// repo/
@@ -2457,9 +2457,9 @@ func TestIntegration_SkillDiscoveryFromNestedStructure(t *testing.T) {
 	//   SKILL.md  (root level skill)
 
 	createSkill := func(dir, name, desc string) {
-		os.MkdirAll(dir, 0755)
+		_ = os.MkdirAll(dir, 0o755)
 		content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n# %s\n", name, desc, name)
-		os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0644)
+		_ = os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0o644)
 	}
 
 	createSkill(filepath.Join(tmpDir, "skills", "react"), "react-skill", "React skill")
@@ -2468,8 +2468,8 @@ func TestIntegration_SkillDiscoveryFromNestedStructure(t *testing.T) {
 	createSkill(tmpDir, "root-skill", "Root level skill")
 
 	// Create a docs directory with no skills
-	os.MkdirAll(filepath.Join(tmpDir, "docs"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "docs", "README.md"), []byte("# Docs"), 0644)
+	_ = os.MkdirAll(filepath.Join(tmpDir, "docs"), 0o755)
+	_ = os.WriteFile(filepath.Join(tmpDir, "docs", "README.md"), []byte("# Docs"), 0o644)
 
 	// Discover all skills
 	skills, err := DiscoverSkills(tmpDir)
@@ -2513,20 +2513,20 @@ func TestIntegration_SkillMetadataTracking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create and install a skill
 	sourceDir := filepath.Join(tmpDir, "source", "tracked-skill")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 	originalContent := "---\nname: tracked-skill\ndescription: A tracked skill\n---\n# Version 1\n"
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(originalContent), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(originalContent), 0o644)
 
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{
@@ -2535,7 +2535,7 @@ func TestIntegration_SkillMetadataTracking(t *testing.T) {
 		Repo:  "test-repo",
 		URL:   "https://github.com/test-org/test-repo",
 	}
-	InstallSkill(skill, source, InstallOptions{})
+	_ = InstallSkill(skill, source, InstallOptions{})
 
 	// Read back the installed skill with metadata
 	skillDir, _ := GetSkillDir("tracked-skill")
@@ -2581,14 +2581,14 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create multiple mock agent directories
 	agents := []struct {
@@ -2601,18 +2601,18 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 	}
 
 	for _, agent := range agents {
-		os.MkdirAll(agent.skillsDir, 0755)
+		_ = os.MkdirAll(agent.skillsDir, 0o755)
 	}
 
 	// Create and install a skill
 	sourceDir := filepath.Join(tmpDir, "source", "multi-agent-skill")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 	content := "---\nname: multi-agent-skill\ndescription: Installed to all agents\n---\n# Multi Agent\n"
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0o644)
 
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-	InstallSkill(skill, source, InstallOptions{})
+	_ = InstallSkill(skill, source, InstallOptions{})
 
 	// Verify symlink exists in all agent directories
 	for _, agent := range agents {
@@ -2636,8 +2636,8 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 	}
 
 	// Uninstall and verify removal from all agents
-	RemoveSkillFromAllWorkspaces("multi-agent-skill")
-	UninstallSkill("multi-agent-skill")
+	_ = RemoveSkillFromAllWorkspaces("multi-agent-skill")
+	_ = UninstallSkill("multi-agent-skill")
 
 	for _, agent := range agents {
 		linkPath := filepath.Join(agent.skillsDir, "multi-agent-skill")
@@ -2654,39 +2654,39 @@ func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create agent directory
 	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
-	os.MkdirAll(claudeSkillsDir, 0755)
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
 
 	// Install a skill
 	sourceDir := filepath.Join(tmpDir, "source", "workspace-test-skill")
-	os.MkdirAll(sourceDir, 0755)
+	_ = os.MkdirAll(sourceDir, 0o755)
 	content := "---\nname: workspace-test-skill\ndescription: Test skill\n---\n# Test\n"
-	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0o644)
 
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-	InstallSkill(skill, source, InstallOptions{})
-	AddSkillToActiveAndDefaultWorkspace("workspace-test-skill")
+	_ = InstallSkill(skill, source, InstallOptions{})
+	_ = AddSkillToActiveAndDefaultWorkspace("workspace-test-skill")
 
 	// Create a custom workspace without the skill
-	CreateWorkspace(&Workspace{
+	_ = CreateWorkspace(&Workspace{
 		Name:        "custom",
 		Description: "Custom workspace",
 		Skills:      []string{},
 	})
 
 	// Add skill to custom workspace
-	AddSkillToWorkspace("workspace-test-skill", "custom")
+	_ = AddSkillToWorkspace("workspace-test-skill", "custom")
 
 	// Verify skill is in custom workspace
 	customWs, _ := GetWorkspace("custom")
@@ -2702,7 +2702,7 @@ func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
 	}
 
 	// Remove skill from custom workspace
-	RemoveSkillFromWorkspace("workspace-test-skill", "custom")
+	_ = RemoveSkillFromWorkspace("workspace-test-skill", "custom")
 
 	// Verify skill is removed from custom workspace
 	customWs, _ = GetWorkspace("custom")
@@ -2733,17 +2733,17 @@ func TestIntegration_CleanupOrphanedWorkspaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Create a workspace with a skill that doesn't exist
-	CreateWorkspace(&Workspace{
+	_ = CreateWorkspace(&Workspace{
 		Name:        "orphaned",
 		Description: "Has orphaned skills",
 		Skills:      []string{"nonexistent-skill-1", "nonexistent-skill-2"},
@@ -2752,10 +2752,10 @@ func TestIntegration_CleanupOrphanedWorkspaces(t *testing.T) {
 	// Also add orphaned skills to default
 	defaultWs, _ := GetWorkspace("default")
 	defaultWs.Skills = append(defaultWs.Skills, "nonexistent-skill-3")
-	UpdateWorkspace(defaultWs)
+	_ = UpdateWorkspace(defaultWs)
 
 	// Run cleanup
-	CleanWorkspaces()
+	_ = CleanWorkspaces()
 
 	// Verify orphaned skills are removed
 	orphanedWs, _ := GetWorkspace("orphaned")
@@ -2778,26 +2778,26 @@ func TestIntegration_RebuildDefaultWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	origHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
 
-	EnsureScribeDirs()
-	EnsureDefaultWorkspace()
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
 
 	// Install skills without adding to workspaces
 	skillNames := []string{"rebuild-skill-1", "rebuild-skill-2", "rebuild-skill-3"}
 	for _, name := range skillNames {
 		sourceDir := filepath.Join(tmpDir, "source", name)
-		os.MkdirAll(sourceDir, 0755)
+		_ = os.MkdirAll(sourceDir, 0o755)
 		content := fmt.Sprintf("---\nname: %s\ndescription: Rebuild test\n---\n# Test\n", name)
-		os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+		_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0o644)
 
 		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-		InstallSkill(skill, source, InstallOptions{})
+		_ = InstallSkill(skill, source, InstallOptions{})
 		// Intentionally NOT adding to workspace
 	}
 
@@ -2806,7 +2806,7 @@ func TestIntegration_RebuildDefaultWorkspace(t *testing.T) {
 	originalCount := len(defaultWs.Skills)
 
 	// Rebuild default workspace
-	RebuildDefaultWorkspace()
+	_ = RebuildDefaultWorkspace()
 
 	// Verify all installed skills are now in default workspace
 	defaultWs, _ = GetWorkspace("default")

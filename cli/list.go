@@ -112,7 +112,7 @@ func listSkillsTable(skills []scribe.SkillInfo) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	fmt.Fprintln(w, "NAME\tDESCRIPTION\tSOURCE\tINSTALLED\tAGENTS")
+	_, _ = fmt.Fprintln(w, "NAME\tDESCRIPTION\tSOURCE\tINSTALLED\tAGENTS")
 
 	for _, s := range skills {
 		desc := truncateString(s.Description, 40)
@@ -122,10 +122,10 @@ func listSkillsTable(skills []scribe.SkillInfo) error {
 		if agents == "" {
 			agents = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, desc, source, installed, agents)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, desc, source, installed, agents)
 	}
 
-	w.Flush()
+	_ = w.Flush()
 
 	if !quiet {
 		fmt.Printf("\n%d skill(s) installed\n", len(skills))

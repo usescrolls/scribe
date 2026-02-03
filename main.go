@@ -200,12 +200,9 @@ func runGUIMode() {
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				skillCountItem.SetLabel(getSkillCountLabel())
-				workspaceItem.SetLabel(getWorkspaceLabel())
-			}
+		for range ticker.C {
+			skillCountItem.SetLabel(getSkillCountLabel())
+			workspaceItem.SetLabel(getWorkspaceLabel())
 		}
 	}()
 

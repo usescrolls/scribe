@@ -261,12 +261,12 @@ func TestListEmptyOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Override home directory for test
 	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", oldHome) }()
 
 	scribe.InitLoggerCLI(false)
 
@@ -278,13 +278,13 @@ func TestListEmptyOutput(t *testing.T) {
 		jsonOutput = false
 		namesOnly = false
 		quiet = false
-		runList(listCmd, []string{})
+		_ = runList(listCmd, []string{})
 
-		w.Close()
+		_ = w.Close()
 		os.Stdout = old
 
 		var buf bytes.Buffer
-		buf.ReadFrom(r)
+		_, _ = buf.ReadFrom(r)
 		output := buf.String()
 
 		if !strings.Contains(output, "No skills installed") {
@@ -301,11 +301,11 @@ func TestVersionCommand(t *testing.T) {
 
 	runVersion(versionCmd, []string{})
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	if !strings.Contains(output, "scribe version") {
@@ -323,12 +323,12 @@ func TestQuietMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Override home directory for test
 	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", oldHome) }()
 
 	scribe.InitLoggerCLI(false)
 
@@ -340,13 +340,13 @@ func TestQuietMode(t *testing.T) {
 		quiet = true
 		jsonOutput = false
 		namesOnly = false
-		runList(listCmd, []string{})
+		_ = runList(listCmd, []string{})
 
-		w.Close()
+		_ = w.Close()
 		os.Stdout = old
 
 		var buf bytes.Buffer
-		buf.ReadFrom(r)
+		_, _ = buf.ReadFrom(r)
 		output := buf.String()
 
 		// In quiet mode, "No skills installed" should not be printed

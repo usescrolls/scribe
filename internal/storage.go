@@ -98,7 +98,7 @@ func GetWorkspacePath(name string) (string, error) {
 
 // EnsureDir creates a directory and all parent directories if they don't exist
 func EnsureDir(path string) error {
-	return os.MkdirAll(path, 0755)
+	return os.MkdirAll(path, 0o755)
 }
 
 // EnsureScribeDirs creates all required Scribe directories
@@ -166,7 +166,7 @@ func SaveConfig(config *Config) error {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0o644)
 }
 
 // ListInstalledSkills returns the names of all installed skills in the global scrolls directory

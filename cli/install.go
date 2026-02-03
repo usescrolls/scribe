@@ -74,7 +74,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch skills: %w", err)
 	}
-	defer os.RemoveAll(tempDir) // Clean up temp directory
+	defer func() { _ = os.RemoveAll(tempDir) }() // Clean up temp directory
 
 	if len(skills) == 0 {
 		return fmt.Errorf("no skills found in source")
@@ -335,7 +335,7 @@ func fetchAndDiscoverSkills(source *scribe.SourceInfo) ([]*scribe.Skill, string,
 	skills, err := scribe.DiscoverSkills(skillsDir)
 	if err != nil {
 		if tempDir != "" {
-			os.RemoveAll(tempDir)
+			_ = os.RemoveAll(tempDir)
 		}
 		return nil, "", err
 	}
@@ -357,7 +357,7 @@ func cloneRepository(source *scribe.SourceInfo) (string, error) {
 	}
 
 	if err := cloneWithGit(cloneURL, tempDir, source.Ref); err != nil {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", err
 	}
 
@@ -375,40 +375,40 @@ func downloadAndExtractZip(zipURL string) (string, error) {
 	// Download the zip file
 	resp, err := http.Get(zipURL)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to download zip: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to download zip: status %d", resp.StatusCode)
 	}
 
 	// Create a temporary file for the zip
 	tmpFile, err := os.CreateTemp("", "scribe-download-*.zip")
 	if err != nil {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	// Copy the response body to the temp file
 	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		tmpFile.Close()
-		os.RemoveAll(tempDir)
+		_ = tmpFile.Close()
+		_ = os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to save zip: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Open the zip file
 	zipReader, err := zip.OpenReader(tmpPath)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 		return "", fmt.Errorf("failed to open zip: %w", err)
 	}
-	defer zipReader.Close()
+	defer func() { _ = zipReader.Close() }()
 
 	// Check if all files share a common root directory
 	commonRoot := findCommonRoot(zipReader.File)
@@ -429,24 +429,24 @@ func downloadAndExtractZip(zipURL string) (string, error) {
 
 		// Check for zip slip vulnerability
 		if !strings.HasPrefix(filepath.Clean(destPath), filepath.Clean(tempDir)+string(os.PathSeparator)) {
-			os.RemoveAll(tempDir)
+			_ = os.RemoveAll(tempDir)
 			return "", fmt.Errorf("invalid file path in zip: %s", file.Name)
 		}
 
 		if file.FileInfo().IsDir() {
-			os.MkdirAll(destPath, file.Mode())
+			_ = os.MkdirAll(destPath, file.Mode())
 			continue
 		}
 
 		// Create parent directories
-		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-			os.RemoveAll(tempDir)
+		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+			_ = os.RemoveAll(tempDir)
 			return "", fmt.Errorf("failed to create directory: %w", err)
 		}
 
 		// Extract file
 		if err := extractZipFile(file, destPath); err != nil {
-			os.RemoveAll(tempDir)
+			_ = os.RemoveAll(tempDir)
 			return "", err
 		}
 	}
@@ -486,13 +486,13 @@ func extractZipFile(file *zip.File, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file in zip: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	dstFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return fmt.Errorf("failed to extract file: %w", err)

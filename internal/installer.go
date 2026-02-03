@@ -72,9 +72,8 @@ func UninstallSkill(skillName string) error {
 		agentIDs[i] = a.ID
 	}
 
-	if err := RemoveSkillFromAgents(skillName, agentIDs); err != nil {
-		// Log but continue - we still want to remove the canonical copy
-	}
+	// Log but continue - we still want to remove the canonical copy
+	_ = RemoveSkillFromAgents(skillName, agentIDs)
 
 	// Remove from canonical location
 	skillDir, err := GetSkillDir(skillName)
@@ -110,7 +109,7 @@ func SyncSkillToAgents(skillName string, agentIDs []string) error {
 		linkPath := filepath.Join(agentSkillsDir, skillName)
 
 		// Remove existing link/directory if present
-		os.RemoveAll(linkPath)
+		_ = os.RemoveAll(linkPath)
 
 		// Create symlink
 		if err := CreateSymlink(skillDir, linkPath); err != nil {
@@ -136,7 +135,7 @@ func RemoveSkillFromAgents(skillName string, agentIDs []string) error {
 		linkPath := filepath.Join(agentSkillsDir, skillName)
 
 		// Remove the symlink or directory
-		os.RemoveAll(linkPath)
+		_ = os.RemoveAll(linkPath)
 	}
 
 	return nil
@@ -208,7 +207,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	srcInfo, err := srcFile.Stat()
 	if err != nil {
@@ -216,7 +215,7 @@ func copyFile(src, dst string) error {
 	}
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
 
@@ -224,7 +223,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
