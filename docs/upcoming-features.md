@@ -51,29 +51,6 @@ Verify functionality across platforms:
 - Linux: Symlink permissions
 - Windows: Junction creation and permissions
 
-## Release & Distribution
-
-
-### Code Coverage Badges
-Add coverage badges to README:
-- Backend coverage (Go)
-- Frontend coverage (Vitest)
-- Integration with codecov or similar
-
-## Developer Experience
-
-### Code Formatter and Linter (Go)
-Add consistent code formatting and linting:
-- `gofmt` / `goimports` for formatting
-- ~~`golangci-lint` for linting~~ ✓ Added via `.golangci.yml` and `make lint`
-- Editor integration configs
-
-### Oxy Tools and Pre-commit Hooks
-Configure development tooling:
-- ~~Pre-commit hooks for formatting and linting~~ ✓ Added via `make install-hooks`
-- Automated checks before commit
-- CI integration
-
 ## Documentation
 
 ### Marketing Comparison
@@ -83,14 +60,15 @@ Add intro comparing Scribe with similar tools:
 - When to use Scribe vs alternatives
 
 ### Install Button for GitHub READMEs
-Showcase how skill authors can add an "Install with Scribe" button to their repositories:
+**Status:** Implemented
+
+Skill authors can add an "Install with Scribe" button to their repositories:
 
 ```markdown
-[![Install with Scribe](https://usescrolls.com/badge/install.svg)](agenthub://install?source=github&repo=owner/repo)
+[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install.svg)](agenthub://install?source=github&repo=owner/repo)
 ```
 
-Features to implement:
-- Badge SVG hosted on usescrolls.com
-- Documentation for skill authors
-- Example README templates
-- Support for branch/tag specification in URL
+See [install-badge.md](./install-badge.md) for full documentation including:
+- Badge style variants (default, flat, dark)
+- URL parameters (ref, name, source)
+- Example README templates 
