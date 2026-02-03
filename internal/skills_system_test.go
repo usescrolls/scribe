@@ -1,6 +1,7 @@
 package scribe
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -2187,5 +2188,643 @@ func TestFilterSkillsByName(t *testing.T) {
 	filtered = filterSkillsByName(skills, "nonexistent")
 	if len(filtered) != 0 {
 		t.Errorf("filterSkillsByName() returned %d skills, want 0", len(filtered))
+	}
+}
+
+// ======================================================================
+// Integration Tests - Full Flows
+// ======================================================================
+
+// TestIntegration_MultiSkillInstallAndRemove tests installing multiple skills
+// and then removing them, verifying the full lifecycle.
+func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Initialize Scribe directories
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create mock agent directories (Claude and Cursor)
+	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	cursorSkillsDir := filepath.Join(tmpDir, ".cursor", "skills")
+	os.MkdirAll(claudeSkillsDir, 0755)
+	os.MkdirAll(cursorSkillsDir, 0755)
+
+	// Create source directory with multiple skills
+	sourceDir := filepath.Join(tmpDir, "source-repo")
+	skills := []struct {
+		name        string
+		description string
+		content     string
+	}{
+		{"react-patterns", "React best practices", "# React Patterns\nUse functional components."},
+		{"typescript-tips", "TypeScript guidance", "# TypeScript Tips\nPrefer interfaces over types."},
+		{"go-idioms", "Go coding patterns", "# Go Idioms\nHandle errors explicitly."},
+	}
+
+	for _, s := range skills {
+		skillDir := filepath.Join(sourceDir, "skills", s.name)
+		os.MkdirAll(skillDir, 0755)
+		content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n%s\n", s.name, s.description, s.content)
+		os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0644)
+	}
+
+	// Discover skills from source
+	discovered, err := DiscoverSkills(sourceDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+	if len(discovered) != 3 {
+		t.Fatalf("Expected 3 skills, got %d", len(discovered))
+	}
+
+	// Install all skills
+	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
+	for _, skill := range discovered {
+		err = InstallSkill(skill, source, InstallOptions{})
+		if err != nil {
+			t.Fatalf("InstallSkill(%s) error: %v", skill.Name, err)
+		}
+		AddSkillToActiveAndDefaultWorkspace(skill.Name)
+	}
+
+	// Verify all skills exist in canonical location
+	for _, s := range skills {
+		exists, _ := SkillExists(s.name)
+		if !exists {
+			t.Errorf("Skill %s should exist in canonical location", s.name)
+		}
+	}
+
+	// Verify symlinks exist in both agent directories
+	for _, s := range skills {
+		claudeLink := filepath.Join(claudeSkillsDir, s.name)
+		if !IsSymlink(claudeLink) {
+			t.Errorf("Skill %s should have symlink in Claude directory", s.name)
+		}
+		cursorLink := filepath.Join(cursorSkillsDir, s.name)
+		if !IsSymlink(cursorLink) {
+			t.Errorf("Skill %s should have symlink in Cursor directory", s.name)
+		}
+	}
+
+	// Verify all skills are in default workspace
+	ws, _ := GetWorkspace("default")
+	for _, s := range skills {
+		found := false
+		for _, wsSkill := range ws.Skills {
+			if wsSkill == s.name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Skill %s should be in default workspace", s.name)
+		}
+	}
+
+	// Remove one skill
+	RemoveSkillFromAllWorkspaces("typescript-tips")
+	UninstallSkill("typescript-tips")
+
+	// Verify it's gone
+	exists, _ := SkillExists("typescript-tips")
+	if exists {
+		t.Error("typescript-tips should not exist after uninstall")
+	}
+	if IsSymlink(filepath.Join(claudeSkillsDir, "typescript-tips")) {
+		t.Error("typescript-tips symlink should be removed from Claude")
+	}
+
+	// Verify others still exist
+	exists, _ = SkillExists("react-patterns")
+	if !exists {
+		t.Error("react-patterns should still exist")
+	}
+	exists, _ = SkillExists("go-idioms")
+	if !exists {
+		t.Error("go-idioms should still exist")
+	}
+
+	// Remove all remaining skills
+	for _, name := range []string{"react-patterns", "go-idioms"} {
+		RemoveSkillFromAllWorkspaces(name)
+		UninstallSkill(name)
+	}
+
+	// Verify all gone
+	installed, _ := ListInstalledSkills()
+	if len(installed) != 0 {
+		t.Errorf("Expected 0 installed skills, got %d", len(installed))
+	}
+}
+
+// TestIntegration_WorkspaceSwitching tests creating workspaces, adding skills,
+// and switching between workspaces.
+func TestIntegration_WorkspaceSwitching(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	// Initialize
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create mock agent directory
+	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	os.MkdirAll(claudeSkillsDir, 0755)
+
+	// Create and install 4 skills
+	skillNames := []string{"frontend-skill", "backend-skill", "devops-skill", "testing-skill"}
+	for _, name := range skillNames {
+		sourceDir := filepath.Join(tmpDir, "source", name)
+		os.MkdirAll(sourceDir, 0755)
+		content := fmt.Sprintf("---\nname: %s\ndescription: %s skill\n---\n# %s\n", name, name, name)
+		os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+
+		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
+		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
+		InstallSkill(skill, source, InstallOptions{})
+		AddSkillToActiveAndDefaultWorkspace(name)
+	}
+
+	// Create workspaces with different skill sets
+	CreateWorkspace(&Workspace{
+		Name:        "frontend",
+		Description: "Frontend development",
+		Skills:      []string{"frontend-skill", "testing-skill"},
+	})
+
+	CreateWorkspace(&Workspace{
+		Name:        "backend",
+		Description: "Backend development",
+		Skills:      []string{"backend-skill", "devops-skill", "testing-skill"},
+	})
+
+	// Verify default workspace has all skills
+	defaultWs, _ := GetWorkspace("default")
+	if len(defaultWs.Skills) != 4 {
+		t.Errorf("Default workspace should have 4 skills, got %d", len(defaultWs.Skills))
+	}
+
+	// Switch to frontend workspace
+	current, _ := GetActiveWorkspace()
+	frontend, _ := GetWorkspace("frontend")
+	SyncWorkspace(current, frontend)
+	SetActiveWorkspace("frontend")
+
+	// Verify only frontend skills are symlinked
+	frontendLinks := []string{"frontend-skill", "testing-skill"}
+	backendLinks := []string{"backend-skill", "devops-skill"}
+
+	for _, name := range frontendLinks {
+		if !IsSymlink(filepath.Join(claudeSkillsDir, name)) {
+			t.Errorf("Skill %s should be symlinked in frontend workspace", name)
+		}
+	}
+	for _, name := range backendLinks {
+		if IsSymlink(filepath.Join(claudeSkillsDir, name)) {
+			t.Errorf("Skill %s should NOT be symlinked in frontend workspace", name)
+		}
+	}
+
+	// Switch to backend workspace
+	current, _ = GetActiveWorkspace()
+	backend, _ := GetWorkspace("backend")
+	SyncWorkspace(current, backend)
+	SetActiveWorkspace("backend")
+
+	// Verify backend skills are symlinked
+	expectedBackend := []string{"backend-skill", "devops-skill", "testing-skill"}
+	notExpected := []string{"frontend-skill"}
+
+	for _, name := range expectedBackend {
+		if !IsSymlink(filepath.Join(claudeSkillsDir, name)) {
+			t.Errorf("Skill %s should be symlinked in backend workspace", name)
+		}
+	}
+	for _, name := range notExpected {
+		if IsSymlink(filepath.Join(claudeSkillsDir, name)) {
+			t.Errorf("Skill %s should NOT be symlinked in backend workspace", name)
+		}
+	}
+
+	// Switch back to default
+	current, _ = GetActiveWorkspace()
+	defaultWs, _ = GetWorkspace("default")
+	SyncWorkspace(current, defaultWs)
+	SetActiveWorkspace("default")
+
+	// Verify all skills are symlinked again
+	for _, name := range skillNames {
+		if !IsSymlink(filepath.Join(claudeSkillsDir, name)) {
+			t.Errorf("Skill %s should be symlinked in default workspace", name)
+		}
+	}
+}
+
+// TestIntegration_SkillDiscoveryFromNestedStructure tests discovering skills
+// from various nested directory structures.
+func TestIntegration_SkillDiscoveryFromNestedStructure(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a complex nested structure like a real repo might have
+	// repo/
+	//   skills/
+	//     react/SKILL.md
+	//     vue/SKILL.md
+	//   .claude/skills/
+	//     internal-skill/SKILL.md
+	//   docs/  (no skills here)
+	//   SKILL.md  (root level skill)
+
+	createSkill := func(dir, name, desc string) {
+		os.MkdirAll(dir, 0755)
+		content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n# %s\n", name, desc, name)
+		os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0644)
+	}
+
+	createSkill(filepath.Join(tmpDir, "skills", "react"), "react-skill", "React skill")
+	createSkill(filepath.Join(tmpDir, "skills", "vue"), "vue-skill", "Vue skill")
+	createSkill(filepath.Join(tmpDir, ".claude", "skills", "internal-skill"), "internal-skill", "Internal")
+	createSkill(tmpDir, "root-skill", "Root level skill")
+
+	// Create a docs directory with no skills
+	os.MkdirAll(filepath.Join(tmpDir, "docs"), 0755)
+	os.WriteFile(filepath.Join(tmpDir, "docs", "README.md"), []byte("# Docs"), 0644)
+
+	// Discover all skills
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+
+	// Should find 4 skills
+	if len(skills) != 4 {
+		t.Errorf("Expected 4 skills, got %d", len(skills))
+		for _, s := range skills {
+			t.Logf("Found: %s", s.Name)
+		}
+	}
+
+	// Verify all expected skills are found
+	expectedNames := map[string]bool{
+		"react-skill":    false,
+		"vue-skill":      false,
+		"internal-skill": false,
+		"root-skill":     false,
+	}
+
+	for _, skill := range skills {
+		if _, ok := expectedNames[skill.Name]; ok {
+			expectedNames[skill.Name] = true
+		}
+	}
+
+	for name, found := range expectedNames {
+		if !found {
+			t.Errorf("Expected to find skill %s", name)
+		}
+	}
+}
+
+// TestIntegration_SkillMetadataTracking tests that skill metadata is properly
+// tracked and can be used for update detection.
+func TestIntegration_SkillMetadataTracking(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create and install a skill
+	sourceDir := filepath.Join(tmpDir, "source", "tracked-skill")
+	os.MkdirAll(sourceDir, 0755)
+	originalContent := "---\nname: tracked-skill\ndescription: A tracked skill\n---\n# Version 1\n"
+	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(originalContent), 0644)
+
+	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "test-org",
+		Repo:  "test-repo",
+		URL:   "https://github.com/test-org/test-repo",
+	}
+	InstallSkill(skill, source, InstallOptions{})
+
+	// Read back the installed skill with metadata
+	skillDir, _ := GetSkillDir("tracked-skill")
+	installedSkill, err := LoadSkillWithMeta(skillDir)
+	if err != nil {
+		t.Fatalf("LoadSkillWithMeta() error: %v", err)
+	}
+
+	// Verify metadata
+	if installedSkill.Meta == nil {
+		t.Fatal("Skill should have metadata")
+	}
+	if installedSkill.Meta.Source != "test-org/test-repo" {
+		t.Errorf("Meta.Source = %q, want 'test-org/test-repo'", installedSkill.Meta.Source)
+	}
+	if installedSkill.Meta.SourceType != "github" {
+		t.Errorf("Meta.SourceType = %q, want 'github'", installedSkill.Meta.SourceType)
+	}
+	if installedSkill.Meta.ContentHash == "" {
+		t.Error("Meta.ContentHash should not be empty")
+	}
+
+	// Simulate source update
+	updatedContent := "---\nname: tracked-skill\ndescription: A tracked skill\n---\n# Version 2 - Updated!\n"
+
+	// Check if skill needs update
+	needsUpdate, _ := SkillNeedsUpdate(skillDir, updatedContent)
+	if !needsUpdate {
+		t.Error("Skill should need update when content changes")
+	}
+
+	// Same content should not need update
+	needsUpdate, _ = SkillNeedsUpdate(skillDir, originalContent)
+	if needsUpdate {
+		t.Error("Skill should not need update when content is the same")
+	}
+}
+
+// TestIntegration_MultiAgentSync tests that skills are properly synced
+// to multiple agents.
+func TestIntegration_MultiAgentSync(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create multiple mock agent directories
+	agents := []struct {
+		id        string
+		skillsDir string
+	}{
+		{"claude-code", filepath.Join(tmpDir, ".claude", "skills")},
+		{"cursor", filepath.Join(tmpDir, ".cursor", "skills")},
+		{"windsurf", filepath.Join(tmpDir, ".codeium", "windsurf", "skills")},
+	}
+
+	for _, agent := range agents {
+		os.MkdirAll(agent.skillsDir, 0755)
+	}
+
+	// Create and install a skill
+	sourceDir := filepath.Join(tmpDir, "source", "multi-agent-skill")
+	os.MkdirAll(sourceDir, 0755)
+	content := "---\nname: multi-agent-skill\ndescription: Installed to all agents\n---\n# Multi Agent\n"
+	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+
+	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
+	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
+	InstallSkill(skill, source, InstallOptions{})
+
+	// Verify symlink exists in all agent directories
+	for _, agent := range agents {
+		linkPath := filepath.Join(agent.skillsDir, "multi-agent-skill")
+		if !IsSymlink(linkPath) {
+			t.Errorf("Skill should be symlinked to %s", agent.id)
+		}
+
+		// Verify symlink points to correct location
+		target, err := GetSymlinkTarget(linkPath)
+		if err != nil {
+			t.Errorf("Failed to get symlink target for %s: %v", agent.id, err)
+		}
+		scrollsDir, _ := GetScrollsDir()
+		expectedTarget := filepath.Join(scrollsDir, "multi-agent-skill")
+		// Resolve to absolute path for comparison
+		absTarget, _ := filepath.Abs(filepath.Join(filepath.Dir(linkPath), target))
+		if absTarget != expectedTarget {
+			t.Errorf("Symlink for %s points to %s, want %s", agent.id, absTarget, expectedTarget)
+		}
+	}
+
+	// Uninstall and verify removal from all agents
+	RemoveSkillFromAllWorkspaces("multi-agent-skill")
+	UninstallSkill("multi-agent-skill")
+
+	for _, agent := range agents {
+		linkPath := filepath.Join(agent.skillsDir, "multi-agent-skill")
+		if IsSymlink(linkPath) {
+			t.Errorf("Skill symlink should be removed from %s", agent.id)
+		}
+	}
+}
+
+// TestIntegration_WorkspaceSkillAddRemove tests adding and removing skills
+// from specific workspaces.
+func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create agent directory
+	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	os.MkdirAll(claudeSkillsDir, 0755)
+
+	// Install a skill
+	sourceDir := filepath.Join(tmpDir, "source", "workspace-test-skill")
+	os.MkdirAll(sourceDir, 0755)
+	content := "---\nname: workspace-test-skill\ndescription: Test skill\n---\n# Test\n"
+	os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+
+	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
+	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
+	InstallSkill(skill, source, InstallOptions{})
+	AddSkillToActiveAndDefaultWorkspace("workspace-test-skill")
+
+	// Create a custom workspace without the skill
+	CreateWorkspace(&Workspace{
+		Name:        "custom",
+		Description: "Custom workspace",
+		Skills:      []string{},
+	})
+
+	// Add skill to custom workspace
+	AddSkillToWorkspace("workspace-test-skill", "custom")
+
+	// Verify skill is in custom workspace
+	customWs, _ := GetWorkspace("custom")
+	found := false
+	for _, s := range customWs.Skills {
+		if s == "workspace-test-skill" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Skill should be in custom workspace after AddSkillToWorkspace")
+	}
+
+	// Remove skill from custom workspace
+	RemoveSkillFromWorkspace("workspace-test-skill", "custom")
+
+	// Verify skill is removed from custom workspace
+	customWs, _ = GetWorkspace("custom")
+	for _, s := range customWs.Skills {
+		if s == "workspace-test-skill" {
+			t.Error("Skill should not be in custom workspace after RemoveSkillFromWorkspace")
+		}
+	}
+
+	// Verify skill still exists in default workspace
+	defaultWs, _ := GetWorkspace("default")
+	found = false
+	for _, s := range defaultWs.Skills {
+		if s == "workspace-test-skill" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Skill should still be in default workspace")
+	}
+}
+
+// TestIntegration_CleanupOrphanedWorkspaces tests that workspace cleanup
+// properly handles orphaned skills.
+func TestIntegration_CleanupOrphanedWorkspaces(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Create a workspace with a skill that doesn't exist
+	CreateWorkspace(&Workspace{
+		Name:        "orphaned",
+		Description: "Has orphaned skills",
+		Skills:      []string{"nonexistent-skill-1", "nonexistent-skill-2"},
+	})
+
+	// Also add orphaned skills to default
+	defaultWs, _ := GetWorkspace("default")
+	defaultWs.Skills = append(defaultWs.Skills, "nonexistent-skill-3")
+	UpdateWorkspace(defaultWs)
+
+	// Run cleanup
+	CleanWorkspaces()
+
+	// Verify orphaned skills are removed
+	orphanedWs, _ := GetWorkspace("orphaned")
+	if len(orphanedWs.Skills) != 0 {
+		t.Errorf("Orphaned workspace should have 0 skills after cleanup, got %d", len(orphanedWs.Skills))
+	}
+
+	defaultWs, _ = GetWorkspace("default")
+	for _, s := range defaultWs.Skills {
+		if s == "nonexistent-skill-3" {
+			t.Error("Orphaned skill should be removed from default workspace")
+		}
+	}
+}
+
+// TestIntegration_RebuildDefaultWorkspace tests rebuilding the default workspace
+// to include all installed skills.
+func TestIntegration_RebuildDefaultWorkspace(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", origHome)
+
+	EnsureScribeDirs()
+	EnsureDefaultWorkspace()
+
+	// Install skills without adding to workspaces
+	skillNames := []string{"rebuild-skill-1", "rebuild-skill-2", "rebuild-skill-3"}
+	for _, name := range skillNames {
+		sourceDir := filepath.Join(tmpDir, "source", name)
+		os.MkdirAll(sourceDir, 0755)
+		content := fmt.Sprintf("---\nname: %s\ndescription: Rebuild test\n---\n# Test\n", name)
+		os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(content), 0644)
+
+		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
+		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
+		InstallSkill(skill, source, InstallOptions{})
+		// Intentionally NOT adding to workspace
+	}
+
+	// Default workspace should be empty or not have our skills
+	defaultWs, _ := GetWorkspace("default")
+	originalCount := len(defaultWs.Skills)
+
+	// Rebuild default workspace
+	RebuildDefaultWorkspace()
+
+	// Verify all installed skills are now in default workspace
+	defaultWs, _ = GetWorkspace("default")
+	if len(defaultWs.Skills) != originalCount+3 {
+		t.Errorf("Default workspace should have %d skills after rebuild, got %d",
+			originalCount+3, len(defaultWs.Skills))
+	}
+
+	for _, name := range skillNames {
+		found := false
+		for _, s := range defaultWs.Skills {
+			if s == name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Skill %s should be in default workspace after rebuild", name)
+		}
 	}
 }

@@ -1147,7 +1147,7 @@ func sanitizeName(name string) string {
 27. ✅ **Backend unit tests** - 72.5% coverage (`internal/skills_system_test.go`)
 28. ✅ **Docker test infrastructure** - `test.Dockerfile`, `docker-compose.test.yml`, Makefile targets
 29. ✅ **Frontend component tests** - Vitest + Vue Test Utils (63 tests)
-30. 🚧 **Integration tests** - Full install/remove/workspace flows
+30. ✅ **Integration tests** - Full install/remove/workspace flows (8 tests)
 
 ### Polish 🚧 PENDING
 30. ✅ **URL scheme** - Updated agenthub:// handler (internal/url_scheme.go)
@@ -1405,7 +1405,7 @@ All deprecated plugin code has been removed:
 - **Removed composables/types**: usePlugins.ts, plugin.ts
 - **Updated main.go**: Skills-only API, no legacy plugin code
 - **Updated CLI**: root.go no longer uses Server
-- **All tests passing**: 54 internal tests, 12 CLI tests
+- **All tests passing**: 67 internal tests, 12 CLI tests
 
 **Next Steps:**
 1. **End-to-end testing** - Test full GUI workflow with skills system
