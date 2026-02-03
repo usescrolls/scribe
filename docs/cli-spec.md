@@ -2,7 +2,7 @@
 
 ## Overview
 
-Scribe CLI provides intuitive command-line package management for Claude Code plugins, using [Cobra](https://github.com/spf13/cobra) as the CLI framework.
+Scribe CLI distributes AI coding skills to 45+ coding agents. Built with [Cobra](https://github.com/spf13/cobra).
 
 ## Command Structure
 
@@ -14,35 +14,48 @@ scribe <command> [flags] [arguments]
 
 ### `scribe install`
 
-Install a plugin from a source.
+Install skills from a source.
 
 ```bash
-scribe install [name] --github|--url|--zip <source> [flags]
+scribe install <source> [flags]
 ```
 
+**Sources:**
+| Format | Example |
+|--------|---------|
+| GitHub shorthand | `owner/repo` |
+| GitHub URL | `https://github.com/owner/repo` |
+| GitHub with branch | `owner/repo#branch` |
+| GitHub with path | `owner/repo/path/to/skills` |
+| GitLab URL | `https://gitlab.com/owner/repo` |
+| Local path | `./local/path` or `/absolute/path` |
+| Zip URL | `https://example.com/skills.zip` |
+
 **Flags:**
-| Flag | Description |
-|------|-------------|
-| `--github` | GitHub repository (owner/repo) |
-| `--url` | Git URL |
-| `--zip` | Zip file URL |
-| `--ref` | Branch or tag reference |
-| `--no-enable` | Don't auto-enable in Claude settings |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--agent` | `-a` | Target specific agents (comma-separated) |
+| `--skill` | `-s` | Select specific skills to install |
+| `--list` | `-l` | List available skills without installing |
+| `--yes` | `-y` | Skip interactive prompts |
+| `--all` | | Install all skills to all detected agents |
 
 **Examples:**
 ```bash
-scribe install prettier --github usescrolls/prettier-skill
-scribe install custom --url https://github.com/user/plugin.git
-scribe install tool --zip https://example.com/plugin.zip
-scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0
+scribe install vercel-labs/agent-skills
+scribe install https://github.com/owner/repo
+scribe install ./my-local-skills
+scribe install https://example.com/skills.zip
+scribe install owner/repo --skill react-patterns --agent claude-code,cursor
+scribe install owner/repo --list
 ```
 
 ### `scribe uninstall`
 
-Remove an installed plugin.
+Remove an installed skill.
 
 ```bash
-scribe uninstall <name> [flags]
+scribe uninstall <skill-name> [flags]
 ```
 
 **Aliases:** `remove`, `rm`
@@ -50,18 +63,18 @@ scribe uninstall <name> [flags]
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--all` | Remove all installed plugins |
+| `--all` | Remove all installed skills |
 
 **Examples:**
 ```bash
-scribe uninstall prettier
-scribe rm prettier
+scribe uninstall react-patterns
+scribe rm typescript-best-practices
 scribe uninstall --all
 ```
 
 ### `scribe list`
 
-List installed plugins.
+List installed skills.
 
 ```bash
 scribe list [flags]
@@ -73,7 +86,7 @@ scribe list [flags]
 | Flag | Description |
 |------|-------------|
 | `--json` | Output in JSON format |
-| `--names-only` | Print only plugin names, one per line |
+| `--names-only` | Print only skill names, one per line |
 
 **Examples:**
 ```bash
@@ -84,22 +97,24 @@ scribe list --names-only
 
 **Output (default):**
 ```
-NAME         SOURCE                              VERSION   INSTALLED
-prettier     github:usescrolls/prettier-skill    1.2.0     2024-01-15
-eslint       url:https://github.com/user/eslint  2.0.1     2024-01-10
+NAME                    DESCRIPTION                              SOURCE                    AGENTS
+react-best-practices    React patterns and best practices        github:vercel-labs/...    claude-code, cursor
+typescript-patterns     TypeScript coding standards              github:owner/repo         claude-code, cline
 
-2 plugin(s) installed
+2 skill(s) installed
 ```
 
 **Output (JSON):**
 ```json
 {
-  "plugins": [
+  "skills": [
     {
-      "name": "prettier",
-      "source": {"source": "github", "repo": "usescrolls/prettier-skill"},
-      "version": "1.2.0",
-      "installedAt": "2024-01-15T10:30:00Z"
+      "name": "react-best-practices",
+      "description": "React patterns and best practices",
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "installedAt": "2025-01-15T10:30:00Z",
+      "agents": ["claude-code", "cursor", "cline"]
     }
   ],
   "count": 1
@@ -108,27 +123,169 @@ eslint       url:https://github.com/user/eslint  2.0.1     2024-01-10
 
 ### `scribe info`
 
-Show detailed information about an installed plugin.
+Show detailed information about an installed skill.
 
 ```bash
-scribe info <name>
+scribe info <skill-name>
 ```
 
 **Examples:**
 ```bash
-scribe info prettier
+scribe info react-best-practices
 ```
 
 **Output:**
 ```
-Name:        prettier
-Source:      github:usescrolls/prettier-skill
-Version:     1.2.0
-Category:    formatting
-Description: Code formatting skill for Claude Code
-Author:      Scribe Team
-Installed:   2024-01-15 10:30:00
-Tags:        formatter, code-style
+Name:         react-best-practices
+Description:  React patterns and best practices
+Source:       github:vercel-labs/agent-skills
+Source URL:   https://github.com/vercel-labs/agent-skills
+Skill Path:   skills/react-best-practices
+Content Hash: sha256:abc123...
+Installed:    2025-01-15 10:30:00
+Updated:      2025-01-20 14:00:00
+Agents:       claude-code, cursor, cline, windsurf
+```
+
+### `scribe check`
+
+Check installed skills for available updates.
+
+```bash
+scribe check [flags]
+```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output in JSON format |
+
+**Examples:**
+```bash
+scribe check
+```
+
+**Output:**
+```
+Checking 5 skills for updates...
+
+SKILL                   STATUS
+react-best-practices    Update available (content changed)
+typescript-patterns     Up to date
+go-patterns             Update available (content changed)
+
+2 skill(s) have updates available
+Run 'scribe update' to update all skills
+```
+
+### `scribe update`
+
+Update installed skills to their latest versions.
+
+```bash
+scribe update [skill-name] [flags]
+```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--all` | Update all skills (default if no skill specified) |
+
+**Examples:**
+```bash
+scribe update                    # Update all skills
+scribe update react-patterns     # Update specific skill
+```
+
+### `scribe workspace`
+
+Manage workspaces for organizing skills.
+
+#### `scribe workspace list`
+
+List all workspaces.
+
+```bash
+scribe workspace list
+```
+
+**Output:**
+```
+NAME        SKILLS  DESCRIPTION
+default     5       All installed skills
+web-dev     3       Web development skills
+backend     2       Backend development skills
+
+* Active: web-dev
+```
+
+#### `scribe workspace create`
+
+Create a new workspace.
+
+```bash
+scribe workspace create <name> [--description "..."]
+```
+
+**Examples:**
+```bash
+scribe workspace create mobile-dev --description "Mobile development skills"
+```
+
+#### `scribe workspace use`
+
+Switch to a different workspace.
+
+```bash
+scribe workspace use <name>
+```
+
+**Examples:**
+```bash
+scribe workspace use backend
+```
+
+**Output:**
+```
+Switching from 'web-dev' to 'backend'...
+- Removed: react-best-practices
+- Removed: typescript-patterns
++ Added: go-patterns
++ Added: api-design
+
+Active workspace: backend (2 skills)
+```
+
+#### `scribe workspace add`
+
+Add a skill to the current workspace.
+
+```bash
+scribe workspace add <skill-name>
+```
+
+#### `scribe workspace remove`
+
+Remove a skill from the current workspace.
+
+```bash
+scribe workspace remove <skill-name>
+```
+
+#### `scribe workspace current`
+
+Show the current active workspace.
+
+```bash
+scribe workspace current
+```
+
+#### `scribe workspace delete`
+
+Delete a workspace.
+
+```bash
+scribe workspace delete <name>
 ```
 
 ### `scribe help`
@@ -166,28 +323,26 @@ scribe --version
 | 0 | Success |
 | 1 | General error |
 | 2 | Invalid usage / bad arguments |
-| 3 | Plugin not found |
+| 3 | Skill not found |
 | 4 | Source resolution failed |
-| 5 | Registry/filesystem error |
+| 5 | Filesystem error |
 
-## Backward Compatibility
+## URL Scheme Handling
 
-The CLI maintains full backward compatibility with existing functionality:
+The `agenthub://` URL scheme is supported for one-click installs:
 
-1. **URL Scheme Handling** - `agenthub://` URLs continue to work:
-   ```bash
-   scribe "agenthub://install?name=test&source=github&repo=user/repo"
-   ```
+```bash
+scribe "agenthub://install?source=github&repo=owner/repo"
+```
 
-2. **GUI Mode** - Running without arguments launches the system tray:
-   ```bash
-   scribe
-   ```
+## GUI Mode
 
-3. **Headless Mode** - The `--no-gui` flag works as before:
-   ```bash
-   scribe --no-gui
-   ```
+Running without arguments launches the desktop GUI:
+
+```bash
+scribe              # Launch GUI with system tray
+scribe --no-gui     # Run in headless mode
+```
 
 ## Detection Order
 
@@ -196,10 +351,3 @@ When scribe is invoked:
 1. If first argument starts with `agenthub://` → URL scheme handler
 2. If first argument is a known command → CLI mode
 3. If no arguments → GUI mode (or headless with `--no-gui`)
-
-## Future Enhancements
-
-- `scribe update [name]` - Update installed plugins
-- `scribe search <query>` - Search the useScrolls registry
-- Shell completions (bash, zsh, fish, powershell)
-- `@scribe/name` shorthand for registry lookups

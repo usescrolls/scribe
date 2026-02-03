@@ -5,14 +5,65 @@ This guide covers building, testing, and contributing to Scribe.
 ## Quick Start
 
 ```bash
-# Run with hot reload (requires air)
-air
+# Install dependencies
+make deps
+
+# Run in development mode with Wails
+wails3 dev
 
 # Run tests
 go test ./...
 
 # Build for all platforms
 make build-all
+```
+
+---
+
+## Project Structure
+
+```
+scribe/
+├── main.go                     # Wails app entry, bindings
+├── internal/                   # Core business logic
+│   ├── types.go                # Data structures (Skill, Agent, Workspace)
+│   ├── agents.go               # 45 agent definitions with detection
+│   ├── skills.go               # SKILL.md parsing and discovery
+│   ├── installer.go            # Symlink-based installation
+│   ├── workspace.go            # Workspace CRUD and switching
+│   ├── meta.go                 # Sidecar .scribe-meta.json management
+│   ├── storage.go              # Canonical storage paths
+│   ├── url_scheme.go           # agenthub:// URL scheme handler
+│   └── skills_system_test.go   # Backend unit tests
+├── cli/                        # CLI commands
+│   ├── root.go                 # Root command setup
+│   ├── install.go              # Install command
+│   ├── uninstall.go            # Uninstall command
+│   ├── list.go                 # List command
+│   ├── info.go                 # Info command
+│   ├── check.go                # Check for updates
+│   ├── update.go               # Update skills
+│   ├── workspace.go            # Workspace commands
+│   └── cli_test.go             # CLI tests
+├── frontend/                   # Vue 3 frontend
+│   ├── src/
+│   │   ├── App.vue             # Main layout with sidebar
+│   │   ├── components/
+│   │   │   ├── SkillList.vue
+│   │   │   ├── SkillCard.vue
+│   │   │   ├── WorkspaceSelector.vue
+│   │   │   ├── AgentStatusPanel.vue
+│   │   │   └── EmptyState.vue
+│   │   ├── composables/
+│   │   │   ├── useSkills.ts
+│   │   │   ├── useWorkspaces.ts
+│   │   │   └── useAgents.ts
+│   │   └── types/
+│   │       └── skill.ts
+│   └── src/**/*.test.ts        # Frontend tests (Vitest)
+├── docs/                       # Documentation
+├── packaging/                  # Platform installers
+└── build/                      # Build outputs
 ```
 
 ---
@@ -37,7 +88,7 @@ make coverage-html
 
 ### Docker Testing
 
-Docker testing provides a consistent, isolated environment for running tests. This is useful for CI/CD pipelines and ensuring tests pass across different environments.
+Docker testing provides a consistent, isolated environment for running tests.
 
 #### Quick Commands
 
@@ -107,9 +158,49 @@ make coverage-html
 open build/coverage.html
 ```
 
+### Frontend Testing
+
+```bash
+cd frontend
+
+# Run Vitest tests
+pnpm test
+
+# Run with coverage
+pnpm test:coverage
+
+# Run in watch mode
+pnpm test:watch
+```
+
 ---
 
-## Building the macOS DMG Installer
+## Building
+
+### Development Build
+
+```bash
+# Run with Wails dev server (hot reload)
+wails3 dev
+
+# Or build once
+wails3 build
+```
+
+### Production Build
+
+```bash
+# Build for current platform
+make build
+
+# Build for all platforms
+make build-all
+
+# Build macOS DMG installer
+make dmg
+```
+
+### Building the macOS DMG Installer
 
 ```bash
 # Prerequisites
@@ -131,7 +222,41 @@ The DMG will be created at `build/Scribe-Installer.dmg`.
 
 ## Architecture Reference
 
-This section covers internal implementation details for developers working on Scribe.
+### Core Types
+
+```go
+type Skill struct {
+    Name        string
+    Description string
+    Path        string         // Local path to SKILL.md directory
+    Content     string         // Raw SKILL.md content
+    Metadata    map[string]any // Additional frontmatter fields
+    Meta        *SkillMeta     // Source tracking (from .scribe-meta.json)
+}
+
+type SkillMeta struct {
+    Source      string `json:"source"`
+    SourceType  string `json:"sourceType"`
+    SourceURL   string `json:"sourceUrl"`
+    SkillPath   string `json:"skillPath,omitempty"`
+    ContentHash string `json:"contentHash"`
+    InstalledAt string `json:"installedAt"`
+    UpdatedAt   string `json:"updatedAt"`
+}
+
+type Agent struct {
+    ID              string
+    DisplayName     string
+    GlobalSkillsDir string // e.g., "~/.claude/skills"
+    GlobalConfigDir string // For detection, e.g., "~/.claude"
+}
+
+type Workspace struct {
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    Skills      []string `json:"skills"`
+}
+```
 
 ### URL Scheme IPC Architecture
 
@@ -142,8 +267,6 @@ When a user clicks an `agenthub://` link, the OS behavior differs by platform:
 | macOS | Launches app with URL as CLI arg | Sends `kAEGetURL` Apple Event |
 | Linux | Launches new process with URL arg | Must forward via IPC (new process starts) |
 | Windows | Launches new process with URL arg | Must forward via IPC (new process starts) |
-
-**Key insight:** macOS handles "already running" natively via Apple Events. Linux and Windows always launch a new process, so we must implement single-instance detection and IPC ourselves.
 
 ### IPC Flow (Linux/Windows)
 
@@ -159,49 +282,12 @@ sequenceDiagram
     Note over Running: 5. Process URL
 ```
 
-### Source Files
-
-```
-internal/scribe/            # Core business logic (importable package)
-├── config.go               # Constants, logger, embedded icon
-├── types.go                # Data structures (Plugin, RegistryEntry, etc.)
-├── server.go               # Server struct and constructor
-├── registry.go             # Registry persistence (Load, Save, Migrate)
-├── marketplace.go          # marketplace.json generation
-├── source.go               # Source resolution and zip download
-├── claude.go               # Claude Code settings management
-├── plugins.go              # Plugin lifecycle (uninstall, reset)
-├── url_scheme.go           # URL scheme parsing and handling
-└── scribe_test.go          # Unit tests
-
-cmd/scribe/                 # Entry point and platform-specific code
-├── main.go                 # Entry point and startup logic
-├── gui_cgo.go              # System tray UI (requires CGO)
-├── gui_nocgo.go            # Headless fallback (CGO disabled)
-├── url_handler.go          # Shared IPC interface (function pointers)
-├── url_handler_darwin.go   # macOS: Apple Events via Objective-C/CGO
-├── url_handler_darwin.m    # Objective-C Apple Event handler
-├── url_handler_linux.go    # Linux: Unix domain socket IPC
-├── url_handler_windows.go  # Windows: Named mutex + named pipe IPC
-└── url_handler_other.go    # Fallback stub for unsupported platforms
-```
-
-### Build Tags
-
-| File | Build Tag | Purpose |
-|------|-----------|---------|
-| `url_handler.go` | None (all platforms) | Shared interface |
-| `url_handler_darwin.go` | `//go:build darwin` | macOS Apple Events |
-| `url_handler_linux.go` | `//go:build linux` | Unix socket IPC |
-| `url_handler_windows.go` | `//go:build windows` | Named pipe IPC |
-| `url_handler_other.go` | `//go:build !darwin && !linux && !windows` | Fallback stub |
-
 ### IPC Protocol
 
 Simple newline-delimited text with acknowledgment:
 
 ```
-Client → Server: agenthub://install?name=test&source=github&repo=user/repo\n
+Client → Server: agenthub://install?source=github&repo=user/repo\n
 Server → Client: OK\n
 ```
 
@@ -220,7 +306,7 @@ Server → Client: OK\n
 ### macOS
 
 - URL scheme registered via `Info.plist` in the `.app` bundle
-- Apple Events handled by Objective-C code (`url_handler_darwin.m`)
+- Apple Events handled by Objective-C code
 - CGO required for Cocoa/Objective-C integration
 - Must run as `.app` bundle for URL scheme to work (not raw binary)
 
@@ -243,25 +329,20 @@ Server → Client: OK\n
 
 ## Cross-Compilation
 
-The `systray` library requires CGO on all platforms, which complicates cross-compilation:
+The Wails framework requires building on the target platform for GUI applications:
 
 ```bash
-# This works (same platform):
-go build ./cmd/scribe
+# Build on macOS for macOS
+make build
 
-# This fails (cross-platform with CGO):
-GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build ./cmd/scribe
+# Build on Linux for Linux
+make build
+
+# Build on Windows for Windows
+make build
 ```
 
-**Solution:** Build inside Docker or on the target platform:
-
-```bash
-# Linux: Build in Docker
-make docker-build
-
-# Windows: Build on Windows or use CI
-make install-windows  # Cross-compiles, but test on real Windows
-```
+For CI/CD, use platform-specific runners or Docker containers.
 
 ---
 
@@ -273,10 +354,10 @@ make install-windows  # Cross-compiles, but test on real Windows
 ./build/scribe -debug
 
 # Terminal 2: Test URL scheme
-open "agenthub://install?name=test&source=github&repo=user/repo"
+open "agenthub://install?source=github&repo=user/repo"
 
 # Verify
-cat ~/.scribe/data/registry.json
+ls ~/.scribe/scrolls/
 ```
 
 ### Linux
@@ -286,7 +367,7 @@ make docker-test
 
 # Or manually:
 ./build/scribe -debug &
-xdg-open "agenthub://install?name=test&source=github&repo=user/repo"
+xdg-open "agenthub://install?source=github&repo=user/repo"
 ```
 
 ### Windows
@@ -295,10 +376,10 @@ xdg-open "agenthub://install?name=test&source=github&repo=user/repo"
 .\scribe.exe -debug
 
 # Terminal 2: Test URL scheme
-Start-Process "agenthub://install?name=test&source=github&repo=user/repo"
+Start-Process "agenthub://install?source=github&repo=user/repo"
 
 # Verify
-type $env:USERPROFILE\.scribe\data\registry.json
+dir $env:USERPROFILE\.scribe\scrolls\
 ```
 
 ---
@@ -312,4 +393,4 @@ type $env:USERPROFILE\.scribe\data\registry.json
 | Windows | Pipe naming | Must use `\\.\pipe\` prefix |
 | Windows | Registry permissions | Use `-UserInstall` or run as admin |
 | All | Race condition on startup | Add connection timeout, retry logic |
-| All | IPC server not started in headless mode | Call `RegisterURLSchemeHandler()` in `-no-gui` path |
+| All | Symlink failures | Fall back to directory copy |

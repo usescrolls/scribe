@@ -1,34 +1,39 @@
 # Scribe
 
-A local service that enables one-click plugin installation from [useScrolls](https://usescrolls.com) into Claude Code.
+A skill distribution tool that syncs AI coding skills to 45+ coding agents.
 
 ## Overview
 
-Scribe is a lightweight local service that bridges the gap between the useScrolls web marketplace and Claude Code's plugin system. It manages a directory-based marketplace that Claude Code reads directly from the filesystem.
+Scribe lets you install AI coding skills once and automatically distributes them to all your coding agents (Claude Code, Cursor, Copilot, Cline, etc.) via symlinks. Instead of manually copying skills to each agent's directory, Scribe maintains a central skill library and keeps all your agents in sync.
 
 ### Architecture
 
-```mermaid
-flowchart LR
-    subgraph Browser["Web Browser<br/>(useScrolls.com)"]
-    end
-    subgraph Scribe["Scribe<br/>(background app)"]
-    end
-    subgraph Claude["Claude Code"]
-    end
-    subgraph Storage["~/.scribe<br/>(local directory)"]
-    end
+```
+~/.scribe/
+├── scrolls/                    # Canonical skill storage
+│   ├── react-best-practices/
+│   │   ├── SKILL.md
+│   │   └── .scribe-meta.json   # Source tracking
+│   └── typescript-patterns/
+│       ├── SKILL.md
+│       └── .scribe-meta.json
+├── workspaces/                 # Workspace definitions
+│   ├── default.json
+│   └── web-dev.json
+└── config.json                 # Active workspace
 
-    Browser -->|"1. User clicks<br/>agenthub://install<br/><br/>OS launches/forwards to Scribe"| Scribe
-    Scribe -->|"2. Update marketplace<br/>& settings"| Storage
-    Claude -->|"reads as marketplace"| Storage
+Skills are symlinked to each agent's skills directory:
+~/.claude/skills/react-best-practices -> ~/.scribe/scrolls/react-best-practices
+~/.cursor/skills/react-best-practices -> ~/.scribe/scrolls/react-best-practices
 ```
 
-### Key Concepts
+### Key Features
 
-- **Directory-Based Marketplace**: Unlike URL-based marketplaces, directory marketplaces support all source types including relative paths
-- **Pass-Through Sources**: GitHub, npm, and git URL sources are passed directly to Claude Code
-- **Zip Sources**: Downloaded and extracted locally, enabling offline access
+- **Install Once, Use Everywhere**: Skills are automatically symlinked to all detected agents
+- **45+ Agents Supported**: Claude Code, Cursor, GitHub Copilot, Cline, Windsurf, Continue, and more
+- **Workspaces**: Organize skills into named sets and switch between them
+- **Multiple Sources**: GitHub, GitLab, local paths, zip URLs
+- **Desktop GUI**: Vue 3 frontend with workspace selector and skill browser
 
 ## Quick Start
 
@@ -46,64 +51,91 @@ Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases)
 
 For Linux, Windows, and other installation methods, see [Installation](docs/installation.md).
 
-## First-Time Setup
-
-After starting Scribe, add the marketplace to Claude Code:
-
-```shell
-# In Claude Code
-/plugin marketplace add ~/.scribe
-```
-
-Or Scribe will auto-configure `~/.claude/settings.json` on first plugin install.
-
-## How It Works
-
-Scribe uses the `agenthub://` URL scheme for one-click installs:
-
-1. Click an `agenthub://install?...` link on the website
-2. OS launches Scribe with the URL
-3. If Scribe is already running, the URL is forwarded via IPC
-4. Scribe resolves the source (downloads if zip, passes through otherwise)
-5. Scribe updates `~/.scribe/.claude-plugin/marketplace.json`
-6. Scribe updates `~/.claude/settings.json` to enable the plugin
-7. Run `/plugin` in Claude Code to complete installation
-
-**URL format:** `agenthub://install?name=plugin-name&source=github&repo=owner/repo`
-
 ## CLI Usage
 
-Scribe also provides a command-line interface for managing plugins:
+```bash
+# Install skills from various sources
+scribe install owner/repo                    # GitHub shorthand
+scribe install https://github.com/owner/repo # Full GitHub URL
+scribe install ./local/path                  # Local directory
+scribe install https://example.com/skills.zip # Zip URL
+
+# List installed skills
+scribe list
+scribe ls --json
+
+# Show skill details
+scribe info <skill-name>
+
+# Check for updates
+scribe check
+
+# Update all skills
+scribe update
+
+# Remove a skill
+scribe uninstall <skill-name>
+scribe rm <skill-name>
+```
+
+### Workspace Commands
 
 ```bash
-# Install plugins
-scribe install prettier --github usescrolls/prettier-skill
-scribe install eslint --npm @anthropic/claude-eslint
-scribe install tool --zip https://example.com/plugin.zip
+# List workspaces
+scribe workspace list
 
-# List installed plugins
-scribe list
-scribe list --json
-scribe list --names-only
+# Create a workspace
+scribe workspace create <name>
 
-# Show plugin details
-scribe info prettier
+# Switch workspaces
+scribe workspace use <name>
 
-# Uninstall plugins
-scribe uninstall prettier
-scribe uninstall --all
+# Add/remove skills from workspace
+scribe workspace add <skill-name>
+scribe workspace remove <skill-name>
 
-# Show version
-scribe version
+# Show current workspace
+scribe workspace current
 ```
 
 For complete CLI documentation, see [CLI Specification](docs/cli-spec.md).
 
+## URL Scheme
+
+Scribe supports the `agenthub://` URL scheme for one-click installs from websites:
+
+```
+agenthub://install?source=github&repo=owner/repo
+```
+
+1. Click an install link on [useScrolls.com](https://usescrolls.com)
+2. OS launches Scribe with the URL
+3. Scribe installs the skill and symlinks to all detected agents
+
+## Supported Agents
+
+Scribe can distribute skills to these coding agents (when installed):
+
+| Agent | Skills Directory |
+|-------|-----------------|
+| Claude Code | `~/.claude/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| GitHub Copilot | `~/.copilot/skills/` |
+| Cline | `~/.cline/skills/` |
+| Continue | `~/.continue/skills/` |
+| Windsurf | `~/.codeium/windsurf/skills/` |
+| Codex | `~/.codex/skills/` |
+| Gemini CLI | `~/.gemini/skills/` |
+| Goose | `~/.config/goose/skills/` |
+| + 35 more... | |
+
+Scribe detects which agents you have installed (by checking for their config directories) and only creates symlinks for those agents.
+
 ## Documentation
 
-- [Installation](docs/installation.md) - All installation methods, CLI usage, and background service setup
+- [Installation](docs/installation.md) - All installation methods and background service setup
 - [CLI Specification](docs/cli-spec.md) - Complete CLI command reference
-- [Configuration](docs/configuration.md) - Source types, data storage, and settings
+- [Configuration](docs/configuration.md) - Storage layout and settings
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Development](docs/development.md) - Building, testing, and architecture reference
 

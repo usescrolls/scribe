@@ -6,7 +6,13 @@ This guide covers all installation methods for Scribe.
 
 Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases), open it, and drag Scribe to your Applications folder.
 
-## Option 2: Download Binary
+## Option 2: Homebrew (macOS)
+
+```bash
+brew install usescrolls/tap/scribe
+```
+
+## Option 3: Download Binary
 
 ```bash
 # macOS (Apple Silicon)
@@ -29,7 +35,7 @@ Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe 
 .\scribe.exe
 ```
 
-## Option 3: Windows PowerShell Installer
+## Option 4: Windows PowerShell Installer
 
 For Windows, use the PowerShell installer script for full setup including URL scheme registration:
 
@@ -50,26 +56,17 @@ The installer:
 - Registers the `agenthub://` URL scheme in the Windows Registry
 - Optionally creates a startup shortcut
 
-## Option 4: Build from Source
+## Option 5: Build from Source
 
 ```bash
 # Clone the repo
 git clone https://github.com/usescrolls/scribe.git
 cd scribe
 
-# Requires Go 1.21+
+# Requires Go 1.25+ and Wails v3
 make deps
 make build
 ./build/scribe
-
-# For Windows cross-compilation from macOS/Linux:
-make install-windows
-```
-
-## Option 5: Run with Go
-
-```bash
-go run ./cmd/scribe
 ```
 
 ---
@@ -159,80 +156,75 @@ Register-ScheduledTask -TaskName "Scribe" -Action $Action -Trigger $Trigger -Set
 
 ## Command Line Interface
 
-Scribe provides a full CLI for managing plugins without needing the GUI or URL scheme.
+Scribe provides a full CLI for managing skills.
 
-### Commands
-
-#### Install a plugin
+### Install Skills
 
 ```bash
-scribe install <name> --github|--url|--zip <source> [flags]
+scribe install <source> [flags]
+```
+
+**Sources:**
+```bash
+scribe install owner/repo                    # GitHub shorthand
+scribe install https://github.com/owner/repo # Full GitHub URL
+scribe install ./local/path                  # Local directory
+scribe install https://example.com/skills.zip # Zip URL
 ```
 
 **Flags:**
-| Flag | Description |
-|------|-------------|
-| `--github` | GitHub repository (owner/repo) |
-| `--url` | Git URL |
-| `--zip` | Zip file URL |
-| `--ref` | Branch or tag reference |
-| `--no-enable` | Don't auto-enable in Claude settings |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--agent` | `-a` | Target specific agents (comma-separated) |
+| `--skill` | `-s` | Select specific skills to install |
+| `--list` | `-l` | List available skills without installing |
+| `--yes` | `-y` | Skip interactive prompts |
 
-**Examples:**
-```bash
-scribe install prettier --github usescrolls/prettier-skill
-scribe install custom --url https://github.com/user/plugin.git
-scribe install tool --zip https://example.com/plugin.zip
-scribe install prettier --github usescrolls/prettier-skill --ref v1.0.0
-```
-
-#### Uninstall a plugin
+### Uninstall Skills
 
 ```bash
-scribe uninstall <name>
+scribe uninstall <skill-name>
+scribe rm <skill-name>
 scribe uninstall --all
 ```
 
-**Aliases:** `remove`, `rm`
+### List Installed Skills
 
-**Examples:**
-```bash
-scribe uninstall prettier
-scribe rm prettier
-scribe uninstall --all
-```
-
-#### List installed plugins
-
-```bash
-scribe list [flags]
-```
-
-**Aliases:** `ls`
-
-**Flags:**
-| Flag | Description |
-|------|-------------|
-| `--json` | Output in JSON format |
-| `--names-only` | Print only plugin names, one per line |
-
-**Examples:**
 ```bash
 scribe list
 scribe ls --json
 scribe list --names-only
 ```
 
-#### Show plugin info
+### Show Skill Info
 
 ```bash
-scribe info <name>
+scribe info <skill-name>
 ```
 
-#### Show version
+### Check for Updates
 
 ```bash
-scribe version
+scribe check
+```
+
+### Update Skills
+
+```bash
+scribe update              # Update all
+scribe update <skill-name> # Update specific skill
+```
+
+### Workspace Commands
+
+```bash
+scribe workspace list              # List workspaces
+scribe workspace create <name>     # Create workspace
+scribe workspace use <name>        # Switch workspace
+scribe workspace add <skill>       # Add skill to workspace
+scribe workspace remove <skill>    # Remove skill from workspace
+scribe workspace current           # Show active workspace
+scribe workspace delete <name>     # Delete workspace
 ```
 
 ### Global Flags
@@ -251,9 +243,9 @@ scribe version
 | 0 | Success |
 | 1 | General error |
 | 2 | Invalid usage / bad arguments |
-| 3 | Plugin not found |
+| 3 | Skill not found |
 | 4 | Source resolution failed |
-| 5 | Registry/filesystem error |
+| 5 | Filesystem error |
 
 ### GUI Mode Options
 
