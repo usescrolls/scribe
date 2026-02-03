@@ -20,8 +20,54 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Run tests
-        run: go test -v ./internal/...
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Go tests with coverage
+        run: |
+          go test -v -coverprofile=coverage.out ./internal/...
+          GO_COV=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "GO_COVERAGE=$GO_COV" >> $GITHUB_ENV
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend
+          npm install
+          npm install @vitest/coverage-v8 --save-dev
+          npm run test:coverage -- --reporter=json --outputFile=coverage-report.json || true
+          # Extract coverage from vitest json output
+          if [ -f coverage/coverage-summary.json ]; then
+            FE_COV=$(cat coverage/coverage-summary.json | jq '.total.statements.pct')
+            echo "FE_COVERAGE=$FE_COV" >> $GITHUB_ENV
+          else
+            echo "FE_COVERAGE=0" >> $GITHUB_ENV
+          fi
+
+      - name: Update Go coverage badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: go-coverage.json
+          label: Go coverage
+          message: ${{ env.GO_COVERAGE }}%
+          valColorRange: ${{ env.GO_COVERAGE }}
+          maxColorRange: 100
+          minColorRange: 0
+
+      - name: Update frontend coverage badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.COVERAGE_GIST_ID }}
+          filename: frontend-coverage.json
+          label: Frontend coverage
+          message: ${{ env.FE_COVERAGE }}%
+          valColorRange: ${{ env.FE_COVERAGE }}
+          maxColorRange: 100
+          minColorRange: 0
 
   build-linux:
     needs: [test]

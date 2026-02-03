@@ -1,5 +1,8 @@
 # Scribe
 
+![Go Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/nunomen/f7a526db56e4e8869e1a3ff5bae38b38/raw/go-coverage.json)
+![Frontend Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/nunomen/f7a526db56e4e8869e1a3ff5bae38b38/raw/frontend-coverage.json)
+
 A skill distribution tool that syncs AI coding skills to 45+ coding agents.
 
 ## Overview
