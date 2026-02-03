@@ -44,7 +44,9 @@ function onAgentSelected(agentId: string | null) {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .header {
@@ -56,6 +58,7 @@ function onAgentSelected(agentId: string | null) {
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   -webkit-app-region: drag;
+  flex-shrink: 0;
 }
 
 .app-icon {
@@ -89,6 +92,7 @@ function onAgentSelected(agentId: string | null) {
   padding: 1rem;
   border-right: 1px solid var(--border-color);
   overflow-y: auto;
+  overscroll-behavior: none;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -98,6 +102,7 @@ function onAgentSelected(agentId: string | null) {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
+  overscroll-behavior: none;
 }
 
 /* Responsive: hide sidebar on small screens */

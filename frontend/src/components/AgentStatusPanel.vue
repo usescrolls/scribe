@@ -75,7 +75,6 @@ function handleAgentClick(agent: { id: string; installed: boolean }) {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  overflow: hidden;
 }
 
 .panel-header {
@@ -114,6 +113,7 @@ function handleAgentClick(agent: { id: string; installed: boolean }) {
 .agent-list {
   max-height: 300px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .agent-item {

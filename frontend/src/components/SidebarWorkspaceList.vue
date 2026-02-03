@@ -181,7 +181,6 @@ async function confirmDelete() {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  overflow: hidden;
 }
 
 .panel-header {
@@ -358,6 +357,7 @@ async function confirmDelete() {
 .workspace-list {
   max-height: 200px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .workspace-item {
