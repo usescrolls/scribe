@@ -1,4 +1,4 @@
-import { vi, beforeEach } from 'vitest'
+import { vi, beforeEach } from "vitest"
 
 // Mock AppService from Wails bindings
 export const mockAppService = {
@@ -21,8 +21,8 @@ export const mockAppService = {
 }
 
 // Mock the scribe bindings module
-vi.mock('../bindings/scribe', () => ({
-  AppService: mockAppService
+vi.mock("../bindings/scribe", () => ({
+  AppService: mockAppService,
 }))
 
 // Mock Events from @wailsio/runtime
@@ -31,11 +31,11 @@ export const mockEvents = {
   Emit: vi.fn(),
 }
 
-vi.mock('@wailsio/runtime', () => ({
+vi.mock("@wailsio/runtime", () => ({
   Events: mockEvents,
   Dialogs: {
-    Question: vi.fn()
-  }
+    Question: vi.fn(),
+  },
 }))
 
 // Reset all mocks before each test

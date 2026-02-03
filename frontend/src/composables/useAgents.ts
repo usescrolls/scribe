@@ -1,14 +1,14 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { AppService } from '../bindings/scribe'
-import { Events } from '@wailsio/runtime'
-import type { AgentStatus } from '../types/skill'
+import { ref, computed, onMounted, onUnmounted } from "vue"
+import { AppService } from "../bindings/scribe"
+import { Events } from "@wailsio/runtime"
+import type { AgentStatus } from "../types/skill"
 
 export function useAgents() {
   const agents = ref<AgentStatus[]>([])
   const selectedAgent = ref<string | null>(null)
   const loading = ref(true)
   const error = ref<string | null>(null)
-  let unsubscribe: (() => void) | null = null
+  let unsubscribe: () => void | null = null
 
   async function fetchAgents() {
     try {
@@ -16,7 +16,7 @@ export function useAgents() {
       error.value = null
       agents.value = await AppService.GetAgentStatus()
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load agents'
+      error.value = e instanceof Error ? e.message : "Failed to load agents"
     } finally {
       loading.value = false
     }
@@ -27,7 +27,7 @@ export function useAgents() {
   }
 
   const installedAgents = computed(() =>
-    agents.value.filter(a => a.installed)
+    agents.value.filter((a) => a.installed),
   )
 
   const installedCount = computed(() => installedAgents.value.length)
@@ -35,7 +35,7 @@ export function useAgents() {
 
   onMounted(() => {
     fetchAgents()
-    unsubscribe = Events.On('skills-updated', fetchAgents)
+    unsubscribe = Events.On("skills-updated", fetchAgents)
   })
 
   onUnmounted(() => {
@@ -53,6 +53,6 @@ export function useAgents() {
     installedCount,
     totalCount,
     fetchAgents,
-    selectAgent
+    selectAgent,
   }
 }

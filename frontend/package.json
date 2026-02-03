@@ -9,7 +9,11 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check ."
   },
   "dependencies": {
     "@wailsio/runtime": "^3.0.0-alpha.0",
@@ -17,6 +21,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "oxfmt": "^0.1.0",
+    "oxlint": "^0.16.6",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/test-utils": "^2.4.0",
     "autoprefixer": "^10.4.24",
