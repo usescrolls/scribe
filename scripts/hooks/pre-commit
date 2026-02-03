@@ -1,0 +1,37 @@
+#!/bin/sh
+# Pre-commit hook: runs golangci-lint with auto-fix on staged Go files
+
+# Check if golangci-lint is installed
+if ! command -v golangci-lint &> /dev/null; then
+    echo "Error: golangci-lint is not installed"
+    echo "Install with: brew install golangci-lint"
+    exit 1
+fi
+
+# Get staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+echo "Running golangci-lint --fix..."
+
+# Run lint-fix
+make lint-fix
+
+# Re-add any fixed files that were staged
+for file in $STAGED_GO_FILES; do
+    if [ -f "$file" ]; then
+        git add "$file"
+    fi
+done
+
+# Run lint to check for remaining issues
+if ! golangci-lint run ./...; then
+    echo ""
+    echo "Linting failed. Please fix the issues above."
+    exit 1
+fi
+
+echo "Linting passed."

@@ -1,6 +1,6 @@
 .PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate \
         docker-test docker-test-coverage docker-test-race docker-test-build docker-test-clean \
-        app app-run
+        app app-run lint lint-fix install-hooks
 
 BINARY_NAME=scribe
 VERSION=1.0.0
@@ -75,6 +75,20 @@ coverage-html:
 	go test -coverprofile=$(BUILD_DIR)/coverage.out ./internal/... ./cli/...
 	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
 	@echo "Coverage report: $(BUILD_DIR)/coverage.html"
+
+# Run linter
+lint:
+	golangci-lint run ./...
+
+# Run linter and fix issues
+lint-fix:
+	golangci-lint run --fix ./...
+
+# Install git hooks
+install-hooks:
+	cp scripts/hooks/pre-commit .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+	@echo "Git hooks installed"
 
 # ============================================================================
 # Docker Test Targets

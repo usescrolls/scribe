@@ -10,16 +10,6 @@ Add onboarding flow for new users:
 - Guide to install first skill
 - Show detected agents
 
-### Workspace Selector in Sidebar
-Move workspace selection from header to left sidebar for better UX:
-- Workspace list always visible
-- Quick switching without dropdown
-- Visual indicator of active workspace
-
-### Global Hotkeys for Workspace Switching
-Add keyboard shortcuts to switch workspaces system-wide:
-- Configurable hotkey bindings
-- Quick switch between recent workspaces
 
 ## Source Types
 
@@ -63,21 +53,6 @@ Verify functionality across platforms:
 
 ## Release & Distribution
 
-### Release Checklist
-- Version bump in `wails.json`
-- Update changelog
-- Build artifacts for all platforms
-- Tag release in git
-
-### Homebrew Formula Update
-Update the Homebrew tap formula for new releases:
-- `usescrolls/tap/scribe`
-
-### GitHub Release Workflow
-Automate release artifact publishing:
-- Build binaries for macOS (arm64, amd64), Linux, Windows
-- Create DMG installer for macOS
-- Publish to GitHub Releases
 
 ### Code Coverage Badges
 Add coverage badges to README:
@@ -90,12 +65,12 @@ Add coverage badges to README:
 ### Code Formatter and Linter (Go)
 Add consistent code formatting and linting:
 - `gofmt` / `goimports` for formatting
-- `golangci-lint` for linting
+- ~~`golangci-lint` for linting~~ ✓ Added via `.golangci.yml` and `make lint`
 - Editor integration configs
 
 ### Oxy Tools and Pre-commit Hooks
 Configure development tooling:
-- Pre-commit hooks for formatting and linting
+- ~~Pre-commit hooks for formatting and linting~~ ✓ Added via `make install-hooks`
 - Automated checks before commit
 - CI integration
 
