@@ -138,6 +138,7 @@ Scribe detects which agents you have installed (by checking for their config dir
 - [Configuration](docs/configuration.md) - Storage layout and settings
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Development](docs/development.md) - Building, testing, and architecture reference
+- [Upcoming Features](docs/upcoming-features.md) - Planned features and improvements
 
 ## License
 
