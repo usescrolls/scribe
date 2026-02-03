@@ -10,7 +10,7 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{js,ts}"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "json", "html"],
+      reporter: ["text", "json", "json-summary", "html"],
       include: ["src/**/*.{ts,vue}"],
       exclude: ["src/main.ts", "src/bindings/**", "src/test/**", "**/*.d.ts"],
     },

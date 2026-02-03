@@ -47,7 +47,7 @@ jobs:
           cd frontend
           npm install
           npm install @vitest/coverage-v8 --save-dev
-          npm run test:coverage -- --coverage.reporter=json-summary || true
+          npm run test:coverage || true
           # Extract coverage from vitest json-summary output
           if [ -f coverage/coverage-summary.json ]; then
             FE_COV=$(jq '.total.statements.pct' coverage/coverage-summary.json)
