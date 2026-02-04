@@ -1,5 +1,9 @@
 <template>
-  <div class="app">
+  <OnboardingWizard
+    v-if="showOnboarding"
+    @complete="onOnboardingComplete"
+  />
+  <div v-else class="app">
     <header class="header">
       <img src="./assets/icon.png" alt="Scribe" class="app-icon" />
       <h1>Scribe</h1>
@@ -22,21 +26,36 @@ import { ref, onMounted } from 'vue'
 import SkillList from './components/SkillList.vue'
 import SidebarWorkspaceList from './components/SidebarWorkspaceList.vue'
 import AgentStatusPanel from './components/AgentStatusPanel.vue'
+import OnboardingWizard from './components/OnboardingWizard.vue'
 import { AppService } from './bindings/scribe'
 
 const version = ref('1.0.0')
 const selectedAgent = ref<string | null>(null)
+const showOnboarding = ref(false)
+const onboardingChecked = ref(false)
 
 onMounted(async () => {
   try {
+    // Check onboarding status first
+    const completed = await AppService.IsOnboardingCompleted()
+    showOnboarding.value = !completed
+    onboardingChecked.value = true
+
+    // Load version
     version.value = await AppService.GetVersion()
   } catch (e) {
-    console.error('Failed to get version:', e)
+    console.error('Failed to initialize app:', e)
+    // If we can't check onboarding, show the main app
+    onboardingChecked.value = true
   }
 })
 
 function onAgentSelected(agentId: string | null) {
   selectedAgent.value = agentId
+}
+
+function onOnboardingComplete() {
+  showOnboarding.value = false
 }
 </script>
 

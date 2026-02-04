@@ -381,6 +381,85 @@ func (a *AppService) GetTotalAgentCount() int {
 	return len(scribe.GetAllAgents())
 }
 
+// ======================================================================
+// Onboarding API
+// ======================================================================
+
+// IsOnboardingCompleted checks if onboarding has been completed
+func (a *AppService) IsOnboardingCompleted() bool {
+	completed, err := scribe.IsOnboardingCompleted()
+	if err != nil {
+		scribe.Logger.Error("failed to check onboarding status", "error", err)
+		return false
+	}
+	return completed
+}
+
+// CompleteOnboarding marks onboarding as completed
+func (a *AppService) CompleteOnboarding() error {
+	err := scribe.CompleteOnboarding()
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("onboarding-completed", nil)
+	}
+	return err
+}
+
+// DetectExistingSkills scans agent directories for existing skills
+func (a *AppService) DetectExistingSkills() []scribe.ExistingSkillInfo {
+	skills, err := scribe.DetectExistingSkills()
+	if err != nil {
+		scribe.Logger.Error("failed to detect existing skills", "error", err)
+		return []scribe.ExistingSkillInfo{}
+	}
+	return skills
+}
+
+// DetectSkillConflicts finds skills with the same name in different agent directories
+func (a *AppService) DetectSkillConflicts() []scribe.SkillConflict {
+	skills, err := scribe.DetectExistingSkills()
+	if err != nil {
+		scribe.Logger.Error("failed to detect existing skills", "error", err)
+		return []scribe.SkillConflict{}
+	}
+	return scribe.DetectSkillConflicts(skills)
+}
+
+// ImportAllExistingSkills imports all detected skills to ~/.scribe/scrolls/
+func (a *AppService) ImportAllExistingSkills() error {
+	skills, err := scribe.DetectExistingSkills()
+	if err != nil {
+		return err
+	}
+	err = scribe.ImportExistingSkills(skills)
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+	return err
+}
+
+// DeleteAllExistingSkills removes all detected skills from agent directories
+func (a *AppService) DeleteAllExistingSkills() error {
+	skills, err := scribe.DetectExistingSkills()
+	if err != nil {
+		return err
+	}
+	return scribe.DeleteExistingSkills(skills)
+}
+
+// ResolveSkillConflict imports a specific skill version when there's a naming conflict
+func (a *AppService) ResolveSkillConflict(skillPath string) error {
+	return scribe.ImportSelectedSkills([]string{skillPath})
+}
+
+// InstallDemoSkill installs the scribe-welcome demo skill
+func (a *AppService) InstallDemoSkill() error {
+	err := scribe.InstallDemoSkill()
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+	return err
+}
+
 // Helper functions for system tray labels
 
 func getSkillCountLabel() string {

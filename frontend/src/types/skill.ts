@@ -21,3 +21,16 @@ export interface AgentStatus {
   skillCount: number
   globalSkillsDir: string
 }
+
+export interface ExistingSkillInfo {
+  name: string
+  path: string
+  agentId: string
+  agentName: string
+  isGitRepo: boolean
+}
+
+export interface SkillConflict {
+  name: string
+  sources: ExistingSkillInfo[]
+}

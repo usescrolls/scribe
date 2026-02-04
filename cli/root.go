@@ -28,14 +28,24 @@ Examples:
   scribe workspace list`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Initialize quiet logger for CLI mode
 			// Only shows logs when --debug flag is passed
 			scribe.InitLoggerCLI(debug)
 			// Ensure scribe directories exist
 			if err := scribe.EnsureScribeDirs(); err != nil {
 				scribe.Logger.Error("failed to initialize scribe directories", "error", err)
+				return err
 			}
+
+			// Skip onboarding check for certain commands
+			cmdName := cmd.Name()
+			skipOnboarding := cmdName == "setup" || cmdName == "version" || cmdName == "help" || cmdName == "scribe"
+			if !skipOnboarding && checkOnboarding() {
+				return runOnboardingIfNeeded()
+			}
+
+			return nil
 		},
 	}
 )
@@ -80,5 +90,6 @@ func CLICommands() []string {
 		"workspace",
 		"check",
 		"update",
+		"setup",
 	}
 }

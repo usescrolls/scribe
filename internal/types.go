@@ -40,7 +40,8 @@ type Workspace struct {
 
 // Config represents the global Scribe configuration
 type Config struct {
-	ActiveWorkspace string `json:"activeWorkspace"`
+	ActiveWorkspace     string `json:"activeWorkspace"`
+	OnboardingCompleted bool   `json:"onboardingCompleted"`
 }
 
 // InstallOptions configures skill installation behavior
@@ -87,4 +88,19 @@ type AgentStatus struct {
 	Installed       bool   `json:"installed"`
 	SkillCount      int    `json:"skillCount"`
 	GlobalSkillsDir string `json:"globalSkillsDir"`
+}
+
+// ExistingSkillInfo represents a skill found in an agent's directory during onboarding
+type ExistingSkillInfo struct {
+	Name      string `json:"name"`
+	Path      string `json:"path"`      // Full path to the skill directory
+	AgentID   string `json:"agentId"`   // Which agent it was found in
+	AgentName string `json:"agentName"` // Display name of the agent
+	IsGitRepo bool   `json:"isGitRepo"` // Whether the skill directory is a git repo
+}
+
+// SkillConflict represents a naming conflict between skills from different agents
+type SkillConflict struct {
+	Name    string              `json:"name"`
+	Sources []ExistingSkillInfo `json:"sources"`
 }
