@@ -79,6 +79,7 @@ jobs:
           valColorRange: ${{ env.FE_COVERAGE }}
           maxColorRange: 100
           minColorRange: 0
+          forceUpdate: true
 
   build-linux:
     needs: [test]
