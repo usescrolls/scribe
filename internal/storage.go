@@ -112,6 +112,7 @@ func EnsureScribeDirs() error {
 		scribeDir,
 		filepath.Join(scribeDir, ScrollsDirName),
 		filepath.Join(scribeDir, WorkspacesDirName),
+		filepath.Join(scribeDir, CacheDirName),
 	}
 
 	for _, dir := range dirs {

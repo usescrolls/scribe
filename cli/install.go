@@ -1,12 +1,8 @@
 package cli
 
 import (
-	"archive/zip"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -70,11 +66,13 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch and discover skills
-	skills, tempDir, err := fetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
 		return fmt.Errorf("failed to fetch skills: %w", err)
 	}
-	defer func() { _ = os.RemoveAll(tempDir) }() // Clean up temp directory
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
 
 	if len(skills) == 0 {
 		return fmt.Errorf("no skills found in source")
@@ -295,212 +293,6 @@ func parseGitLabURL(url string) (*scribe.SourceInfo, error) {
 	return source, nil
 }
 
-// fetchAndDiscoverSkills fetches content from source and discovers skills
-// Returns the skills and a temp directory that should be cleaned up by caller
-func fetchAndDiscoverSkills(source *scribe.SourceInfo) ([]*scribe.Skill, string, error) {
-	var skillsDir string
-	var tempDir string
-
-	switch source.Type {
-	case "local":
-		skillsDir = source.LocalPath
-		if source.Subpath != "" {
-			skillsDir = filepath.Join(skillsDir, source.Subpath)
-		}
-	case "github", "gitlab":
-		// Clone repository to temp directory
-		var err error
-		tempDir, err = cloneRepository(source)
-		if err != nil {
-			return nil, "", err
-		}
-		skillsDir = tempDir
-		if source.Subpath != "" {
-			skillsDir = filepath.Join(tempDir, source.Subpath)
-		}
-	case "zip":
-		var err error
-		tempDir, err = downloadAndExtractZip(source.URL)
-		if err != nil {
-			return nil, "", err
-		}
-		skillsDir = tempDir
-	case "well-known":
-		return nil, "", fmt.Errorf("well-known sources not yet implemented")
-	default:
-		return nil, "", fmt.Errorf("unsupported source type: %s", source.Type)
-	}
-
-	// Discover skills in the directory
-	skills, err := scribe.DiscoverSkills(skillsDir)
-	if err != nil {
-		if tempDir != "" {
-			_ = os.RemoveAll(tempDir)
-		}
-		return nil, "", err
-	}
-
-	return skills, tempDir, nil
-}
-
-// cloneRepository clones a git repository to a temp directory
-func cloneRepository(source *scribe.SourceInfo) (string, error) {
-	tempDir, err := os.MkdirTemp("", "scribe-clone-*")
-	if err != nil {
-		return "", err
-	}
-
-	// Build clone URL
-	cloneURL := source.URL
-	if !strings.HasSuffix(cloneURL, ".git") {
-		cloneURL += ".git"
-	}
-
-	if err := cloneWithGit(cloneURL, tempDir, source.Ref); err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", err
-	}
-
-	return tempDir, nil
-}
-
-// downloadAndExtractZip downloads and extracts a zip file to a temp directory
-func downloadAndExtractZip(zipURL string) (string, error) {
-	// Create temp directory for extraction
-	tempDir, err := os.MkdirTemp("", "scribe-zip-*")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp directory: %w", err)
-	}
-
-	// Download the zip file
-	resp, err := http.Get(zipURL)
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to download zip: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to download zip: status %d", resp.StatusCode)
-	}
-
-	// Create a temporary file for the zip
-	tmpFile, err := os.CreateTemp("", "scribe-download-*.zip")
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-
-	// Copy the response body to the temp file
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		_ = tmpFile.Close()
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to save zip: %w", err)
-	}
-	_ = tmpFile.Close()
-
-	// Open the zip file
-	zipReader, err := zip.OpenReader(tmpPath)
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to open zip: %w", err)
-	}
-	defer func() { _ = zipReader.Close() }()
-
-	// Check if all files share a common root directory
-	commonRoot := findCommonRoot(zipReader.File)
-
-	// Extract files
-	for _, file := range zipReader.File {
-		filePath := file.Name
-
-		// Strip common root directory if present
-		if commonRoot != "" {
-			filePath = strings.TrimPrefix(filePath, commonRoot)
-			if filePath == "" {
-				continue
-			}
-		}
-
-		destPath := filepath.Join(tempDir, filePath)
-
-		// Check for zip slip vulnerability
-		if !strings.HasPrefix(filepath.Clean(destPath), filepath.Clean(tempDir)+string(os.PathSeparator)) {
-			_ = os.RemoveAll(tempDir)
-			return "", fmt.Errorf("invalid file path in zip: %s", file.Name)
-		}
-
-		if file.FileInfo().IsDir() {
-			_ = os.MkdirAll(destPath, file.Mode())
-			continue
-		}
-
-		// Create parent directories
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			_ = os.RemoveAll(tempDir)
-			return "", fmt.Errorf("failed to create directory: %w", err)
-		}
-
-		// Extract file
-		if err := extractZipFile(file, destPath); err != nil {
-			_ = os.RemoveAll(tempDir)
-			return "", err
-		}
-	}
-
-	return tempDir, nil
-}
-
-// findCommonRoot checks if all files in a zip share a common root directory
-func findCommonRoot(files []*zip.File) string {
-	if len(files) == 0 {
-		return ""
-	}
-
-	// Find the first directory component of the first file
-	var commonRoot string
-	for _, file := range files {
-		parts := strings.SplitN(file.Name, "/", 2)
-		if len(parts) > 1 {
-			if commonRoot == "" {
-				commonRoot = parts[0] + "/"
-			} else if parts[0]+"/" != commonRoot {
-				// Files don't share a common root
-				return ""
-			}
-		} else if !file.FileInfo().IsDir() {
-			// File at root level without directory
-			return ""
-		}
-	}
-
-	return commonRoot
-}
-
-// extractZipFile extracts a single file from a zip archive
-func extractZipFile(file *zip.File, destPath string) error {
-	srcFile, err := file.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open file in zip: %w", err)
-	}
-	defer func() { _ = srcFile.Close() }()
-
-	dstFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer func() { _ = dstFile.Close() }()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("failed to extract file: %w", err)
-	}
-
-	return nil
-}
-
 // filterSkills filters skills by name
 func filterSkills(skills []*scribe.Skill, names []string) []*scribe.Skill {
 	nameSet := make(map[string]bool, len(names))
@@ -540,19 +332,4 @@ func formatSourceInfo(source *scribe.SourceInfo) string {
 	default:
 		return source.URL
 	}
-}
-
-// cloneWithGit clones a repository using the git command
-func cloneWithGit(cloneURL, targetDir, ref string) error {
-	args := []string{"clone", "--depth", "1"}
-	if ref != "" {
-		args = append(args, "--branch", ref)
-	}
-	args = append(args, cloneURL, targetDir)
-
-	cmd := exec.Command("git", args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("git clone failed: %w\n%s", err, string(output))
-	}
-	return nil
 }

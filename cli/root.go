@@ -65,6 +65,7 @@ func init() {
 	rootCmd.AddCommand(workspaceCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(cacheCmd)
 }
 
 // Execute runs the CLI
@@ -90,6 +91,7 @@ func CLICommands() []string {
 		"workspace",
 		"check",
 		"update",
+		"cache",
 		"setup",
 	}
 }

@@ -123,11 +123,13 @@ func updateSkill(skillName string, force bool) error {
 	}
 
 	// Fetch new content
-	skills, tempDir, err := fetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
 		return fmt.Errorf("failed to fetch from source: %w", err)
 	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
 
 	// Find the specific skill
 	var newSkill *scribe.Skill

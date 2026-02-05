@@ -104,12 +104,14 @@ func checkSkill(skillName string) CheckResult {
 	source := reconstructSource(skill.Meta)
 
 	// Fetch remote content
-	skills, tempDir, err := fetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to fetch: %v", err)
 		return result
 	}
-	defer func() { _ = os.RemoveAll(tempDir) }()
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
 
 	// Find the specific skill in fetched content
 	var remoteSkill *scribe.Skill

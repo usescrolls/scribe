@@ -1,14 +1,8 @@
 package scribe
 
 import (
-	"archive/zip"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -35,9 +29,9 @@ func HandleInstallURL(urlString string) *InstallResult {
 	Logger.Info("installing from URL scheme", "source", source.Type, "repo", source.Owner+"/"+source.Repo)
 
 	// Fetch and discover skills
-	skills, tempDir, err := FetchAndDiscoverSkills(source)
-	if tempDir != "" {
-		defer func() { _ = os.RemoveAll(tempDir) }()
+	skills, fetchResult, err := FetchAndDiscoverSkills(source)
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
 	}
 	if err != nil {
 		result.ErrorMessage = fmt.Sprintf("Failed to fetch skills: %v", err)
@@ -162,209 +156,6 @@ func ParseInstallURL(urlString string) (*SourceInfo, string, error) {
 	}
 
 	return source, skillName, nil
-}
-
-// FetchAndDiscoverSkills fetches content from a source and discovers skills
-// Returns the skills and a temp directory that should be cleaned up by caller
-func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, string, error) {
-	var skillsDir string
-	var tempDir string
-
-	switch source.Type {
-	case "local":
-		skillsDir = source.LocalPath
-		if source.Subpath != "" {
-			skillsDir = filepath.Join(skillsDir, source.Subpath)
-		}
-
-	case "github", "gitlab":
-		var err error
-		tempDir, err = cloneRepository(source)
-		if err != nil {
-			return nil, "", err
-		}
-		skillsDir = tempDir
-		if source.Subpath != "" {
-			skillsDir = filepath.Join(tempDir, source.Subpath)
-		}
-
-	case "zip":
-		var err error
-		tempDir, err = downloadAndExtractZip(source.URL)
-		if err != nil {
-			return nil, "", err
-		}
-		skillsDir = tempDir
-
-	case "well-known":
-		return nil, "", fmt.Errorf("well-known sources not yet implemented")
-
-	default:
-		return nil, "", fmt.Errorf("unsupported source type: %s", source.Type)
-	}
-
-	// Discover skills in the directory
-	skills, err := DiscoverSkills(skillsDir)
-	if err != nil {
-		if tempDir != "" {
-			_ = os.RemoveAll(tempDir)
-		}
-		return nil, "", err
-	}
-
-	return skills, tempDir, nil
-}
-
-// cloneRepository clones a git repository to a temp directory
-func cloneRepository(source *SourceInfo) (string, error) {
-	tempDir, err := os.MkdirTemp("", "scribe-clone-*")
-	if err != nil {
-		return "", err
-	}
-
-	// Build clone URL
-	cloneURL := source.URL
-	if !strings.HasSuffix(cloneURL, ".git") {
-		cloneURL += ".git"
-	}
-
-	args := []string{"clone", "--depth", "1"}
-	if source.Ref != "" {
-		args = append(args, "--branch", source.Ref)
-	}
-	args = append(args, cloneURL, tempDir)
-
-	cmd := exec.Command("git", args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("git clone failed: %w\n%s", err, string(output))
-	}
-
-	return tempDir, nil
-}
-
-// downloadAndExtractZip downloads and extracts a zip file to a temp directory
-func downloadAndExtractZip(zipURL string) (string, error) {
-	tempDir, err := os.MkdirTemp("", "scribe-zip-*")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp directory: %w", err)
-	}
-
-	resp, err := http.Get(zipURL)
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to download zip: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to download zip: status %d", resp.StatusCode)
-	}
-
-	tmpFile, err := os.CreateTemp("", "scribe-download-*.zip")
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		_ = tmpFile.Close()
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to save zip: %w", err)
-	}
-	_ = tmpFile.Close()
-
-	zipReader, err := zip.OpenReader(tmpPath)
-	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", fmt.Errorf("failed to open zip: %w", err)
-	}
-	defer func() { _ = zipReader.Close() }()
-
-	commonRoot := findCommonRoot(zipReader.File)
-
-	for _, file := range zipReader.File {
-		filePath := file.Name
-
-		if commonRoot != "" {
-			filePath = strings.TrimPrefix(filePath, commonRoot)
-			if filePath == "" {
-				continue
-			}
-		}
-
-		destPath := filepath.Join(tempDir, filePath)
-
-		// Check for zip slip vulnerability
-		if !strings.HasPrefix(filepath.Clean(destPath), filepath.Clean(tempDir)+string(os.PathSeparator)) {
-			_ = os.RemoveAll(tempDir)
-			return "", fmt.Errorf("invalid file path in zip: %s", file.Name)
-		}
-
-		if file.FileInfo().IsDir() {
-			_ = os.MkdirAll(destPath, file.Mode())
-			continue
-		}
-
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			_ = os.RemoveAll(tempDir)
-			return "", fmt.Errorf("failed to create directory: %w", err)
-		}
-
-		if err := extractZipFile(file, destPath); err != nil {
-			_ = os.RemoveAll(tempDir)
-			return "", err
-		}
-	}
-
-	return tempDir, nil
-}
-
-// findCommonRoot checks if all files in a zip share a common root directory
-func findCommonRoot(files []*zip.File) string {
-	if len(files) == 0 {
-		return ""
-	}
-
-	var commonRoot string
-	for _, file := range files {
-		parts := strings.SplitN(file.Name, "/", 2)
-		if len(parts) > 1 {
-			if commonRoot == "" {
-				commonRoot = parts[0] + "/"
-			} else if parts[0]+"/" != commonRoot {
-				return ""
-			}
-		} else if !file.FileInfo().IsDir() {
-			return ""
-		}
-	}
-
-	return commonRoot
-}
-
-// extractZipFile extracts a single file from a zip archive
-func extractZipFile(file *zip.File, destPath string) error {
-	srcFile, err := file.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open file in zip: %w", err)
-	}
-	defer func() { _ = srcFile.Close() }()
-
-	dstFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer func() { _ = dstFile.Close() }()
-
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("failed to extract file: %w", err)
-	}
-
-	return nil
 }
 
 // filterSkillsByName filters skills to only include the specified name
