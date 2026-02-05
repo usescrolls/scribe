@@ -169,7 +169,7 @@ func runGUIMode() {
 
 	// Create system tray
 	systray := wailsApp.SystemTray.New()
-	systray.SetIcon(appIcon)
+	systray.SetTemplateIcon(appIcon)
 
 	// Create tray menu
 	trayMenu := wailsApp.NewMenu()
