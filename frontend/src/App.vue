@@ -15,7 +15,22 @@
         <AgentStatusPanel @agent-selected="onAgentSelected" />
       </aside>
       <main class="main">
-        <SkillList :agent-filter="selectedAgent" />
+        <div class="main-tabs">
+          <button
+            :class="['tab', { active: activeTab === 'workspace' }]"
+            @click="activeTab = 'workspace'"
+          >
+            Workspace
+          </button>
+          <button
+            :class="['tab', { active: activeTab === 'browse' }]"
+            @click="activeTab = 'browse'; selectedAgent = null"
+          >
+            Browse All
+          </button>
+        </div>
+        <SkillList v-if="activeTab === 'workspace'" :agent-filter="selectedAgent" />
+        <BrowseSkills v-else />
       </main>
     </div>
   </div>
@@ -24,6 +39,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import SkillList from './components/SkillList.vue'
+import BrowseSkills from './components/BrowseSkills.vue'
 import SidebarWorkspaceList from './components/SidebarWorkspaceList.vue'
 import AgentStatusPanel from './components/AgentStatusPanel.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
@@ -33,6 +49,7 @@ const version = ref('1.0.0')
 const selectedAgent = ref<string | null>(null)
 const showOnboarding = ref(false)
 const onboardingChecked = ref(false)
+const activeTab = ref<'workspace' | 'browse'>('workspace')
 
 onMounted(async () => {
   try {
@@ -122,6 +139,38 @@ function onOnboardingComplete() {
   padding: 1.5rem;
   overflow-y: auto;
   overscroll-behavior: none;
+}
+
+.main-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.tab {
+  padding: 0.375rem 0.875rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Responsive: hide sidebar on small screens */

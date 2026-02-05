@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { flushPromises } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
+import { defineComponent } from "vue"
 import { useAgents } from "./useAgents"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockEvents } from "../test/setup"
 import type { AgentStatus } from "../types/skill"
 
 describe("useAgents", () => {
@@ -142,6 +143,94 @@ describe("useAgents", () => {
     it("starts with no selection", () => {
       const { selectedAgent } = useAgents()
       expect(selectedAgent.value).toBe(null)
+    })
+  })
+
+  describe("event subscriptions", () => {
+    it("subscribes to skills-updated and workspace-changed events on mount", async () => {
+      const TestComponent = defineComponent({
+        setup() {
+          useAgents()
+          return () => null
+        },
+      })
+
+      mount(TestComponent)
+      await flushPromises()
+
+      // Should subscribe to both events
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "skills-updated",
+        expect.any(Function),
+      )
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "workspace-changed",
+        expect.any(Function),
+      )
+    })
+
+    it("unsubscribes from events on unmount", async () => {
+      const mockUnsubscribeSkills = vi.fn()
+      const mockUnsubscribeWorkspace = vi.fn()
+
+      // Return different unsubscribe functions for each call
+      mockEvents.On.mockReturnValueOnce(
+        mockUnsubscribeSkills,
+      ).mockReturnValueOnce(mockUnsubscribeWorkspace)
+
+      const TestComponent = defineComponent({
+        setup() {
+          useAgents()
+          return () => null
+        },
+      })
+
+      const wrapper = mount(TestComponent)
+      await flushPromises()
+
+      // Unmount the component
+      wrapper.unmount()
+
+      // Both unsubscribe functions should be called
+      expect(mockUnsubscribeSkills).toHaveBeenCalled()
+      expect(mockUnsubscribeWorkspace).toHaveBeenCalled()
+    })
+
+    it("refreshes agents when workspace-changed event fires", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let workspaceChangedCallback: any = null
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(mockEvents.On as any).mockImplementation(
+        (event: string, callback: () => void) => {
+          if (event === "workspace-changed") {
+            workspaceChangedCallback = callback
+          }
+          return vi.fn()
+        },
+      )
+
+      const TestComponent = defineComponent({
+        setup() {
+          useAgents()
+          return () => null
+        },
+      })
+
+      mount(TestComponent)
+      await flushPromises()
+
+      // Clear mock calls from initial mount
+      mockAppService.GetAgentStatus.mockClear()
+
+      // Simulate workspace-changed event
+      if (workspaceChangedCallback) {
+        workspaceChangedCallback()
+        await flushPromises()
+      }
+
+      // Should have fetched agents again
+      expect(mockAppService.GetAgentStatus).toHaveBeenCalled()
     })
   })
 })

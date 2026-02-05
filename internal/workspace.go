@@ -168,6 +168,37 @@ func SetActiveWorkspace(name string) error {
 	return SaveConfig(config)
 }
 
+// ResyncCurrentWorkspace forces a full resync of all skills in the current workspace
+// This ensures all symlinks are correctly created for installed agents
+func ResyncCurrentWorkspace() error {
+	config, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	ws, err := GetWorkspace(config.ActiveWorkspace)
+	if err != nil {
+		return err
+	}
+
+	agents := DetectInstalledAgents()
+	agentIDs := make([]string, len(agents))
+	for i, a := range agents {
+		agentIDs[i] = a.ID
+	}
+
+	// Sync all skills in the workspace
+	for _, skillName := range ws.Skills {
+		exists, _ := SkillExists(skillName)
+		if !exists {
+			continue
+		}
+		_ = SyncSkillToAgents(skillName, agentIDs)
+	}
+
+	return nil
+}
+
 // SyncWorkspace updates agent symlinks to match the target workspace
 func SyncWorkspace(current, target *Workspace) error {
 	agents := DetectInstalledAgents()

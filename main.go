@@ -95,6 +95,11 @@ func runGUIMode() {
 		os.Exit(1)
 	}
 
+	// Ensure current workspace skills are synced to agents
+	if err := scribe.ResyncCurrentWorkspace(); err != nil {
+		scribe.Logger.Warn("failed to resync workspace on startup", "error", err)
+	}
+
 	appService := NewAppService()
 
 	wailsApp = application.New(application.Options{
@@ -379,6 +384,15 @@ func (a *AppService) GetInstalledAgentCount() int {
 // GetTotalAgentCount returns the total number of supported agents
 func (a *AppService) GetTotalAgentCount() int {
 	return len(scribe.GetAllAgents())
+}
+
+// ResyncWorkspace forces a resync of all skills in current workspace to agents
+func (a *AppService) ResyncWorkspace() error {
+	err := scribe.ResyncCurrentWorkspace()
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+	return err
 }
 
 // ======================================================================

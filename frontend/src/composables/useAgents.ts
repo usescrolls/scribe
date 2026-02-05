@@ -8,7 +8,8 @@ export function useAgents() {
   const selectedAgent = ref<string | null>(null)
   const loading = ref(true)
   const error = ref<string | null>(null)
-  let unsubscribe: { (): void } | null = null
+  let unsubscribeSkills: { (): void } | null = null
+  let unsubscribeWorkspace: { (): void } | null = null
 
   async function fetchAgents() {
     try {
@@ -35,13 +36,13 @@ export function useAgents() {
 
   onMounted(() => {
     fetchAgents()
-    unsubscribe = Events.On("skills-updated", fetchAgents)
+    unsubscribeSkills = Events.On("skills-updated", fetchAgents)
+    unsubscribeWorkspace = Events.On("workspace-changed", fetchAgents)
   })
 
   onUnmounted(() => {
-    if (unsubscribe) {
-      unsubscribe()
-    }
+    if (unsubscribeSkills) unsubscribeSkills()
+    if (unsubscribeWorkspace) unsubscribeWorkspace()
   })
 
   return {

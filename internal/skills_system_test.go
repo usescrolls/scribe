@@ -1876,6 +1876,67 @@ func TestSyncWorkspace(t *testing.T) {
 	}
 }
 
+func TestResyncCurrentWorkspace(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	_ = EnsureScribeDirs()
+
+	// Create skills in scrolls dir
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	skill1Dir := filepath.Join(scrollsDir, "resync-skill-1")
+	skill2Dir := filepath.Join(scrollsDir, "resync-skill-2")
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("# Skill 1"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("# Skill 2"), 0o644)
+
+	// Create Claude directory (simulates installed agent)
+	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
+
+	// Create and save a workspace with both skills
+	ws := &Workspace{
+		Name:   "default",
+		Skills: []string{"resync-skill-1", "resync-skill-2"},
+	}
+	if err := saveWorkspace(ws); err != nil {
+		t.Fatalf("failed to save workspace: %v", err)
+	}
+
+	// Set it as active
+	config := &Config{ActiveWorkspace: "default"}
+	if err := SaveConfig(config); err != nil {
+		t.Fatalf("failed to save config: %v", err)
+	}
+
+	// Skills not in agent dir yet (simulates missing symlinks)
+	if _, err := os.Lstat(filepath.Join(claudeSkillsDir, "resync-skill-1")); !os.IsNotExist(err) {
+		t.Error("resync-skill-1 should not exist before resync")
+	}
+
+	// Resync should create symlinks
+	err = ResyncCurrentWorkspace()
+	if err != nil {
+		t.Fatalf("ResyncCurrentWorkspace() error: %v", err)
+	}
+
+	// Both skills should now be symlinked
+	if _, err := os.Lstat(filepath.Join(claudeSkillsDir, "resync-skill-1")); err != nil {
+		t.Error("resync-skill-1 should exist after resync")
+	}
+	if _, err := os.Lstat(filepath.Join(claudeSkillsDir, "resync-skill-2")); err != nil {
+		t.Error("resync-skill-2 should exist after resync")
+	}
+}
+
 func TestSkillDiff(t *testing.T) {
 	a := []string{"skill-1", "skill-2", "skill-3"}
 	b := []string{"skill-2", "skill-4"}
