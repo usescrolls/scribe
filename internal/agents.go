@@ -380,7 +380,8 @@ func dirExists(path string) bool {
 	return info.IsDir()
 }
 
-// countSkillsInDir counts the number of skill directories (containing SKILL.md) in a directory
+// countSkillsInDir counts the number of skill directories (containing SKILL.md) in a directory.
+// It follows symlinks, since skills in agent directories are typically symlinked from ~/.scribe/scrolls/.
 func countSkillsInDir(dir string) int {
 	count := 0
 	entries, err := os.ReadDir(dir)
@@ -388,8 +389,14 @@ func countSkillsInDir(dir string) int {
 		return 0
 	}
 	for _, entry := range entries {
-		if entry.IsDir() {
-			skillPath := filepath.Join(dir, entry.Name(), "SKILL.md")
+		fullPath := filepath.Join(dir, entry.Name())
+		// Use os.Stat (not Lstat) to follow symlinks
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue
+		}
+		if info.IsDir() {
+			skillPath := filepath.Join(fullPath, "SKILL.md")
 			if _, err := os.Stat(skillPath); err == nil {
 				count++
 			}

@@ -1019,6 +1019,23 @@ func TestCountSkillsInDir(t *testing.T) {
 	if count != 2 {
 		t.Errorf("countSkillsInDir() = %d, want 2", count)
 	}
+
+	// Symlinked skill directories (the real-world case: agent dirs contain symlinks to ~/.scribe/scrolls/)
+	symlinkDir, err := os.MkdirTemp("", "scribe-test-symlinks-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(symlinkDir) }()
+
+	// Create symlinks pointing to the real skill directories
+	_ = os.Symlink(skill1Dir, filepath.Join(symlinkDir, "skill1"))
+	_ = os.Symlink(skill2Dir, filepath.Join(symlinkDir, "skill2"))
+	_ = os.Symlink(noSkillDir, filepath.Join(symlinkDir, "no-skill"))
+
+	count = countSkillsInDir(symlinkDir)
+	if count != 2 {
+		t.Errorf("countSkillsInDir() with symlinks = %d, want 2", count)
+	}
 }
 
 func TestIsSymlink(t *testing.T) {
