@@ -72,3 +72,7 @@ See [install-badge.md](./install-badge.md) for full documentation including:
 - Badge style variants (default, flat, dark)
 - URL parameters (ref, name, source)
 - Example README templates 
+
+manage updates inside scribe itself.
+
+add vercel marketplace to install skills
