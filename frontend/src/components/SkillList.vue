@@ -6,19 +6,20 @@
     </div>
     <div v-else-if="error" class="error">
       <span>{{ error }}</span>
-      <button class="btn-secondary" @click="fetchSkills">Retry</button>
+      <button class="btn-secondary" @click="fetchAll">Retry</button>
     </div>
     <EmptyState v-else-if="filteredSkills.length === 0" />
     <div v-else class="skills">
       <div class="skills-header">
-        <span class="count">{{ filteredSkills.length }} skill{{ filteredSkills.length !== 1 ? 's' : '' }} installed</span>
+        <span class="count">{{ filteredSkills.length }} skill{{ filteredSkills.length !== 1 ? 's' : '' }} in workspace</span>
       </div>
       <div class="skills-grid">
         <SkillCard
           v-for="skill in filteredSkills"
           :key="skill.name"
           :skill="skill"
-          @uninstall="handleUninstall"
+          :show-remove="true"
+          @remove="handleRemove"
         />
       </div>
     </div>
@@ -26,48 +27,90 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Dialogs } from '@wailsio/runtime'
-import { useSkills } from '../composables/useSkills'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Dialogs, Events } from '@wailsio/runtime'
+import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import EmptyState from './EmptyState.vue'
+import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const props = defineProps<{
   agentFilter?: string | null
 }>()
 
-const { skills, loading, error, fetchSkills, uninstall } = useSkills()
+const skills = ref<SkillInfo[]>([])
+const workspaces = ref<WorkspaceInfo[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+let unsubscribeSkills: { (): void } | null = null
+let unsubscribeWorkspace: { (): void } | null = null
 
-const filteredSkills = computed(() => {
-  if (!props.agentFilter) {
-    return skills.value
-  }
-  return skills.value.filter(skill =>
-    skill.agents.includes(props.agentFilter!)
-  )
+const activeWorkspace = computed(() => {
+  return workspaces.value.find(ws => ws.isActive)
 })
 
-async function handleUninstall(name: string) {
-  console.log('[SkillList] handleUninstall called with:', name)
+const workspaceSkillNames = computed(() => {
+  return new Set(activeWorkspace.value?.skills || [])
+})
+
+const filteredSkills = computed(() => {
+  // First filter by workspace
+  let result = skills.value.filter(skill => workspaceSkillNames.value.has(skill.name))
+
+  // Then filter by agent if specified
+  if (props.agentFilter) {
+    result = result.filter(skill => skill.agents.includes(props.agentFilter!))
+  }
+
+  return result
+})
+
+async function fetchAll() {
+  try {
+    loading.value = true
+    error.value = null
+    const [skillsData, wsData] = await Promise.all([
+      AppService.GetSkills(),
+      AppService.GetWorkspaces()
+    ])
+    skills.value = skillsData
+    workspaces.value = wsData
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load skills'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleRemove(name: string) {
   try {
     const result = await Dialogs.Question({
-      Title: 'Confirm Uninstall',
-      Message: `Are you sure you want to uninstall "${name}"?`,
+      Title: 'Remove from Workspace',
+      Message: `Remove "${name}" from this workspace?`,
       Buttons: [
-        { Label: 'Uninstall', IsDefault: true },
+        { Label: 'Remove', IsDefault: true },
         { Label: 'Cancel', IsCancel: true }
       ]
     })
-    console.log('[SkillList] Dialog result:', result)
-    if (result === 'Uninstall') {
-      console.log('[SkillList] Calling uninstall...')
-      const success = await uninstall(name)
-      console.log('[SkillList] Uninstall result:', success)
+    if (result === 'Remove') {
+      await AppService.RemoveSkillFromWorkspace(name, activeWorkspace.value?.name || 'default')
+      await fetchAll()
     }
   } catch (err) {
-    console.error('[SkillList] Error in handleUninstall:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to remove skill from workspace'
   }
 }
+
+onMounted(() => {
+  fetchAll()
+  unsubscribeSkills = Events.On('skills-updated', fetchAll)
+  unsubscribeWorkspace = Events.On('workspace-changed', fetchAll)
+})
+
+onUnmounted(() => {
+  if (unsubscribeSkills) unsubscribeSkills()
+  if (unsubscribeWorkspace) unsubscribeWorkspace()
+})
 </script>
 
 <style scoped>
@@ -106,7 +149,7 @@ async function handleUninstall(name: string) {
 }
 
 .skills-header {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .count {
@@ -115,8 +158,8 @@ async function handleUninstall(name: string) {
 }
 
 .skills-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
 </style>

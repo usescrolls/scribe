@@ -13,9 +13,16 @@ describe("SkillCard", () => {
     agents: ["claude-code", "cursor"],
   }
 
-  function mountSkillCard(skill: SkillInfo = mockSkill) {
+  function mountSkillCard(
+    skill: SkillInfo = mockSkill,
+    props: {
+      showUninstall?: boolean
+      showRemove?: boolean
+      showAdd?: boolean
+    } = {},
+  ) {
     return mount(SkillCard, {
-      props: { skill },
+      props: { skill, ...props },
     })
   }
 
@@ -26,7 +33,7 @@ describe("SkillCard", () => {
       expect(wrapper.find(".name").text()).toBe("react-patterns")
     })
 
-    it("renders skill description", () => {
+    it("renders skill description (truncated)", () => {
       const wrapper = mountSkillCard()
 
       expect(wrapper.find(".description").text()).toBe(
@@ -34,25 +41,23 @@ describe("SkillCard", () => {
       )
     })
 
+    it("truncates long descriptions", () => {
+      const skillWithLongDesc: SkillInfo = {
+        ...mockSkill,
+        description:
+          "This is a very long description that should be truncated because it exceeds the maximum length allowed for display",
+      }
+      const wrapper = mountSkillCard(skillWithLongDesc)
+
+      const desc = wrapper.find(".description").text()
+      expect(desc.length).toBeLessThanOrEqual(63) // 60 chars + "..."
+      expect(desc.endsWith("...")).toBe(true)
+    })
+
     it("renders source type badge", () => {
       const wrapper = mountSkillCard()
 
-      expect(wrapper.find(".source-type").text()).toBe("github")
-    })
-
-    it("renders source", () => {
-      const wrapper = mountSkillCard()
-
-      expect(wrapper.find(".source").text()).toBe("vercel-labs/skills")
-    })
-
-    it("renders agent badges", () => {
-      const wrapper = mountSkillCard()
-
-      const badges = wrapper.findAll(".agent-badge")
-      expect(badges).toHaveLength(2)
-      expect(badges[0].text()).toBe("Claude Code")
-      expect(badges[1].text()).toBe("Cursor")
+      expect(wrapper.find(".source-badge").text()).toBe("github")
     })
 
     it("handles skill with no description", () => {
@@ -64,41 +69,86 @@ describe("SkillCard", () => {
 
       expect(wrapper.find(".description").exists()).toBe(false)
     })
-
-    it("handles skill with no agents", () => {
-      const skillWithoutAgents: SkillInfo = {
-        ...mockSkill,
-        agents: [],
-      }
-      const wrapper = mountSkillCard(skillWithoutAgents)
-
-      expect(wrapper.find(".agents").exists()).toBe(false)
-    })
   })
 
-  describe("agent name formatting", () => {
-    it("formats agent IDs to display names", () => {
-      const skillWithVariousAgents: SkillInfo = {
-        ...mockSkill,
-        agents: ["claude-code", "github-copilot", "windsurf"],
-      }
-      const wrapper = mountSkillCard(skillWithVariousAgents)
-
-      const badges = wrapper.findAll(".agent-badge")
-      expect(badges[0].text()).toBe("Claude Code")
-      expect(badges[1].text()).toBe("Github Copilot")
-      expect(badges[2].text()).toBe("Windsurf")
-    })
-  })
-
-  describe("uninstall", () => {
-    it("emits uninstall event with skill name", async () => {
+  describe("uninstall button", () => {
+    it("hides uninstall button by default", () => {
       const wrapper = mountSkillCard()
 
-      await wrapper.find(".btn-danger").trigger("click")
+      expect(wrapper.find(".uninstall-btn").exists()).toBe(false)
+    })
+
+    it("shows uninstall button when showUninstall is true", () => {
+      const wrapper = mountSkillCard(mockSkill, { showUninstall: true })
+
+      expect(wrapper.find(".uninstall-btn").exists()).toBe(true)
+    })
+
+    it("emits uninstall event with skill name", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showUninstall: true })
+
+      await wrapper.find(".uninstall-btn").trigger("click")
 
       expect(wrapper.emitted("uninstall")).toBeTruthy()
       expect(wrapper.emitted("uninstall")![0]).toEqual(["react-patterns"])
+    })
+
+    it("shows 'Uninstall' label on the button", () => {
+      const wrapper = mountSkillCard(mockSkill, { showUninstall: true })
+
+      expect(wrapper.find(".uninstall-btn .btn-label").text()).toBe("Uninstall")
+    })
+  })
+
+  describe("remove button", () => {
+    it("hides remove button by default", () => {
+      const wrapper = mountSkillCard()
+
+      expect(wrapper.find(".remove-btn").exists()).toBe(false)
+    })
+
+    it("shows remove button when showRemove is true", () => {
+      const wrapper = mountSkillCard(mockSkill, { showRemove: true })
+
+      expect(wrapper.find(".remove-btn").exists()).toBe(true)
+    })
+
+    it("emits remove event with skill name", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showRemove: true })
+
+      await wrapper.find(".remove-btn").trigger("click")
+
+      expect(wrapper.emitted("remove")).toBeTruthy()
+      expect(wrapper.emitted("remove")![0]).toEqual(["react-patterns"])
+    })
+
+    it("shows 'Remove' label on the button", () => {
+      const wrapper = mountSkillCard(mockSkill, { showRemove: true })
+
+      expect(wrapper.find(".remove-btn .btn-label").text()).toBe("Remove")
+    })
+  })
+
+  describe("add button", () => {
+    it("hides add button by default", () => {
+      const wrapper = mountSkillCard()
+
+      expect(wrapper.find(".add-btn").exists()).toBe(false)
+    })
+
+    it("shows add button when showAdd is true", () => {
+      const wrapper = mountSkillCard(mockSkill, { showAdd: true })
+
+      expect(wrapper.find(".add-btn").exists()).toBe(true)
+    })
+
+    it("emits add event with skill name", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showAdd: true })
+
+      await wrapper.find(".add-btn").trigger("click")
+
+      expect(wrapper.emitted("add")).toBeTruthy()
+      expect(wrapper.emitted("add")![0]).toEqual(["react-patterns"])
     })
   })
 })

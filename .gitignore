@@ -38,5 +38,6 @@ go.work.sum
 frontend/node_modules/
 frontend/dist/
 frontend/bindings/
+frontend/coverage/
 frontend/package.json.md5
 .DS_Store
