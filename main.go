@@ -21,6 +21,9 @@ var assets embed.FS
 //go:embed icons/icon.png
 var appIcon []byte
 
+//go:embed icons/tray-icon.png
+var trayIcon []byte
+
 var wailsApp *application.App
 var mainWindow *application.WebviewWindow
 
@@ -169,7 +172,7 @@ func runGUIMode() {
 
 	// Create system tray
 	systray := wailsApp.SystemTray.New()
-	systray.SetTemplateIcon(appIcon)
+	systray.SetTemplateIcon(trayIcon)
 
 	// Create tray menu
 	trayMenu := wailsApp.NewMenu()
