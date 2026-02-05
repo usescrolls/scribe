@@ -195,9 +195,9 @@ func TestGetAllAgents(t *testing.T) {
 		t.Error("GetAllAgents() returned empty slice")
 	}
 
-	// Should have 45 agents
-	if len(agents) != 45 {
-		t.Errorf("GetAllAgents() returned %d agents, want 45", len(agents))
+	// Should have 39 agents (synced with Vercel skills CLI)
+	if len(agents) != 39 {
+		t.Errorf("GetAllAgents() returned %d agents, want 39", len(agents))
 	}
 
 	// Verify first agent is claude-code
@@ -929,8 +929,8 @@ func TestGetAgentStatus(t *testing.T) {
 
 	// No agents installed
 	statuses := GetAgentStatus(scrollsDir)
-	if len(statuses) != 45 {
-		t.Errorf("GetAgentStatus() returned %d statuses, want 45", len(statuses))
+	if len(statuses) != 39 {
+		t.Errorf("GetAgentStatus() returned %d statuses, want 39", len(statuses))
 	}
 
 	// All should be not installed

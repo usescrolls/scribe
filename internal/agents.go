@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-// AllAgents contains definitions for all 40+ supported coding agents
-// Based on Vercel's skills CLI agent definitions
+// AllAgents contains definitions for all supported coding agents.
+// Synced with Vercel skills CLI agent definitions (skills/src/agents.ts).
 var AllAgents = []Agent{
-	// Tier 1: Major AI Coding Assistants
 	{
 		ID:              "claude-code",
 		DisplayName:     "Claude Code",
@@ -17,16 +16,28 @@ var AllAgents = []Agent{
 		GlobalConfigDir: "~/.claude",
 	},
 	{
-		ID:              "cursor",
-		DisplayName:     "Cursor",
-		GlobalSkillsDir: "~/.cursor/skills",
-		GlobalConfigDir: "~/.cursor",
+		ID:              "amp",
+		DisplayName:     "Amp",
+		GlobalSkillsDir: "~/.config/agents/skills",
+		GlobalConfigDir: "~/.config/amp",
 	},
 	{
-		ID:              "github-copilot",
-		DisplayName:     "GitHub Copilot",
-		GlobalSkillsDir: "~/.copilot/skills",
-		GlobalConfigDir: "~/.copilot",
+		ID:              "antigravity",
+		DisplayName:     "Antigravity",
+		GlobalSkillsDir: "~/.gemini/antigravity/skills",
+		GlobalConfigDir: "~/.gemini/antigravity",
+	},
+	{
+		ID:              "augment",
+		DisplayName:     "Augment",
+		GlobalSkillsDir: "~/.augment/rules",
+		GlobalConfigDir: "~/.augment",
+	},
+	{
+		ID:              "openclaw",
+		DisplayName:     "OpenClaw",
+		GlobalSkillsDir: "~/.openclaw/skills",
+		GlobalConfigDir: "~/.openclaw",
 	},
 	{
 		ID:              "cline",
@@ -35,28 +46,58 @@ var AllAgents = []Agent{
 		GlobalConfigDir: "~/.cline",
 	},
 	{
+		ID:              "codebuddy",
+		DisplayName:     "CodeBuddy",
+		GlobalSkillsDir: "~/.codebuddy/skills",
+		GlobalConfigDir: "~/.codebuddy",
+	},
+	{
+		ID:              "codex",
+		DisplayName:     "Codex",
+		GlobalSkillsDir: "~/.codex/skills",
+		GlobalConfigDir: "~/.codex",
+	},
+	{
+		ID:              "command-code",
+		DisplayName:     "Command Code",
+		GlobalSkillsDir: "~/.commandcode/skills",
+		GlobalConfigDir: "~/.commandcode",
+	},
+	{
 		ID:              "continue",
 		DisplayName:     "Continue",
 		GlobalSkillsDir: "~/.continue/skills",
 		GlobalConfigDir: "~/.continue",
 	},
 	{
-		ID:              "windsurf",
-		DisplayName:     "Windsurf",
-		GlobalSkillsDir: "~/.codeium/windsurf/skills",
-		GlobalConfigDir: "~/.codeium/windsurf",
+		ID:              "crush",
+		DisplayName:     "Crush",
+		GlobalSkillsDir: "~/.config/crush/skills",
+		GlobalConfigDir: "~/.config/crush",
 	},
 	{
-		ID:              "codex",
-		DisplayName:     "Codex CLI",
-		GlobalSkillsDir: "~/.codex/skills",
-		GlobalConfigDir: "~/.codex",
+		ID:              "cursor",
+		DisplayName:     "Cursor",
+		GlobalSkillsDir: "~/.cursor/skills",
+		GlobalConfigDir: "~/.cursor",
 	},
 	{
-		ID:              "gemini",
+		ID:              "droid",
+		DisplayName:     "Droid",
+		GlobalSkillsDir: "~/.factory/skills",
+		GlobalConfigDir: "~/.factory",
+	},
+	{
+		ID:              "gemini-cli",
 		DisplayName:     "Gemini CLI",
 		GlobalSkillsDir: "~/.gemini/skills",
 		GlobalConfigDir: "~/.gemini",
+	},
+	{
+		ID:              "github-copilot",
+		DisplayName:     "GitHub Copilot",
+		GlobalSkillsDir: "~/.copilot/skills",
+		GlobalConfigDir: "~/.copilot",
 	},
 	{
 		ID:              "goose",
@@ -65,234 +106,142 @@ var AllAgents = []Agent{
 		GlobalConfigDir: "~/.config/goose",
 	},
 	{
+		ID:              "iflow-cli",
+		DisplayName:     "iFlow CLI",
+		GlobalSkillsDir: "~/.iflow/skills",
+		GlobalConfigDir: "~/.iflow",
+	},
+	{
+		ID:              "junie",
+		DisplayName:     "Junie",
+		GlobalSkillsDir: "~/.junie/skills",
+		GlobalConfigDir: "~/.junie",
+	},
+	{
+		ID:              "kilo",
+		DisplayName:     "Kilo Code",
+		GlobalSkillsDir: "~/.kilocode/skills",
+		GlobalConfigDir: "~/.kilocode",
+	},
+	{
+		ID:              "kimi-cli",
+		DisplayName:     "Kimi Code CLI",
+		GlobalSkillsDir: "~/.config/agents/skills",
+		GlobalConfigDir: "~/.kimi",
+	},
+	{
+		ID:              "kiro-cli",
+		DisplayName:     "Kiro CLI",
+		GlobalSkillsDir: "~/.kiro/skills",
+		GlobalConfigDir: "~/.kiro",
+	},
+	{
+		ID:              "kode",
+		DisplayName:     "Kode",
+		GlobalSkillsDir: "~/.kode/skills",
+		GlobalConfigDir: "~/.kode",
+	},
+	{
+		ID:              "mcpjam",
+		DisplayName:     "MCPJam",
+		GlobalSkillsDir: "~/.mcpjam/skills",
+		GlobalConfigDir: "~/.mcpjam",
+	},
+	{
+		ID:              "mistral-vibe",
+		DisplayName:     "Mistral Vibe",
+		GlobalSkillsDir: "~/.vibe/skills",
+		GlobalConfigDir: "~/.vibe",
+	},
+	{
+		ID:              "mux",
+		DisplayName:     "Mux",
+		GlobalSkillsDir: "~/.mux/skills",
+		GlobalConfigDir: "~/.mux",
+	},
+	{
 		ID:              "opencode",
 		DisplayName:     "OpenCode",
 		GlobalSkillsDir: "~/.config/opencode/skills",
 		GlobalConfigDir: "~/.config/opencode",
 	},
-
-	// Tier 2: VS Code Extensions & IDE Integrations
 	{
-		ID:              "aider",
-		DisplayName:     "Aider",
-		GlobalSkillsDir: "~/.aider/skills",
-		GlobalConfigDir: "~/.aider",
+		ID:              "openhands",
+		DisplayName:     "OpenHands",
+		GlobalSkillsDir: "~/.openhands/skills",
+		GlobalConfigDir: "~/.openhands",
 	},
 	{
-		ID:              "roo-code",
+		ID:              "pi",
+		DisplayName:     "Pi",
+		GlobalSkillsDir: "~/.pi/agent/skills",
+		GlobalConfigDir: "~/.pi/agent",
+	},
+	{
+		ID:              "qoder",
+		DisplayName:     "Qoder",
+		GlobalSkillsDir: "~/.qoder/skills",
+		GlobalConfigDir: "~/.qoder",
+	},
+	{
+		ID:              "qwen-code",
+		DisplayName:     "Qwen Code",
+		GlobalSkillsDir: "~/.qwen/skills",
+		GlobalConfigDir: "~/.qwen",
+	},
+	{
+		ID:              "replit",
+		DisplayName:     "Replit",
+		GlobalSkillsDir: "~/.config/agents/skills",
+		GlobalConfigDir: "~/.config/agents",
+	},
+	{
+		ID:              "roo",
 		DisplayName:     "Roo Code",
 		GlobalSkillsDir: "~/.roo/skills",
 		GlobalConfigDir: "~/.roo",
 	},
 	{
-		ID:              "void",
-		DisplayName:     "Void",
-		GlobalSkillsDir: "~/.void/skills",
-		GlobalConfigDir: "~/.void",
+		ID:              "trae",
+		DisplayName:     "Trae",
+		GlobalSkillsDir: "~/.trae/skills",
+		GlobalConfigDir: "~/.trae",
 	},
 	{
-		ID:              "zed",
-		DisplayName:     "Zed",
-		GlobalSkillsDir: "~/.config/zed/skills",
-		GlobalConfigDir: "~/.config/zed",
+		ID:              "trae-cn",
+		DisplayName:     "Trae CN",
+		GlobalSkillsDir: "~/.trae-cn/skills",
+		GlobalConfigDir: "~/.trae-cn",
 	},
 	{
-		ID:              "sourcegraph-cody",
-		DisplayName:     "Sourcegraph Cody",
-		GlobalSkillsDir: "~/.cody/skills",
-		GlobalConfigDir: "~/.cody",
+		ID:              "windsurf",
+		DisplayName:     "Windsurf",
+		GlobalSkillsDir: "~/.codeium/windsurf/skills",
+		GlobalConfigDir: "~/.codeium/windsurf",
 	},
 	{
-		ID:              "tabnine",
-		DisplayName:     "Tabnine",
-		GlobalSkillsDir: "~/.tabnine/skills",
-		GlobalConfigDir: "~/.tabnine",
+		ID:              "zencoder",
+		DisplayName:     "Zencoder",
+		GlobalSkillsDir: "~/.zencoder/skills",
+		GlobalConfigDir: "~/.zencoder",
 	},
 	{
-		ID:              "codeium",
-		DisplayName:     "Codeium",
-		GlobalSkillsDir: "~/.codeium/skills",
-		GlobalConfigDir: "~/.codeium",
+		ID:              "neovate",
+		DisplayName:     "Neovate",
+		GlobalSkillsDir: "~/.neovate/skills",
+		GlobalConfigDir: "~/.neovate",
 	},
 	{
-		ID:              "amazon-q",
-		DisplayName:     "Amazon Q Developer",
-		GlobalSkillsDir: "~/.amazonq/skills",
-		GlobalConfigDir: "~/.amazonq",
-	},
-
-	// Tier 3: Terminal/CLI Tools
-	{
-		ID:              "warp",
-		DisplayName:     "Warp AI",
-		GlobalSkillsDir: "~/.warp/skills",
-		GlobalConfigDir: "~/.warp",
+		ID:              "pochi",
+		DisplayName:     "Pochi",
+		GlobalSkillsDir: "~/.pochi/skills",
+		GlobalConfigDir: "~/.pochi",
 	},
 	{
-		ID:              "fig",
-		DisplayName:     "Fig",
-		GlobalSkillsDir: "~/.fig/skills",
-		GlobalConfigDir: "~/.fig",
-	},
-	{
-		ID:              "aichat",
-		DisplayName:     "AIChat",
-		GlobalSkillsDir: "~/.config/aichat/skills",
-		GlobalConfigDir: "~/.config/aichat",
-	},
-	{
-		ID:              "shell-gpt",
-		DisplayName:     "ShellGPT",
-		GlobalSkillsDir: "~/.config/shell_gpt/skills",
-		GlobalConfigDir: "~/.config/shell_gpt",
-	},
-
-	// Tier 4: Autonomous Agents
-	{
-		ID:              "devin",
-		DisplayName:     "Devin",
-		GlobalSkillsDir: "~/.devin/skills",
-		GlobalConfigDir: "~/.devin",
-	},
-	{
-		ID:              "mentat",
-		DisplayName:     "Mentat",
-		GlobalSkillsDir: "~/.mentat/skills",
-		GlobalConfigDir: "~/.mentat",
-	},
-	{
-		ID:              "sweep",
-		DisplayName:     "Sweep",
-		GlobalSkillsDir: "~/.sweep/skills",
-		GlobalConfigDir: "~/.sweep",
-	},
-	{
-		ID:              "gpt-engineer",
-		DisplayName:     "GPT Engineer",
-		GlobalSkillsDir: "~/.gpt-engineer/skills",
-		GlobalConfigDir: "~/.gpt-engineer",
-	},
-	{
-		ID:              "smol-developer",
-		DisplayName:     "Smol Developer",
-		GlobalSkillsDir: "~/.smol-developer/skills",
-		GlobalConfigDir: "~/.smol-developer",
-	},
-	{
-		ID:              "gpt-pilot",
-		DisplayName:     "GPT Pilot",
-		GlobalSkillsDir: "~/.gpt-pilot/skills",
-		GlobalConfigDir: "~/.gpt-pilot",
-	},
-	{
-		ID:              "auto-gpt",
-		DisplayName:     "AutoGPT",
-		GlobalSkillsDir: "~/.auto-gpt/skills",
-		GlobalConfigDir: "~/.auto-gpt",
-	},
-	{
-		ID:              "agent-gpt",
-		DisplayName:     "AgentGPT",
-		GlobalSkillsDir: "~/.agent-gpt/skills",
-		GlobalConfigDir: "~/.agent-gpt",
-	},
-
-	// Tier 5: Specialized Tools
-	{
-		ID:              "pr-agent",
-		DisplayName:     "PR Agent",
-		GlobalSkillsDir: "~/.pr-agent/skills",
-		GlobalConfigDir: "~/.pr-agent",
-	},
-	{
-		ID:              "what-the-diff",
-		DisplayName:     "What The Diff",
-		GlobalSkillsDir: "~/.what-the-diff/skills",
-		GlobalConfigDir: "~/.what-the-diff",
-	},
-	{
-		ID:              "codeball",
-		DisplayName:     "Codeball",
-		GlobalSkillsDir: "~/.codeball/skills",
-		GlobalConfigDir: "~/.codeball",
-	},
-	{
-		ID:              "coderabbit",
-		DisplayName:     "CodeRabbit",
-		GlobalSkillsDir: "~/.coderabbit/skills",
-		GlobalConfigDir: "~/.coderabbit",
-	},
-	{
-		ID:              "bito",
-		DisplayName:     "Bito",
-		GlobalSkillsDir: "~/.bito/skills",
-		GlobalConfigDir: "~/.bito",
-	},
-
-	// Tier 6: JetBrains & Other IDEs
-	{
-		ID:              "jetbrains-ai",
-		DisplayName:     "JetBrains AI",
-		GlobalSkillsDir: "~/.config/JetBrains/skills",
-		GlobalConfigDir: "~/.config/JetBrains",
-	},
-	{
-		ID:              "supermaven",
-		DisplayName:     "Supermaven",
-		GlobalSkillsDir: "~/.supermaven/skills",
-		GlobalConfigDir: "~/.supermaven",
-	},
-
-	// Tier 7: Open Source Alternatives
-	{
-		ID:              "ollama",
-		DisplayName:     "Ollama",
-		GlobalSkillsDir: "~/.ollama/skills",
-		GlobalConfigDir: "~/.ollama",
-	},
-	{
-		ID:              "jan",
-		DisplayName:     "Jan",
-		GlobalSkillsDir: "~/.jan/skills",
-		GlobalConfigDir: "~/.jan",
-	},
-	{
-		ID:              "llm",
-		DisplayName:     "LLM CLI",
-		GlobalSkillsDir: "~/.config/io.datasette.llm/skills",
-		GlobalConfigDir: "~/.config/io.datasette.llm",
-	},
-	{
-		ID:              "fabric",
-		DisplayName:     "Fabric",
-		GlobalSkillsDir: "~/.config/fabric/skills",
-		GlobalConfigDir: "~/.config/fabric",
-	},
-
-	// Tier 8: Enterprise Tools
-	{
-		ID:              "pieces",
-		DisplayName:     "Pieces for Developers",
-		GlobalSkillsDir: "~/.pieces/skills",
-		GlobalConfigDir: "~/.pieces",
-	},
-	{
-		ID:              "mintlify",
-		DisplayName:     "Mintlify Writer",
-		GlobalSkillsDir: "~/.mintlify/skills",
-		GlobalConfigDir: "~/.mintlify",
-	},
-	{
-		ID:              "blackbox",
-		DisplayName:     "Blackbox AI",
-		GlobalSkillsDir: "~/.blackbox/skills",
-		GlobalConfigDir: "~/.blackbox",
-	},
-	{
-		ID:              "codegpt",
-		DisplayName:     "CodeGPT",
-		GlobalSkillsDir: "~/.codegpt/skills",
-		GlobalConfigDir: "~/.codegpt",
+		ID:              "adal",
+		DisplayName:     "AdaL",
+		GlobalSkillsDir: "~/.adal/skills",
+		GlobalConfigDir: "~/.adal",
 	},
 }
 
