@@ -1,0 +1,627 @@
+package scribe
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// ============================================================================
+// ValidateSkill (skills.go)
+// ============================================================================
+
+func TestValidateSkill_Valid(t *testing.T) {
+	skill := &Skill{Name: "my-skill", Description: "A valid skill"}
+	if err := ValidateSkill(skill); err != nil {
+		t.Errorf("ValidateSkill(valid) error: %v", err)
+	}
+}
+
+func TestValidateSkill_Nil(t *testing.T) {
+	if err := ValidateSkill(nil); err != ErrInvalidSkill {
+		t.Errorf("ValidateSkill(nil) = %v, want ErrInvalidSkill", err)
+	}
+}
+
+func TestValidateSkill_MissingName(t *testing.T) {
+	skill := &Skill{Description: "Has description but no name"}
+	if err := ValidateSkill(skill); err != ErrMissingName {
+		t.Errorf("ValidateSkill(no name) = %v, want ErrMissingName", err)
+	}
+}
+
+func TestValidateSkill_MissingDescription(t *testing.T) {
+	skill := &Skill{Name: "has-name"}
+	if err := ValidateSkill(skill); err != ErrMissingDesc {
+		t.Errorf("ValidateSkill(no desc) = %v, want ErrMissingDesc", err)
+	}
+}
+
+// ============================================================================
+// SanitizeName (skills.go)
+// ============================================================================
+
+func TestSanitizeName_Simple(t *testing.T) {
+	result := SanitizeName("Hello World")
+	if result != "hello-world" {
+		t.Errorf("SanitizeName('Hello World') = %q, want 'hello-world'", result)
+	}
+}
+
+func TestSanitizeName_Underscores(t *testing.T) {
+	result := SanitizeName("my_cool_skill")
+	if result != "my-cool-skill" {
+		t.Errorf("SanitizeName('my_cool_skill') = %q, want 'my-cool-skill'", result)
+	}
+}
+
+func TestSanitizeName_SpecialChars(t *testing.T) {
+	result := SanitizeName("skill@#$%^&*()")
+	if result != "skill" {
+		t.Errorf("SanitizeName('skill@#$%%^&*()') = %q, want 'skill'", result)
+	}
+}
+
+func TestSanitizeName_ConsecutiveHyphens(t *testing.T) {
+	result := SanitizeName("a - - b")
+	if result != "a-b" {
+		t.Errorf("SanitizeName('a - - b') = %q, want 'a-b'", result)
+	}
+}
+
+func TestSanitizeName_LeadingTrailingHyphens(t *testing.T) {
+	result := SanitizeName("-leading-trailing-")
+	if result != "leading-trailing" {
+		t.Errorf("SanitizeName('-leading-trailing-') = %q, want 'leading-trailing'", result)
+	}
+}
+
+func TestSanitizeName_AllInvalid(t *testing.T) {
+	result := SanitizeName("@#$%")
+	if result != "" {
+		t.Errorf("SanitizeName('@#$%%') = %q, want ''", result)
+	}
+}
+
+func TestSanitizeName_AlreadyValid(t *testing.T) {
+	result := SanitizeName("already-valid-123")
+	if result != "already-valid-123" {
+		t.Errorf("SanitizeName('already-valid-123') = %q, want 'already-valid-123'", result)
+	}
+}
+
+func TestBoost_SanitizeName_Long(t *testing.T) {
+	long := strings.Repeat("a", 300)
+	result := SanitizeName(long)
+	if len(result) > 255 {
+		t.Errorf("SanitizeName long string: len = %d, want <= 255", len(result))
+	}
+}
+
+func TestBoost_SanitizeName_Empty(t *testing.T) {
+	result := SanitizeName("")
+	if result != "" {
+		t.Errorf("SanitizeName('') = %q, want ''", result)
+	}
+}
+
+// ============================================================================
+// GetSkillInfo (skills.go)
+// ============================================================================
+
+func TestGetSkillInfo_WithoutMeta(t *testing.T) {
+	skill := &Skill{
+		Name:        "test-skill",
+		Description: "A test skill",
+	}
+	info := GetSkillInfo(skill)
+	if info.Name != "test-skill" {
+		t.Errorf("info.Name = %q, want 'test-skill'", info.Name)
+	}
+	if info.Description != "A test skill" {
+		t.Errorf("info.Description = %q, want 'A test skill'", info.Description)
+	}
+	if info.Source != "" {
+		t.Errorf("info.Source = %q, want '' (no meta)", info.Source)
+	}
+	if info.SourceType != "" {
+		t.Errorf("info.SourceType = %q, want '' (no meta)", info.SourceType)
+	}
+	if info.InstalledAt != "" {
+		t.Errorf("info.InstalledAt = %q, want '' (no meta)", info.InstalledAt)
+	}
+	if info.Agents == nil {
+		t.Error("info.Agents is nil, want empty slice")
+	}
+}
+
+func TestGetSkillInfo_WithMeta(t *testing.T) {
+	skill := &Skill{
+		Name:        "meta-skill",
+		Description: "Skill with metadata",
+		Meta: &SkillMeta{
+			Source:      "octocat/skills",
+			SourceType:  "github",
+			InstalledAt: "2025-01-15T10:00:00Z",
+		},
+	}
+	info := GetSkillInfo(skill)
+	if info.Source != "octocat/skills" {
+		t.Errorf("info.Source = %q, want 'octocat/skills'", info.Source)
+	}
+	if info.SourceType != "github" {
+		t.Errorf("info.SourceType = %q, want 'github'", info.SourceType)
+	}
+	if info.InstalledAt != "2025-01-15T10:00:00Z" {
+		t.Errorf("info.InstalledAt = %q, want '2025-01-15T10:00:00Z'", info.InstalledAt)
+	}
+}
+
+// ============================================================================
+// GetAgentsWithSkill (skills.go)
+// ============================================================================
+
+func TestBoost_GetAgentsWithSkill_NoAgents(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+
+	agents := GetAgentsWithSkill("some-skill")
+	if len(agents) != 0 {
+		t.Errorf("expected 0 agents with no installations, got %d", len(agents))
+	}
+}
+
+func TestBoost_GetAgentsWithSkill_WithAgent(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	// Create claude-code config dir and a skill in its skills dir
+	_ = os.MkdirAll(filepath.Join(tmpDir, ".claude"), 0o755)
+	skillDir := filepath.Join(tmpDir, ".claude", "skills", "detected-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Skill"), 0o644)
+
+	agents := GetAgentsWithSkill("detected-skill")
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(agents))
+	}
+	if agents[0] != "claude-code" {
+		t.Errorf("agent = %q, want 'claude-code'", agents[0])
+	}
+}
+
+// ============================================================================
+// skillInList (skills.go)
+// ============================================================================
+
+func TestBoost_SkillInList(t *testing.T) {
+	skills := []*Skill{
+		{Name: "a", Description: "A"},
+		{Name: "b", Description: "B"},
+	}
+
+	if !skillInList(skills, "a") {
+		t.Error("skillInList('a') = false, want true")
+	}
+	if !skillInList(skills, "b") {
+		t.Error("skillInList('b') = false, want true")
+	}
+	if skillInList(skills, "c") {
+		t.Error("skillInList('c') = true, want false")
+	}
+	if skillInList(nil, "a") {
+		t.Error("skillInList(nil, 'a') = true, want false")
+	}
+}
+
+// ============================================================================
+// DiscoverSkills (skills.go)
+// ============================================================================
+
+func TestBoost_DiscoverSkillsWithDepth_SkipsDirs(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a skill in node_modules (should be skipped)
+	nmDir := filepath.Join(tmpDir, "node_modules", "some-pkg")
+	_ = os.MkdirAll(nmDir, 0o755)
+	_ = os.WriteFile(filepath.Join(nmDir, "SKILL.md"), []byte("---\nname: hidden\ndescription: hidden\n---\n# Hidden\n"), 0o644)
+
+	// Create a valid skill at root
+	_ = os.WriteFile(filepath.Join(tmpDir, "SKILL.md"), []byte("---\nname: visible\ndescription: visible\n---\n# Visible\n"), 0o644)
+
+	skills, err := DiscoverSkillsWithDepth(tmpDir, 5)
+	if err != nil {
+		t.Fatalf("DiscoverSkillsWithDepth() error: %v", err)
+	}
+
+	// Only the root skill should be found, not the one in node_modules
+	for _, s := range skills {
+		if s.Name == "hidden" {
+			t.Error("skill in node_modules should have been skipped")
+		}
+	}
+
+	found := false
+	for _, s := range skills {
+		if s.Name == "visible" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("root skill not found")
+	}
+}
+
+func TestBoost_DiscoverSkills_NoSkills(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	_, err = DiscoverSkills(tmpDir)
+	if err != ErrNoSkillsFound {
+		t.Errorf("DiscoverSkills(empty) error = %v, want ErrNoSkillsFound", err)
+	}
+}
+
+func TestBoost_DiscoverSkills_InCommonDirs(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Put skills in the "skills/" common dir
+	skillsDir := filepath.Join(tmpDir, "skills", "my-skill")
+	_ = os.MkdirAll(skillsDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte("---\nname: common-skill\ndescription: Common\n---\n# Common\n"), 0o644)
+
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+	if len(skills) < 1 {
+		t.Fatal("expected at least 1 skill in common dir")
+	}
+
+	found := false
+	for _, s := range skills {
+		if s.Name == "common-skill" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("skill in skills/ dir not discovered")
+	}
+}
+
+func TestBoost_DiscoverSkills_ClaudeSkillsDir(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-discover-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create skill in .claude/skills common dir
+	claudeSkillDir := filepath.Join(tmpDir, ".claude", "skills", "claude-skill")
+	_ = os.MkdirAll(claudeSkillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(claudeSkillDir, "SKILL.md"), []byte("---\nname: claude-skill\ndescription: Claude\n---\n# Claude\n"), 0o644)
+
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills error: %v", err)
+	}
+	found := false
+	for _, s := range skills {
+		if s.Name == "claude-skill" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("skill in .claude/skills not discovered")
+	}
+}
+
+func TestBoost_DiscoverSkillsWithDepth_Limit(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-depth-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a skill at depth 3 (too deep for depth=1)
+	deepDir := filepath.Join(tmpDir, "a", "b", "c")
+	_ = os.MkdirAll(deepDir, 0o755)
+	_ = os.WriteFile(filepath.Join(deepDir, "SKILL.md"), []byte("---\nname: deep\ndescription: Deep\n---\n# D\n"), 0o644)
+
+	// Depth 1 should not find it
+	skills, _ := DiscoverSkillsWithDepth(tmpDir, 1)
+	for _, s := range skills {
+		if s.Name == "deep" {
+			t.Error("deep skill should not be found at depth 1")
+		}
+	}
+
+	// Depth 5 should find it
+	skills, _ = DiscoverSkillsWithDepth(tmpDir, 5)
+	found := false
+	for _, s := range skills {
+		if s.Name == "deep" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("deep skill should be found at depth 5")
+	}
+}
+
+// ============================================================================
+// discoverSkillsInDir (skills.go) - private helper
+// ============================================================================
+
+func TestBoost_DiscoverSkillsInDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create nested skills at different depths
+	skill1 := filepath.Join(tmpDir, "skill1")
+	_ = os.MkdirAll(skill1, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1, "SKILL.md"), []byte("---\nname: skill1\ndescription: S1\n---\n# S1\n"), 0o644)
+
+	deepSkill := filepath.Join(tmpDir, "deep", "deeper", "skill2")
+	_ = os.MkdirAll(deepSkill, 0o755)
+	_ = os.WriteFile(filepath.Join(deepSkill, "SKILL.md"), []byte("---\nname: skill2\ndescription: S2\n---\n# S2\n"), 0o644)
+
+	// Depth 1 should only find skill1
+	skills, err := discoverSkillsInDir(tmpDir, 1)
+	if err != nil {
+		t.Fatalf("discoverSkillsInDir(depth=1) error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Errorf("depth 1: expected 1 skill, got %d", len(skills))
+	}
+
+	// Depth 5 should find both
+	skills, err = discoverSkillsInDir(tmpDir, 5)
+	if err != nil {
+		t.Fatalf("discoverSkillsInDir(depth=5) error: %v", err)
+	}
+	if len(skills) != 2 {
+		t.Errorf("depth 5: expected 2 skills, got %d", len(skills))
+	}
+}
+
+// ============================================================================
+// ReadSkill (skills.go)
+// ============================================================================
+
+func TestBoost_ReadSkill_WithMeta(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "read-test")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: read-test\ndescription: Read test\n---\n# Read\n"), 0o644)
+	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), &SkillMeta{
+		Source:      "test/repo",
+		SourceType:  "github",
+		ContentHash: ComputeContentHash("test"),
+		InstalledAt: "2025-01-01T00:00:00Z",
+		UpdatedAt:   "2025-01-01T00:00:00Z",
+	})
+
+	skill, err := ReadSkill("read-test")
+	if err != nil {
+		t.Fatalf("ReadSkill() error: %v", err)
+	}
+	if skill.Name != "read-test" {
+		t.Errorf("skill name = %q, want 'read-test'", skill.Name)
+	}
+	if skill.Meta == nil {
+		t.Fatal("skill.Meta is nil")
+	}
+	if skill.Meta.SourceType != "github" {
+		t.Errorf("meta.SourceType = %q, want 'github'", skill.Meta.SourceType)
+	}
+}
+
+func TestBoost_ReadSkill_NonExistent(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	_, err := ReadSkill("nonexistent-skill-xyz")
+	if err == nil {
+		t.Error("expected error for nonexistent skill")
+	}
+}
+
+// ============================================================================
+// ReadAllSkills / GetAllSkillInfo (skills.go)
+// ============================================================================
+
+func TestBoost_ReadAllSkills(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create skills
+	for _, name := range []string{"read-all-a", "read-all-b"} {
+		skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: "+name+"\ndescription: Test\n---\n# Test\n"), 0o644)
+	}
+
+	skills, err := ReadAllSkills()
+	if err != nil {
+		t.Fatalf("ReadAllSkills() error: %v", err)
+	}
+	if len(skills) != 2 {
+		t.Errorf("ReadAllSkills() returned %d skills, want 2", len(skills))
+	}
+}
+
+func TestBoost_ReadAllSkills_MixedValidity(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+
+	// Valid skill
+	s1 := filepath.Join(scrollsDir, "valid")
+	_ = os.MkdirAll(s1, 0o755)
+	_ = os.WriteFile(filepath.Join(s1, "SKILL.md"), []byte("---\nname: valid\ndescription: Valid\n---\n# V\n"), 0o644)
+
+	// Invalid skill (bad SKILL.md)
+	s2 := filepath.Join(scrollsDir, "invalid")
+	_ = os.MkdirAll(s2, 0o755)
+	_ = os.WriteFile(filepath.Join(s2, "SKILL.md"), []byte("no frontmatter"), 0o644)
+
+	skills, err := ReadAllSkills()
+	if err != nil {
+		t.Fatalf("ReadAllSkills error: %v", err)
+	}
+	// Should only get the valid skill
+	if len(skills) != 1 {
+		t.Errorf("expected 1 valid skill, got %d", len(skills))
+	}
+}
+
+func TestBoost_GetAllSkillInfo(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create a skill
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "info-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: info-skill\ndescription: Info\n---\n# Info\n"), 0o644)
+
+	infos, err := GetAllSkillInfo()
+	if err != nil {
+		t.Fatalf("GetAllSkillInfo() error: %v", err)
+	}
+	if len(infos) != 1 {
+		t.Fatalf("expected 1 skill info, got %d", len(infos))
+	}
+	if infos[0].Name != "info-skill" {
+		t.Errorf("skill name = %q, want 'info-skill'", infos[0].Name)
+	}
+}
+
+// ============================================================================
+// ParseSkillContent (skills.go)
+// ============================================================================
+
+func TestBoost_ParseSkillContent_WithMetadata(t *testing.T) {
+	content := "---\nname: meta-skill\ndescription: Has metadata\nauthor: test\nversion: 1.0\n---\n# Body\n"
+	skill, err := ParseSkillContent(content, "/tmp")
+	if err != nil {
+		t.Fatalf("ParseSkillContent() error: %v", err)
+	}
+	if skill.Name != "meta-skill" {
+		t.Errorf("name = %q, want 'meta-skill'", skill.Name)
+	}
+	if skill.Metadata == nil {
+		t.Fatal("metadata is nil")
+	}
+}
+
+func TestBoost_ParseSkillContent_NoFrontmatter(t *testing.T) {
+	_, err := ParseSkillContent("# No frontmatter here", "/tmp")
+	if err == nil {
+		t.Error("expected error for missing frontmatter")
+	}
+}
+
+func TestBoost_ParseSkillContent_MissingName(t *testing.T) {
+	content := "---\ndescription: No name\n---\n# Body\n"
+	_, err := ParseSkillContent(content, "/tmp")
+	if err != ErrMissingName {
+		t.Errorf("error = %v, want ErrMissingName", err)
+	}
+}
+
+func TestBoost_ParseSkillContent_MissingDescription(t *testing.T) {
+	content := "---\nname: no-desc\n---\n# Body\n"
+	_, err := ParseSkillContent(content, "/tmp")
+	if err != ErrMissingDesc {
+		t.Errorf("error = %v, want ErrMissingDesc", err)
+	}
+}
+
+func TestBoost_ParseSkillContent_InvalidYAML(t *testing.T) {
+	content := "---\ninvalid: [\n---\n# Body\n"
+	_, err := ParseSkillContent(content, "/tmp")
+	if err == nil {
+		t.Error("expected error for invalid YAML in frontmatter")
+	}
+}
+
+func TestBoost_ParseSkillMd_NonExistent(t *testing.T) {
+	_, err := ParseSkillMd("/nonexistent/path/SKILL.md")
+	if err == nil {
+		t.Error("expected error for nonexistent SKILL.md")
+	}
+}
+
+// ============================================================================
+// ListInstalledSkills / SkillExists (skills.go)
+// ============================================================================
+
+func TestBoost_ListInstalledSkills_MixedContent(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	_ = EnsureScribeDirs()
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+
+	// Create a valid skill
+	skillDir := filepath.Join(scrollsDir, "valid-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Valid"), 0o644)
+
+	// Create a directory without SKILL.md
+	_ = os.MkdirAll(filepath.Join(scrollsDir, "not-a-skill"), 0o755)
+
+	// Create a regular file (not a directory)
+	_ = os.WriteFile(filepath.Join(scrollsDir, "random.txt"), []byte("data"), 0o644)
+
+	skills, err := ListInstalledSkills()
+	if err != nil {
+		t.Fatalf("ListInstalledSkills error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Errorf("expected 1 skill, got %d", len(skills))
+	}
+}
+
+func TestBoost_SkillExists_IsolatedHome(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	_ = EnsureScribeDirs()
+
+	exists, err := SkillExists("nonexistent")
+	if err != nil {
+		t.Fatalf("SkillExists error: %v", err)
+	}
+	if exists {
+		t.Error("expected false for nonexistent skill")
+	}
+
+	// Create skill
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "exists-test")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# E"), 0o644)
+
+	exists, err = SkillExists("exists-test")
+	if err != nil {
+		t.Fatalf("SkillExists error: %v", err)
+	}
+	if !exists {
+		t.Error("expected true for existing skill")
+	}
+}

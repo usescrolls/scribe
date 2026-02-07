@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,6 +58,22 @@ func TestFetchResult_Cleanup_EmptyContentDir(t *testing.T) {
 		IsCached:   false,
 	}
 	result.Cleanup()
+}
+
+func TestFetchResult_Cleanup_IsCachedWithContent(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-cleanup-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	result := &FetchResult{
+		ContentDir: tmpDir,
+		IsCached:   true,
+	}
+	result.Cleanup()
+
+	// Cached dir should NOT be removed
+	if _, err := os.Stat(tmpDir); err != nil {
+		t.Error("cached content dir should not be removed by Cleanup()")
+	}
 }
 
 func TestFetchAndDiscoverSkills_Local(t *testing.T) {
@@ -164,6 +181,151 @@ func TestFetchAndDiscoverSkills_WellKnown(t *testing.T) {
 	}
 }
 
+func TestFetchAndDiscoverSkills_GitHub(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	remoteDir := filepath.Join(tmpDir, "github-repo")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"SKILL.md": "---\nname: github-skill\ndescription: GitHub\n---\n# GitHub Skill\n",
+	})
+
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "testuser",
+		Repo:  "github-test",
+		URL:   remoteDir,
+	}
+
+	skills, result, err := FetchAndDiscoverSkills(source)
+	if result != nil {
+		defer result.Cleanup()
+	}
+	if err != nil {
+		t.Fatalf("FetchAndDiscoverSkills(github) error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "github-skill" {
+		t.Errorf("skill name = %q, want 'github-skill'", skills[0].Name)
+	}
+	if result != nil && !result.IsCached {
+		t.Error("expected IsCached=true for github source")
+	}
+}
+
+func TestFetchAndDiscoverSkills_GitHubWithSubpath(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	remoteDir := filepath.Join(tmpDir, "subpath-repo")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"skills/my-skill/SKILL.md": "---\nname: subpath-skill\ndescription: Subpath\n---\n# Subpath\n",
+	})
+
+	source := &SourceInfo{
+		Type:    "github",
+		Owner:   "testuser",
+		Repo:    "subpath-test",
+		URL:     remoteDir,
+		Subpath: "skills",
+	}
+
+	skills, result, err := FetchAndDiscoverSkills(source)
+	if result != nil {
+		defer result.Cleanup()
+	}
+	if err != nil {
+		t.Fatalf("FetchAndDiscoverSkills(github+subpath) error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "subpath-skill" {
+		t.Errorf("skill name = %q, want 'subpath-skill'", skills[0].Name)
+	}
+}
+
+func TestFetchAndDiscoverSkills_GitLab(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	remoteDir := filepath.Join(tmpDir, "gitlab-repo")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"SKILL.md": "---\nname: gitlab-skill\ndescription: GitLab\n---\n# GitLab Skill\n",
+	})
+
+	source := &SourceInfo{
+		Type:  "gitlab",
+		Owner: "testuser",
+		Repo:  "gitlab-test",
+		URL:   remoteDir,
+	}
+
+	skills, result, err := FetchAndDiscoverSkills(source)
+	if result != nil {
+		defer result.Cleanup()
+	}
+	if err != nil {
+		t.Fatalf("FetchAndDiscoverSkills(gitlab) error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "gitlab-skill" {
+		t.Errorf("skill name = %q, want 'gitlab-skill'", skills[0].Name)
+	}
+}
+
+func TestFetchAndDiscoverSkills_Zip(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	// Create a zip file with a SKILL.md
+	zipPath := filepath.Join(tmpDir, "skills.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("create zip: %v", err)
+	}
+	w := zip.NewWriter(zipFile)
+	fw, _ := w.Create("SKILL.md")
+	_, _ = fw.Write([]byte("---\nname: zip-skill\ndescription: Zip\n---\n# Zip\n"))
+	_ = w.Close()
+	_ = zipFile.Close()
+
+	// Serve the zip
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, zipPath)
+	}))
+	defer srv.Close()
+
+	source := &SourceInfo{
+		Type: "zip",
+		URL:  srv.URL + "/skills.zip",
+	}
+
+	skills, result, err := FetchAndDiscoverSkills(source)
+	if result != nil {
+		defer result.Cleanup()
+	}
+	if err != nil {
+		t.Fatalf("FetchAndDiscoverSkills(zip) error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "zip-skill" {
+		t.Errorf("skill name = %q, want 'zip-skill'", skills[0].Name)
+	}
+	if result != nil && result.IsCached {
+		t.Error("expected IsCached=false for zip source")
+	}
+}
+
 func TestFindZipCommonRoot(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -210,6 +372,28 @@ func TestFindZipCommonRoot(t *testing.T) {
 				t.Errorf("findZipCommonRoot() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestFindZipCommonRoot_SingleDir(t *testing.T) {
+	files := []*zip.File{
+		{FileHeader: zip.FileHeader{Name: "root/"}},
+	}
+	result := findZipCommonRoot(files)
+	// A single directory entry "root/" counts as a common root prefix
+	if result != "root/" {
+		t.Errorf("findZipCommonRoot(single dir) = %q, want 'root/'", result)
+	}
+}
+
+func TestFindZipCommonRoot_MixedRoots(t *testing.T) {
+	files := []*zip.File{
+		{FileHeader: zip.FileHeader{Name: "a/file1.txt"}},
+		{FileHeader: zip.FileHeader{Name: "b/file2.txt"}},
+	}
+	result := findZipCommonRoot(files)
+	if result != "" {
+		t.Errorf("findZipCommonRoot(mixed roots) = %q, want ''", result)
 	}
 }
 
@@ -331,5 +515,174 @@ func TestDownloadAndExtractZip_BadStatus(t *testing.T) {
 	_, err := DownloadAndExtractZip(srv.URL + "/missing.zip")
 	if err == nil {
 		t.Error("expected error for 404 response")
+	}
+}
+
+func TestDownloadAndExtractZip_InvalidZip(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("this is not a zip file"))
+	}))
+	defer srv.Close()
+
+	_, err := DownloadAndExtractZip(srv.URL + "/bad.zip")
+	if err == nil {
+		t.Error("expected error for invalid zip content")
+	}
+}
+
+func TestDownloadAndExtractZip_WithSubdirectories(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-zip-test-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a zip with a subdirectory structure (common root)
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("create zip: %v", err)
+	}
+	w := zip.NewWriter(zipFile)
+
+	// Add directory entries with proper permissions
+	dirHeader := &zip.FileHeader{Name: "root/"}
+	dirHeader.SetMode(0o755 | os.ModeDir)
+	_, _ = w.CreateHeader(dirHeader)
+
+	subDirHeader := &zip.FileHeader{Name: "root/sub/"}
+	subDirHeader.SetMode(0o755 | os.ModeDir)
+	_, _ = w.CreateHeader(subDirHeader)
+
+	fw, _ := w.Create("root/file.txt")
+	_, _ = fw.Write([]byte("content"))
+
+	fw2, _ := w.Create("root/sub/nested.txt")
+	_, _ = fw2.Write([]byte("nested"))
+
+	_ = w.Close()
+	_ = zipFile.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, zipPath)
+	}))
+	defer srv.Close()
+
+	extractDir, err := DownloadAndExtractZip(srv.URL + "/test.zip")
+	if err != nil {
+		t.Fatalf("DownloadAndExtractZip error: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(extractDir) }()
+
+	// Common root "root/" should be stripped
+	if _, err := os.Stat(filepath.Join(extractDir, "file.txt")); err != nil {
+		t.Error("file.txt not found after extraction (common root should be stripped)")
+	}
+	if _, err := os.Stat(filepath.Join(extractDir, "sub", "nested.txt")); err != nil {
+		t.Error("sub/nested.txt not found after extraction")
+	}
+}
+
+func TestDownloadAndExtractZip_EmptyZip(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-zip-test-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	zipPath := filepath.Join(tmpDir, "empty.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("create zip: %v", err)
+	}
+	w := zip.NewWriter(zipFile)
+	_ = w.Close()
+	_ = zipFile.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, zipPath)
+	}))
+	defer srv.Close()
+
+	extractDir, err := DownloadAndExtractZip(srv.URL + "/empty.zip")
+	if err != nil {
+		t.Fatalf("DownloadAndExtractZip(empty) error: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(extractDir) }()
+
+	// Should succeed with empty directory
+	entries, err := os.ReadDir(extractDir)
+	if err != nil {
+		t.Fatalf("read extracted dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries in empty zip extraction, got %d", len(entries))
+	}
+}
+
+func TestDownloadAndExtractZip_ConnectionError(t *testing.T) {
+	_, err := DownloadAndExtractZip("http://localhost:1/nonexistent.zip")
+	if err == nil {
+		t.Error("expected error for connection failure")
+	}
+}
+
+func TestExtractZipFile(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-extract-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a zip file
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	zipFile, _ := os.Create(zipPath)
+	w := zip.NewWriter(zipFile)
+	fw, _ := w.Create("test.txt")
+	_, _ = fw.Write([]byte("extracted content"))
+	_ = w.Close()
+	_ = zipFile.Close()
+
+	// Open and extract
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		t.Fatalf("OpenReader error: %v", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	destPath := filepath.Join(tmpDir, "output.txt")
+	err = extractZipFile(reader.File[0], destPath)
+	if err != nil {
+		t.Fatalf("extractZipFile error: %v", err)
+	}
+
+	data, _ := os.ReadFile(destPath)
+	if string(data) != "extracted content" {
+		t.Errorf("extracted content = %q, want 'extracted content'", string(data))
+	}
+}
+
+func TestDownloadAndExtractZip_ZipSlip(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-zipslip-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a zip with a path traversal attempt
+	zipPath := filepath.Join(tmpDir, "evil.zip")
+	zipFile, _ := os.Create(zipPath)
+	w := zip.NewWriter(zipFile)
+	fw, _ := w.Create("../../etc/passwd")
+	_, _ = fw.Write([]byte("evil"))
+	_ = w.Close()
+	_ = zipFile.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, zipPath)
+	}))
+	defer srv.Close()
+
+	_, err := DownloadAndExtractZip(srv.URL + "/evil.zip")
+	if err == nil {
+		t.Error("expected error for zip slip attack")
+	}
+	if !strings.Contains(err.Error(), "invalid file path") {
+		t.Errorf("error = %q, want 'invalid file path'", err.Error())
 	}
 }
