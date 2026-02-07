@@ -28,9 +28,16 @@
           >
             Browse All
           </button>
+          <button
+            :class="['tab', { active: activeTab === 'install' }]"
+            @click="activeTab = 'install'; selectedAgent = null"
+          >
+            Install
+          </button>
         </div>
         <SkillList v-if="activeTab === 'workspace'" :agent-filter="selectedAgent" />
-        <BrowseSkills v-else />
+        <BrowseSkills v-else-if="activeTab === 'browse'" />
+        <InstallSkills v-else-if="activeTab === 'install'" />
       </main>
     </div>
   </div>
@@ -40,6 +47,7 @@
 import { ref, onMounted } from 'vue'
 import SkillList from './components/SkillList.vue'
 import BrowseSkills from './components/BrowseSkills.vue'
+import InstallSkills from './components/InstallSkills.vue'
 import SidebarWorkspaceList from './components/SidebarWorkspaceList.vue'
 import AgentStatusPanel from './components/AgentStatusPanel.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
@@ -49,7 +57,7 @@ const version = ref('1.0.0')
 const selectedAgent = ref<string | null>(null)
 const showOnboarding = ref(false)
 const onboardingChecked = ref(false)
-const activeTab = ref<'workspace' | 'browse'>('workspace')
+const activeTab = ref<'workspace' | 'browse' | 'install'>('workspace')
 
 onMounted(async () => {
   try {

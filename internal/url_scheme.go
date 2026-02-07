@@ -8,10 +8,10 @@ import (
 
 // InstallResult contains the result of a URL scheme installation
 type InstallResult struct {
-	Success      bool
-	SkillsCount  int
-	SkillNames   []string
-	ErrorMessage string
+	Success      bool     `json:"success"`
+	SkillsCount  int      `json:"skillsCount"`
+	SkillNames   []string `json:"skillNames"`
+	ErrorMessage string   `json:"errorMessage"`
 }
 
 // HandleInstallURL parses an agenthub:// URL and installs the skills

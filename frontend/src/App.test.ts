@@ -80,6 +80,18 @@ describe("App", () => {
       )
     })
 
+    it("switches to install tab on click", async () => {
+      const wrapper = await mountApp()
+
+      const installTab = wrapper.findAll(".tab")[2]
+      await installTab.trigger("click")
+
+      expect(installTab.classes()).toContain("active")
+      expect(wrapper.findComponent({ name: "InstallSkills" }).exists()).toBe(
+        true,
+      )
+    })
+
     it("switches back to workspace tab", async () => {
       const wrapper = await mountApp()
 

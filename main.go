@@ -468,6 +468,73 @@ func (a *AppService) ResolveSkillConflict(skillPath string) error {
 	return scribe.ImportSelectedSkills([]string{skillPath})
 }
 
+// InstallFromSource installs skills from a source string (e.g. "owner/repo", GitHub URL, zip URL)
+func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult, error) {
+	scribe.Logger.Info("AppService.InstallFromSource called", "source", sourceStr)
+
+	source, err := scribe.ParseSourceString(sourceStr)
+	if err != nil {
+		return &scribe.InstallResult{ErrorMessage: err.Error()}, nil
+	}
+
+	// Ensure directories exist
+	if err := scribe.EnsureScribeDirs(); err != nil {
+		return &scribe.InstallResult{ErrorMessage: fmt.Sprintf("Failed to create directories: %v", err)}, nil
+	}
+	if err := scribe.EnsureDefaultWorkspace(); err != nil {
+		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
+	}
+
+	// Fetch and discover skills
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
+	if err != nil {
+		return &scribe.InstallResult{ErrorMessage: fmt.Sprintf("Failed to fetch skills: %v", err)}, nil
+	}
+
+	if len(skills) == 0 {
+		return &scribe.InstallResult{ErrorMessage: "No skills found in source"}, nil
+	}
+
+	// Install each discovered skill
+	result := &scribe.InstallResult{}
+	opts := scribe.InstallOptions{Yes: true}
+	for _, skill := range skills {
+		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
+
+		if err := scribe.InstallSkill(skill, source, opts); err != nil {
+			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
+			continue
+		}
+
+		if err := scribe.AddSkillToActiveAndDefaultWorkspace(skill.Name); err != nil {
+			scribe.Logger.Warn("failed to add to workspace", "skill", skill.Name, "error", err)
+		}
+
+		result.SkillNames = append(result.SkillNames, skill.Name)
+	}
+
+	result.SkillsCount = len(result.SkillNames)
+	result.Success = result.SkillsCount > 0
+
+	if !result.Success {
+		result.ErrorMessage = "Failed to install any skills"
+	}
+
+	// Emit event to update frontend
+	if wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+
+	scribe.Logger.Info("AppService.InstallFromSource completed",
+		"skills_installed", result.SkillsCount,
+		"skill_names", result.SkillNames)
+
+	return result, nil
+}
+
 // InstallDemoSkill installs the scribe-welcome demo skill
 func (a *AppService) InstallDemoSkill() error {
 	err := scribe.InstallDemoSkill()

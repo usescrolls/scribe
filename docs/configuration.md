@@ -109,6 +109,34 @@ When fetching from a source, Scribe discovers skills by:
 
 A valid skill is a directory containing a `SKILL.md` file with valid frontmatter (name + description).
 
+### Multi-Skill Sources
+
+A single git repository or zip URL can contain multiple skills. Scribe discovers all `SKILL.md` files in the source and installs each one individually.
+
+**Example repo structure:**
+```
+owner/my-skills/
+├── skills/
+│   ├── react-patterns/
+│   │   └── SKILL.md
+│   ├── typescript-tips/
+│   │   └── SKILL.md
+│   └── go-idioms/
+│       └── SKILL.md
+└── README.md
+```
+
+Running `scribe install owner/my-skills` discovers all 3 skills. Each is installed to its own directory under `~/.scribe/scrolls/` and tracked independently via `.scribe-meta.json` (the `skillPath` field records where the skill lives within the source).
+
+**Selective install:**
+```bash
+scribe install owner/my-skills --list                          # List discovered skills
+scribe install owner/my-skills --skill react-patterns,go-idioms  # Install specific skills
+scribe install owner/my-skills --all                            # Install all to all agents
+```
+
+This works the same for all source types: GitHub, GitLab, local paths, and zip URLs.
+
 ---
 
 ## Skill Format (SKILL.md)

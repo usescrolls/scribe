@@ -34,3 +34,10 @@ export interface SkillConflict {
   name: string
   sources: ExistingSkillInfo[]
 }
+
+export interface InstallResult {
+  success: boolean
+  skillsCount: number
+  skillNames: string[]
+  errorMessage: string
+}

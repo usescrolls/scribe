@@ -50,6 +50,14 @@ scribe install owner/repo --skill react-patterns --agent claude-code,cursor
 scribe install owner/repo --list
 ```
 
+**Multi-skill sources:** When a source contains multiple skills, Scribe discovers all of them. Use `--list` to preview, `--skill` to pick specific ones (comma-separated), or `--all` to install everything.
+
+```bash
+scribe install owner/multi-skill-repo --list                             # Preview available skills
+scribe install owner/multi-skill-repo --skill react-patterns,go-idioms   # Install two specific skills
+scribe install owner/multi-skill-repo --all                              # Install all discovered skills
+```
+
 ### `scribe uninstall`
 
 Remove an installed skill.
