@@ -41,3 +41,14 @@ export interface InstallResult {
   skillNames: string[]
   errorMessage: string
 }
+
+export interface DiscoverResult {
+  skills: DiscoveredSkill[]
+  source: string
+  sourceType: string
+}
+
+export interface DiscoveredSkill {
+  name: string
+  description: string
+}

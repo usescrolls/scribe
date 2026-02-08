@@ -104,3 +104,16 @@ type SkillConflict struct {
 	Name    string              `json:"name"`
 	Sources []ExistingSkillInfo `json:"sources"`
 }
+
+// DiscoverResult is the frontend-friendly result of discovering skills from a source
+type DiscoverResult struct {
+	Skills     []DiscoveredSkill `json:"skills"`
+	Source     string            `json:"source"`
+	SourceType string            `json:"sourceType"`
+}
+
+// DiscoveredSkill represents a skill found during source discovery (before install)
+type DiscoveredSkill struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}

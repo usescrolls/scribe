@@ -18,8 +18,8 @@ describe("BrowseSkills", () => {
     {
       name: "typescript-tips",
       description: "TypeScript tips",
-      source: "local/path",
-      sourceType: "local",
+      source: "vercel-labs/skills",
+      sourceType: "github",
       installedAt: "2025-01-28T10:00:00Z",
       agents: ["claude-code"],
     },
@@ -39,6 +39,12 @@ describe("BrowseSkills", () => {
       description: "My workspace",
       skills: ["react-patterns"],
       isActive: true,
+    },
+    {
+      name: "other",
+      description: "",
+      skills: [],
+      isActive: false,
     },
   ]
 
@@ -80,35 +86,44 @@ describe("BrowseSkills", () => {
       expect(wrapper.text()).toContain("No skills installed yet")
     })
 
-    it("shows available skills count", async () => {
+    it("shows total skills count", async () => {
       const wrapper = await mountBrowseSkills()
 
-      // allSkills is skillsNotInWorkspace, so 2 out of 3
-      expect(wrapper.find(".count").text()).toBe("2 skills available")
+      expect(wrapper.find(".count").text()).toBe("3 skills installed")
     })
 
-    it("shows workspace hint", async () => {
+    it("groups skills by source", async () => {
       const wrapper = await mountBrowseSkills()
 
-      expect(wrapper.find(".workspace-hint").text()).toContain("my-workspace")
+      const groups = wrapper.findAll(".source-group")
+      expect(groups).toHaveLength(2)
     })
 
-    it("shows skills not in workspace with add button", async () => {
+    it("shows source badge and name in group header", async () => {
       const wrapper = await mountBrowseSkills()
 
-      // Skills not in workspace: typescript-tips, vue-utils
-      const mainList = wrapper.find(".skills-list:not(.muted)")
-      const cards = mainList.findAllComponents({ name: "SkillCard" })
-      expect(cards).toHaveLength(2)
+      const badges = wrapper.findAll(".group-badge")
+      expect(badges.length).toBeGreaterThanOrEqual(2)
+      expect(badges[0].text()).toBe("github")
+
+      const sources = wrapper.findAll(".group-source")
+      expect(sources[0].text()).toBe("vercel-labs/skills")
+      expect(sources[1].text()).toBe("vue/skills")
     })
 
-    it("shows skills already in workspace section", async () => {
+    it("shows skill count per group", async () => {
       const wrapper = await mountBrowseSkills()
 
-      expect(wrapper.find(".in-workspace-section").exists()).toBe(true)
-      expect(wrapper.find(".section-label").text()).toContain(
-        "Already in workspace (1)",
-      )
+      const counts = wrapper.findAll(".group-count")
+      expect(counts[0].text()).toBe("2")
+      expect(counts[1].text()).toBe("1")
+    })
+
+    it("renders all skills across groups", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      expect(cards).toHaveLength(3)
     })
 
     it("renders uninstall button on all skills", async () => {
@@ -119,15 +134,39 @@ describe("BrowseSkills", () => {
         expect(card.props("showUninstall")).toBe(true)
       })
     })
+
+    it("renders workspace picker on all skills", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("showWorkspacePicker")).toBe(true)
+      })
+    })
+
+    it("passes workspace membership to skill cards", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      // react-patterns is in my-workspace
+      const reactCard = cards.find(
+        (c) => c.props("skill").name === "react-patterns",
+      )
+      expect(reactCard?.props("skillWorkspaces")).toEqual(["my-workspace"])
+
+      // vue-utils is not in any workspace
+      const vueCard = cards.find((c) => c.props("skill").name === "vue-utils")
+      expect(vueCard?.props("skillWorkspaces")).toEqual([])
+    })
   })
 
   describe("add to workspace", () => {
-    it("calls AddSkillToWorkspace", async () => {
+    it("calls AddSkillToWorkspace on add-to-workspace event", async () => {
       mockAppService.AddSkillToWorkspace.mockResolvedValue(undefined)
 
       const wrapper = await mountBrowseSkills()
       const card = wrapper.findComponent({ name: "SkillCard" })
-      await card.vm.$emit("add", "typescript-tips")
+      await card.vm.$emit("add-to-workspace", "typescript-tips", "my-workspace")
       await flushPromises()
 
       expect(mockAppService.AddSkillToWorkspace).toHaveBeenCalledWith(
@@ -143,10 +182,30 @@ describe("BrowseSkills", () => {
 
       const wrapper = await mountBrowseSkills()
       const card = wrapper.findComponent({ name: "SkillCard" })
-      await card.vm.$emit("add", "typescript-tips")
+      await card.vm.$emit("add-to-workspace", "typescript-tips", "my-workspace")
       await flushPromises()
 
       expect(wrapper.text()).toContain("Add failed")
+    })
+  })
+
+  describe("remove from workspace", () => {
+    it("calls RemoveSkillFromWorkspace on remove-from-workspace event", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit(
+        "remove-from-workspace",
+        "react-patterns",
+        "my-workspace",
+      )
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "react-patterns",
+        "my-workspace",
+      )
     })
   })
 

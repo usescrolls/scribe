@@ -5,7 +5,43 @@
       <span class="name">{{ skill.name }}</span>
       <span v-if="skill.description" class="description">{{ truncatedDescription }}</span>
     </div>
+    <div class="skill-meta" v-if="skillWorkspaces && skillWorkspaces.length > 0">
+      <span
+        v-for="ws in skillWorkspaces"
+        :key="ws"
+        class="ws-badge"
+      >{{ ws }}</span>
+    </div>
     <div class="skill-right">
+      <!-- Workspace picker dropdown -->
+      <div v-if="showWorkspacePicker" class="ws-picker-wrapper">
+        <button
+          class="action-btn ws-picker-btn"
+          @click.stop="togglePicker"
+          title="Add to workspace"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="btn-label">Workspace</span>
+        </button>
+        <div v-if="pickerOpen" class="ws-picker-dropdown">
+          <label
+            v-for="ws in allWorkspaces"
+            :key="ws.name"
+            class="ws-picker-item"
+            @click.stop
+          >
+            <input
+              type="checkbox"
+              :checked="skillWorkspaces?.includes(ws.name)"
+              @change="handleWorkspaceToggle(ws.name, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="ws-picker-name">{{ ws.name }}</span>
+          </label>
+        </div>
+      </div>
       <button
         v-if="showAdd"
         class="action-btn add-btn"
@@ -46,8 +82,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { SkillInfo } from '../types/skill'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const props = withDefaults(defineProps<{
   skill: SkillInfo
@@ -55,18 +91,52 @@ const props = withDefaults(defineProps<{
   showUninstall?: boolean
   showRemove?: boolean
   showAdd?: boolean
+  showWorkspacePicker?: boolean
+  skillWorkspaces?: string[]
+  allWorkspaces?: WorkspaceInfo[]
 }>(), {
   mode: 'compact',
   showUninstall: false,
   showRemove: false,
-  showAdd: false
+  showAdd: false,
+  showWorkspacePicker: false,
+  skillWorkspaces: () => [],
+  allWorkspaces: () => []
 })
 
-defineEmits<{
+const emit = defineEmits<{
   uninstall: [name: string]
   remove: [name: string]
   add: [name: string]
+  'add-to-workspace': [skillName: string, workspaceName: string]
+  'remove-from-workspace': [skillName: string, workspaceName: string]
 }>()
+
+const pickerOpen = ref(false)
+
+function togglePicker() {
+  pickerOpen.value = !pickerOpen.value
+}
+
+function handleWorkspaceToggle(workspaceName: string, checked: boolean) {
+  if (checked) {
+    emit('add-to-workspace', props.skill.name, workspaceName)
+  } else {
+    emit('remove-from-workspace', props.skill.name, workspaceName)
+  }
+}
+
+function closePicker() {
+  pickerOpen.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', closePicker)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closePicker)
+})
 
 const truncatedDescription = computed(() => {
   if (!props.skill.description) return ''
@@ -74,7 +144,6 @@ const truncatedDescription = computed(() => {
   if (props.skill.description.length <= maxLen) return props.skill.description
   return props.skill.description.slice(0, maxLen).trim() + '...'
 })
-
 </script>
 
 <style scoped>
@@ -130,6 +199,23 @@ const truncatedDescription = computed(() => {
   text-overflow: ellipsis;
 }
 
+.skill-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.ws-badge {
+  padding: 0.0625rem 0.3rem;
+  background-color: rgba(0, 113, 227, 0.1);
+  color: var(--accent-color);
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .skill-right {
   flex-shrink: 0;
   display: flex;
@@ -168,8 +254,55 @@ const truncatedDescription = computed(() => {
   color: white;
 }
 
-.add-btn:hover {
+.add-btn:hover,
+.ws-picker-btn:hover {
   background-color: var(--accent-color);
   color: white;
+}
+
+/* Workspace picker dropdown */
+.ws-picker-wrapper {
+  position: relative;
+}
+
+.ws-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  min-width: 160px;
+  margin-top: 0.25rem;
+  padding: 0.25rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ws-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.ws-picker-item:hover {
+  background-color: var(--bg-primary);
+}
+
+.ws-picker-item input[type="checkbox"] {
+  width: 0.75rem;
+  height: 0.75rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ws-picker-name {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 </style>

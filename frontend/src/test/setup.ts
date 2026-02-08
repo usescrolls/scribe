@@ -27,6 +27,9 @@ export const mockAppService = {
   ResolveSkillConflict: vi.fn(),
   InstallDemoSkill: vi.fn(),
   InstallFromSource: vi.fn(),
+  DiscoverFromSource: vi.fn(),
+  ConfirmInstall: vi.fn(),
+  CancelDiscover: vi.fn(),
 }
 
 // Mock the scribe bindings module

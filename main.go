@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -138,6 +139,7 @@ func runGUIMode() {
 
 				// Emit events to update frontend
 				wailsApp.Event.Emit("skills-updated", nil)
+				wailsApp.Event.Emit("workspace-changed", nil)
 
 				// Show the window to confirm installation
 				if mainWindow != nil {
@@ -221,11 +223,26 @@ func runGUIMode() {
 }
 
 // AppService provides bindings for the frontend
-type AppService struct{}
+type AppService struct {
+	mu            sync.Mutex
+	pendingSource *scribe.SourceInfo
+	pendingSkills []*scribe.Skill
+	pendingFetch  *scribe.FetchResult
+}
 
 // NewAppService creates a new AppService
 func NewAppService() *AppService {
 	return &AppService{}
+}
+
+// clearPending cleans up any pending discover state (must be called with mu held)
+func (a *AppService) clearPending() {
+	if a.pendingFetch != nil {
+		a.pendingFetch.Cleanup()
+	}
+	a.pendingSource = nil
+	a.pendingSkills = nil
+	a.pendingFetch = nil
 }
 
 // GetVersion returns the application version
@@ -523,9 +540,10 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		result.ErrorMessage = "Failed to install any skills"
 	}
 
-	// Emit event to update frontend
+	// Emit events to update frontend
 	if wailsApp != nil {
 		wailsApp.Event.Emit("skills-updated", nil)
+		wailsApp.Event.Emit("workspace-changed", nil)
 	}
 
 	scribe.Logger.Info("AppService.InstallFromSource completed",
@@ -533,6 +551,148 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		"skill_names", result.SkillNames)
 
 	return result, nil
+}
+
+// DiscoverFromSource fetches a source and returns discovered skills without installing
+func (a *AppService) DiscoverFromSource(sourceStr string) (*scribe.DiscoverResult, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	scribe.Logger.Info("AppService.DiscoverFromSource called", "source", sourceStr)
+
+	// Clean up any previous pending state
+	a.clearPending()
+
+	source, err := scribe.ParseSourceString(sourceStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid source: %w", err)
+	}
+
+	// Ensure directories exist
+	if err := scribe.EnsureScribeDirs(); err != nil {
+		return nil, fmt.Errorf("failed to create directories: %w", err)
+	}
+
+	// Fetch and discover skills
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	if err != nil {
+		if fetchResult != nil {
+			fetchResult.Cleanup()
+		}
+		return nil, fmt.Errorf("failed to fetch skills: %w", err)
+	}
+
+	if len(skills) == 0 {
+		if fetchResult != nil {
+			fetchResult.Cleanup()
+		}
+		return nil, fmt.Errorf("no skills found in source")
+	}
+
+	// Cache for ConfirmInstall
+	a.pendingSource = source
+	a.pendingSkills = skills
+	a.pendingFetch = fetchResult
+
+	// Build result
+	result := &scribe.DiscoverResult{
+		Source:     sourceStr,
+		SourceType: source.Type,
+	}
+	for _, skill := range skills {
+		result.Skills = append(result.Skills, scribe.DiscoveredSkill{
+			Name:        skill.Name,
+			Description: skill.Description,
+		})
+	}
+
+	scribe.Logger.Info("AppService.DiscoverFromSource completed",
+		"skills_found", len(skills))
+
+	return result, nil
+}
+
+// ConfirmInstall installs previously discovered skills and optionally adds them to workspaces
+func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scribe.InstallResult, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	scribe.Logger.Info("AppService.ConfirmInstall called",
+		"skills", skillNames, "workspaces", workspaceNames)
+
+	if a.pendingSkills == nil || a.pendingSource == nil {
+		return &scribe.InstallResult{ErrorMessage: "No pending discovery. Call DiscoverFromSource first."}, nil
+	}
+
+	// Build a set of requested skill names
+	requested := make(map[string]bool, len(skillNames))
+	for _, name := range skillNames {
+		requested[name] = true
+	}
+
+	// Ensure default workspace exists
+	if err := scribe.EnsureDefaultWorkspace(); err != nil {
+		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
+	}
+
+	// Install each requested skill
+	result := &scribe.InstallResult{}
+	opts := scribe.InstallOptions{Yes: true}
+	for _, skill := range a.pendingSkills {
+		if !requested[skill.Name] {
+			continue
+		}
+
+		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
+
+		if err := scribe.InstallSkill(skill, a.pendingSource, opts); err != nil {
+			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
+			continue
+		}
+
+		// Add to selected workspaces
+		for _, wsName := range workspaceNames {
+			if err := scribe.AddSkillToWorkspace(skill.Name, wsName); err != nil {
+				scribe.Logger.Warn("failed to add to workspace",
+					"skill", skill.Name, "workspace", wsName, "error", err)
+			}
+		}
+
+		result.SkillNames = append(result.SkillNames, skill.Name)
+	}
+
+	result.SkillsCount = len(result.SkillNames)
+	result.Success = result.SkillsCount > 0
+
+	if !result.Success {
+		result.ErrorMessage = "Failed to install any skills"
+	}
+
+	// Cleanup pending state
+	a.clearPending()
+
+	// Emit events to update frontend
+	if wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+		if len(workspaceNames) > 0 {
+			wailsApp.Event.Emit("workspace-changed", nil)
+		}
+	}
+
+	scribe.Logger.Info("AppService.ConfirmInstall completed",
+		"skills_installed", result.SkillsCount,
+		"skill_names", result.SkillNames)
+
+	return result, nil
+}
+
+// CancelDiscover cancels a pending discovery and cleans up resources
+func (a *AppService) CancelDiscover() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	scribe.Logger.Info("AppService.CancelDiscover called")
+	a.clearPending()
 }
 
 // InstallDemoSkill installs the scribe-welcome demo skill

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { flushPromises } from "@vue/test-utils"
+import { mount, flushPromises } from "@vue/test-utils"
+import { defineComponent } from "vue"
 import { useOnboarding } from "./useOnboarding"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockEvents } from "../test/setup"
 
 describe("useOnboarding", () => {
   beforeEach(() => {
@@ -404,6 +405,76 @@ describe("useOnboarding", () => {
 
       previousStep()
       expect(currentStep.value).toBe("welcome")
+    })
+  })
+
+  describe("fetchAgents error handling", () => {
+    it("handles fetchAgents error gracefully", async () => {
+      mockAppService.GetAgentStatus.mockRejectedValue(
+        new Error("Network error"),
+      )
+
+      const { agents, agentsLoading, fetchAgents } = useOnboarding()
+      await fetchAgents()
+
+      expect(agents.value).toEqual([])
+      expect(agentsLoading.value).toBe(false)
+    })
+  })
+
+  describe("fetchExistingSkills error handling", () => {
+    it("handles fetchExistingSkills error gracefully", async () => {
+      mockAppService.DetectExistingSkills.mockRejectedValue(
+        new Error("Network error"),
+      )
+
+      const { existingSkills, existingSkillsLoading, fetchExistingSkills } =
+        useOnboarding()
+      await fetchExistingSkills()
+
+      expect(existingSkills.value).toEqual([])
+      expect(existingSkillsLoading.value).toBe(false)
+    })
+  })
+
+  describe("lifecycle hooks", () => {
+    function createWrapperComponent() {
+      return defineComponent({
+        setup() {
+          const result = useOnboarding()
+          return { ...result }
+        },
+        template: "<div />",
+      })
+    }
+
+    it("checks onboarding status on mount", async () => {
+      mount(createWrapperComponent())
+      await flushPromises()
+
+      expect(mockAppService.IsOnboardingCompleted).toHaveBeenCalled()
+    })
+
+    it("subscribes to onboarding-completed event on mount", async () => {
+      mount(createWrapperComponent())
+      await flushPromises()
+
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "onboarding-completed",
+        expect.any(Function),
+      )
+    })
+
+    it("unsubscribes and stops scan on unmount", async () => {
+      const unsubFn = vi.fn()
+      mockEvents.On.mockReturnValue(unsubFn)
+
+      const wrapper = mount(createWrapperComponent())
+      await flushPromises()
+
+      wrapper.unmount()
+
+      expect(unsubFn).toHaveBeenCalled()
     })
   })
 })

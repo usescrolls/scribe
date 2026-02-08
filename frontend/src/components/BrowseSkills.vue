@@ -8,36 +8,31 @@
       <span>{{ error }}</span>
       <button class="btn-secondary" @click="fetchAll">Retry</button>
     </div>
-    <div v-else-if="allSkills.length === 0" class="empty">
+    <div v-else-if="allSkillsRaw.length === 0" class="empty">
       <p>No skills installed yet.</p>
     </div>
     <div v-else class="skills">
       <div class="skills-header">
-        <span class="count">{{ allSkills.length }} skill{{ allSkills.length !== 1 ? 's' : '' }} available</span>
-        <span v-if="activeWorkspaceName" class="workspace-hint">
-          Adding to: <strong>{{ activeWorkspaceName }}</strong>
-        </span>
+        <span class="count">{{ allSkillsRaw.length }} skill{{ allSkillsRaw.length !== 1 ? 's' : '' }} installed</span>
       </div>
-      <div class="skills-list">
-        <SkillCard
-          v-for="skill in allSkills"
-          :key="skill.name"
-          :skill="skill"
-          :show-uninstall="true"
-          :show-add="!isInWorkspace(skill.name)"
-          @add="handleAdd"
-          @uninstall="handleUninstall"
-        />
-      </div>
-      <div v-if="skillsInWorkspace.length > 0" class="in-workspace-section">
-        <span class="section-label">Already in workspace ({{ skillsInWorkspace.length }})</span>
-        <div class="skills-list muted">
+
+      <div v-for="group in groupedSkills" :key="group.source" class="source-group">
+        <div class="group-header">
+          <span class="group-badge">{{ group.sourceType }}</span>
+          <span class="group-source">{{ group.source }}</span>
+          <span class="group-count">{{ group.skills.length }}</span>
+        </div>
+        <div class="skills-list">
           <SkillCard
-            v-for="skill in skillsInWorkspace"
+            v-for="skill in group.skills"
             :key="skill.name"
             :skill="skill"
             :show-uninstall="true"
-            :show-add="false"
+            :show-workspace-picker="true"
+            :skill-workspaces="getSkillWorkspaces(skill.name)"
+            :all-workspaces="workspaces"
+            @add-to-workspace="handleAddToWorkspace"
+            @remove-from-workspace="handleRemoveFromWorkspace"
             @uninstall="handleUninstall"
           />
         </div>
@@ -60,32 +55,28 @@ const error = ref<string | null>(null)
 let unsubscribeSkills: { (): void } | null = null
 let unsubscribeWorkspace: { (): void } | null = null
 
-const activeWorkspace = computed(() => {
-  return workspaces.value.find(ws => ws.isActive)
+interface SourceGroup {
+  source: string
+  sourceType: string
+  skills: SkillInfo[]
+}
+
+const groupedSkills = computed<SourceGroup[]>(() => {
+  const groups = new Map<string, SourceGroup>()
+  for (const skill of allSkillsRaw.value) {
+    const key = skill.source || 'unknown'
+    if (!groups.has(key)) {
+      groups.set(key, { source: skill.source || 'Unknown source', sourceType: skill.sourceType || 'local', skills: [] })
+    }
+    groups.get(key)!.skills.push(skill)
+  }
+  return [...groups.values()]
 })
 
-const activeWorkspaceName = computed(() => {
-  return activeWorkspace.value?.name || 'default'
-})
-
-const workspaceSkillNames = computed(() => {
-  return new Set(activeWorkspace.value?.skills || [])
-})
-
-const skillsNotInWorkspace = computed(() => {
-  return allSkillsRaw.value.filter(skill => !workspaceSkillNames.value.has(skill.name))
-})
-
-const skillsInWorkspace = computed(() => {
-  return allSkillsRaw.value.filter(skill => workspaceSkillNames.value.has(skill.name))
-})
-
-const allSkills = computed(() => {
-  return skillsNotInWorkspace.value
-})
-
-function isInWorkspace(skillName: string): boolean {
-  return workspaceSkillNames.value.has(skillName)
+function getSkillWorkspaces(skillName: string): string[] {
+  return workspaces.value
+    .filter(ws => ws.skills.includes(skillName))
+    .map(ws => ws.name)
 }
 
 async function fetchAll() {
@@ -105,12 +96,21 @@ async function fetchAll() {
   }
 }
 
-async function handleAdd(skillName: string) {
+async function handleAddToWorkspace(skillName: string, workspaceName: string) {
   try {
-    await AppService.AddSkillToWorkspace(skillName, activeWorkspaceName.value)
+    await AppService.AddSkillToWorkspace(skillName, workspaceName)
     await fetchAll()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to add skill'
+    error.value = e instanceof Error ? e.message : 'Failed to add skill to workspace'
+  }
+}
+
+async function handleRemoveFromWorkspace(skillName: string, workspaceName: string) {
+  try {
+    await AppService.RemoveSkillFromWorkspace(skillName, workspaceName)
+    await fetchAll()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to remove skill from workspace'
   }
 }
 
@@ -181,11 +181,27 @@ onUnmounted(() => {
   color: var(--danger-color);
 }
 
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-primary);
+}
+
 .skills-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .count {
@@ -193,35 +209,46 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
-.workspace-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+/* Source groups */
+.source-group {
+  margin-bottom: 1.25rem;
 }
 
-.workspace-hint strong {
-  color: var(--accent-color);
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.group-badge {
+  padding: 0.125rem 0.375rem;
+  background-color: var(--accent-color);
+  color: white;
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.group-source {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.group-count {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  margin-left: auto;
 }
 
 .skills-list {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-}
-
-.skills-list.muted {
-  opacity: 0.6;
-}
-
-.in-workspace-section {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.section-label {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
 }
 </style>

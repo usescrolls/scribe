@@ -102,5 +102,65 @@ describe("App", () => {
 
       expect(wrapper.findComponent({ name: "SkillList" }).exists()).toBe(true)
     })
+
+    it("passes agent filter to SkillList on agent selected", async () => {
+      const wrapper = await mountApp()
+
+      const agentPanel = wrapper.findComponent({ name: "AgentStatusPanel" })
+      await agentPanel.vm.$emit("agent-selected", "claude-code")
+
+      expect(
+        wrapper.findComponent({ name: "SkillList" }).props("agentFilter"),
+      ).toBe("claude-code")
+    })
+
+    it("clears agent filter when selecting null", async () => {
+      const wrapper = await mountApp()
+
+      const agentPanel = wrapper.findComponent({ name: "AgentStatusPanel" })
+      await agentPanel.vm.$emit("agent-selected", "claude-code")
+      await agentPanel.vm.$emit("agent-selected", null)
+
+      expect(
+        wrapper.findComponent({ name: "SkillList" }).props("agentFilter"),
+      ).toBe(null)
+    })
+
+    it("clears agent filter when switching to browse tab", async () => {
+      const wrapper = await mountApp()
+
+      // Set agent filter
+      const agentPanel = wrapper.findComponent({ name: "AgentStatusPanel" })
+      await agentPanel.vm.$emit("agent-selected", "claude-code")
+
+      // Switch to browse tab — should clear selectedAgent
+      await wrapper.findAll(".tab")[1].trigger("click")
+
+      // Switch back to workspace to check SkillList
+      await wrapper.findAll(".tab")[0].trigger("click")
+
+      expect(
+        wrapper.findComponent({ name: "SkillList" }).props("agentFilter"),
+      ).toBe(null)
+    })
+  })
+
+  describe("onboarding completion", () => {
+    it("hides onboarding and shows main app on complete", async () => {
+      mockAppService.IsOnboardingCompleted.mockResolvedValue(false)
+
+      const wrapper = await mountApp()
+      expect(wrapper.findComponent({ name: "OnboardingWizard" }).exists()).toBe(
+        true,
+      )
+
+      const wizard = wrapper.findComponent({ name: "OnboardingWizard" })
+      await wizard.vm.$emit("complete")
+
+      expect(wrapper.findComponent({ name: "OnboardingWizard" }).exists()).toBe(
+        false,
+      )
+      expect(wrapper.find(".app").exists()).toBe(true)
+    })
   })
 })

@@ -225,6 +225,23 @@ describe("SidebarWorkspaceList", () => {
 
       expect(wrapper.find(".add-workspace-form").exists()).toBe(false)
     })
+
+    it("keeps form open when creation fails", async () => {
+      mockAppService.CreateWorkspace.mockRejectedValue(
+        new Error("Already exists"),
+      )
+
+      const wrapper = await mountComponent()
+
+      await wrapper.find(".add-btn").trigger("click")
+
+      const input = wrapper.find(".add-workspace-form input")
+      await input.setValue("default")
+      await wrapper.find(".create-btn").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.find(".add-workspace-form").exists()).toBe(true)
+    })
   })
 
   describe("delete workspace", () => {

@@ -9,6 +9,7 @@ export function useWorkspaces() {
   const loading = ref(true)
   const error = ref<string | null>(null)
   let unsubscribe: { (): void } | null = null
+  let unsubscribeSkills: { (): void } | null = null
 
   async function fetchWorkspaces() {
     try {
@@ -71,12 +72,12 @@ export function useWorkspaces() {
   onMounted(() => {
     fetchWorkspaces()
     unsubscribe = Events.On("workspace-changed", fetchWorkspaces)
+    unsubscribeSkills = Events.On("skills-updated", fetchWorkspaces)
   })
 
   onUnmounted(() => {
-    if (unsubscribe) {
-      unsubscribe()
-    }
+    if (unsubscribe) unsubscribe()
+    if (unsubscribeSkills) unsubscribeSkills()
   })
 
   return {

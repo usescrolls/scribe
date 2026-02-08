@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { flushPromises } from "@vue/test-utils"
+import { mount, flushPromises } from "@vue/test-utils"
+import { defineComponent } from "vue"
 import { useSkills } from "./useSkills"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockEvents } from "../test/setup"
 import type { SkillInfo } from "../types/skill"
 
 describe("useSkills", () => {
@@ -127,6 +128,61 @@ describe("useSkills", () => {
     it("starts with no error", () => {
       const { error } = useSkills()
       expect(error.value).toBe(null)
+    })
+  })
+
+  describe("lifecycle hooks", () => {
+    function createWrapperComponent() {
+      return defineComponent({
+        setup() {
+          const result = useSkills()
+          return { ...result }
+        },
+        template: "<div />",
+      })
+    }
+
+    it("fetches skills on mount", async () => {
+      mount(createWrapperComponent())
+      await flushPromises()
+
+      expect(mockAppService.GetSkills).toHaveBeenCalled()
+    })
+
+    it("subscribes to skills-updated event on mount", async () => {
+      mount(createWrapperComponent())
+      await flushPromises()
+
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "skills-updated",
+        expect.any(Function),
+      )
+    })
+
+    it("subscribes to workspace-changed event on mount", async () => {
+      mount(createWrapperComponent())
+      await flushPromises()
+
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "workspace-changed",
+        expect.any(Function),
+      )
+    })
+
+    it("unsubscribes from events on unmount", async () => {
+      const unsubSkills = vi.fn()
+      const unsubWorkspace = vi.fn()
+      mockEvents.On.mockReturnValueOnce(unsubSkills).mockReturnValueOnce(
+        unsubWorkspace,
+      )
+
+      const wrapper = mount(createWrapperComponent())
+      await flushPromises()
+
+      wrapper.unmount()
+
+      expect(unsubSkills).toHaveBeenCalled()
+      expect(unsubWorkspace).toHaveBeenCalled()
     })
   })
 })
