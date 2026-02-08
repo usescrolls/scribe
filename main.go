@@ -359,7 +359,12 @@ func (a *AppService) CreateWorkspace(name, description string) error {
 
 // DeleteWorkspace removes a workspace
 func (a *AppService) DeleteWorkspace(name string) error {
-	return scribe.DeleteWorkspace(name)
+	err := scribe.DeleteWorkspace(name)
+	if err == nil && wailsApp != nil {
+		wailsApp.Event.Emit("workspace-changed", name)
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+	return err
 }
 
 // AddSkillToWorkspace adds a skill to a specific workspace

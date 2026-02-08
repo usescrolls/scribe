@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import InstallSkills from "./InstallSkills.vue"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockEvents } from "../test/setup"
 import type { WorkspaceInfo } from "../types/skill"
 
 const mockWorkspaces: WorkspaceInfo[] = [
@@ -616,6 +616,58 @@ describe("InstallSkills", () => {
       expect(wrapper.find(".result-error").exists()).toBe(true)
       await wrapper.find(".dismiss-btn").trigger("click")
       expect(wrapper.find(".result-error").exists()).toBe(false)
+    })
+  })
+
+  describe("workspace-changed event", () => {
+    it("refreshes workspace list when workspace-changed fires", async () => {
+      // Capture the callback registered for 'workspace-changed'
+      type Callback = () => void
+      let workspaceChangedCallback: Callback | null = null
+      ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
+        (event: string, cb: Callback) => {
+          if (event === "workspace-changed") {
+            workspaceChangedCallback = cb
+          }
+          return vi.fn()
+        },
+      )
+
+      const workspacesAfterDelete: WorkspaceInfo[] = [
+        { name: "default", description: "", skills: [], isActive: true },
+      ]
+
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "my-skill", description: "" }],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await flushPromises()
+
+      // Navigate to workspace step
+      await wrapper.find("input").setValue("owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+      await wrapper.find(".btn-primary").trigger("click")
+      await flushPromises()
+
+      // Verify both workspaces are shown initially
+      expect(wrapper.findAll(".workspace-check-item")).toHaveLength(2)
+
+      // Simulate a workspace deletion by returning fewer workspaces
+      mockAppService.GetWorkspaces.mockResolvedValue(workspacesAfterDelete)
+
+      // Fire the workspace-changed event
+      expect(workspaceChangedCallback).not.toBeNull()
+      workspaceChangedCallback!()
+      await flushPromises()
+
+      // Workspace list should now reflect the deletion
+      expect(wrapper.findAll(".workspace-check-item")).toHaveLength(1)
+      expect(wrapper.text()).toContain("default")
+      expect(wrapper.text()).not.toContain("other")
     })
   })
 })

@@ -89,6 +89,46 @@ func TestBoost_DeleteWorkspace_Success(t *testing.T) {
 	}
 }
 
+func TestBoost_DeleteWorkspace_NotInListAfterDelete(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	ws := &Workspace{Name: "ephemeral", Skills: []string{}}
+	_ = CreateWorkspace(ws)
+
+	// Verify it appears in the list before deletion
+	before, err := ListWorkspaces()
+	if err != nil {
+		t.Fatalf("ListWorkspaces() before error: %v", err)
+	}
+	foundBefore := false
+	for _, w := range before {
+		if w.Name == "ephemeral" {
+			foundBefore = true
+		}
+	}
+	if !foundBefore {
+		t.Fatal("workspace not found in list before deletion")
+	}
+
+	// Delete and verify it's gone from the list
+	if err := DeleteWorkspace("ephemeral"); err != nil {
+		t.Fatalf("DeleteWorkspace() error: %v", err)
+	}
+
+	after, err := ListWorkspaces()
+	if err != nil {
+		t.Fatalf("ListWorkspaces() after error: %v", err)
+	}
+	for _, w := range after {
+		if w.Name == "ephemeral" {
+			t.Error("deleted workspace still appears in ListWorkspaces")
+		}
+	}
+}
+
 func TestBoost_DeleteWorkspace_DefaultFails(t *testing.T) {
 	_ = setupTempHome(t)
 	InitLoggerCLI(false)
