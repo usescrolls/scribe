@@ -3,6 +3,7 @@ export interface SkillInfo {
   description: string
   source: string
   sourceType: string
+  sourceUrl?: string
   installedAt: string
   agents: string[]
 }

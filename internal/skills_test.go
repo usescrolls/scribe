@@ -128,6 +128,9 @@ func TestGetSkillInfo_WithoutMeta(t *testing.T) {
 	if info.SourceType != "" {
 		t.Errorf("info.SourceType = %q, want '' (no meta)", info.SourceType)
 	}
+	if info.SourceURL != "" {
+		t.Errorf("info.SourceURL = %q, want '' (no meta)", info.SourceURL)
+	}
 	if info.InstalledAt != "" {
 		t.Errorf("info.InstalledAt = %q, want '' (no meta)", info.InstalledAt)
 	}
@@ -143,6 +146,7 @@ func TestGetSkillInfo_WithMeta(t *testing.T) {
 		Meta: &SkillMeta{
 			Source:      "octocat/skills",
 			SourceType:  "github",
+			SourceURL:   "https://github.com/octocat/skills",
 			InstalledAt: "2025-01-15T10:00:00Z",
 		},
 	}
@@ -152,6 +156,9 @@ func TestGetSkillInfo_WithMeta(t *testing.T) {
 	}
 	if info.SourceType != "github" {
 		t.Errorf("info.SourceType = %q, want 'github'", info.SourceType)
+	}
+	if info.SourceURL != "https://github.com/octocat/skills" {
+		t.Errorf("info.SourceURL = %q, want 'https://github.com/octocat/skills'", info.SourceURL)
 	}
 	if info.InstalledAt != "2025-01-15T10:00:00Z" {
 		t.Errorf("info.InstalledAt = %q, want '2025-01-15T10:00:00Z'", info.InstalledAt)

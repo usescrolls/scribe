@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import { Dialogs } from "@wailsio/runtime"
 import SkillList from "./SkillList.vue"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
 describe("SkillList", () => {
@@ -94,6 +94,53 @@ describe("SkillList", () => {
       const wrapper = await mountSkillList()
 
       expect(wrapper.find(".count").text()).toBe("2 skills in workspace")
+    })
+
+    it("groups skills by source", async () => {
+      const wrapper = await mountSkillList()
+
+      const groups = wrapper.findAll(".source-group")
+      expect(groups).toHaveLength(2)
+    })
+
+    it("renders source as link when sourceUrl is present", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+        mockSkills[1],
+      ])
+
+      const wrapper = await mountSkillList()
+
+      const links = wrapper.findAll(".group-source-link")
+      expect(links).toHaveLength(1)
+      expect(links[0].text()).toBe("vercel-labs/skills")
+
+      const plainSources = wrapper.findAll(
+        ".group-source:not(.group-source-link)",
+      )
+      expect(plainSources).toHaveLength(1)
+      expect(plainSources[0].text()).toBe("local/path")
+    })
+
+    it("opens source URL in browser on click", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+
+      const link = wrapper.find(".group-source-link")
+      await link.trigger("click")
+
+      expect(mockBrowser.OpenURL).toHaveBeenCalledWith(
+        "https://github.com/vercel-labs/skills",
+      )
     })
 
     it("shows singular skill text for 1 skill", async () => {

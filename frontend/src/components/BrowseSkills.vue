@@ -19,7 +19,19 @@
       <div v-for="group in groupedSkills" :key="group.source" class="source-group">
         <div class="group-header">
           <span class="group-badge">{{ group.sourceType }}</span>
-          <span class="group-source">{{ group.source }}</span>
+          <a
+            v-if="group.sourceUrl"
+            class="group-source group-source-link"
+            @click.prevent="Browser.OpenURL(group.sourceUrl!)"
+          >
+            {{ group.source }}
+            <svg class="external-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+          <span v-else class="group-source">{{ group.source }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
         </div>
         <div class="skills-list">
@@ -43,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Dialogs, Events } from '@wailsio/runtime'
+import { Browser, Dialogs, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
@@ -58,6 +70,7 @@ let unsubscribeWorkspace: { (): void } | null = null
 interface SourceGroup {
   source: string
   sourceType: string
+  sourceUrl?: string
   skills: SkillInfo[]
 }
 
@@ -66,7 +79,7 @@ const groupedSkills = computed<SourceGroup[]>(() => {
   for (const skill of allSkillsRaw.value) {
     const key = skill.source || 'unknown'
     if (!groups.has(key)) {
-      groups.set(key, { source: skill.source || 'Unknown source', sourceType: skill.sourceType || 'local', skills: [] })
+      groups.set(key, { source: skill.source || 'Unknown source', sourceType: skill.sourceType || 'local', sourceUrl: skill.sourceUrl, skills: [] })
     }
     groups.get(key)!.skills.push(skill)
   }
@@ -238,6 +251,34 @@ onUnmounted(() => {
   font-weight: 500;
   color: var(--text-primary);
   font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.group-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-primary);
+  padding: 0.0625rem 0.375rem;
+  margin: -0.0625rem -0.375rem;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.group-source-link:hover {
+  color: var(--accent-color);
+  background-color: rgba(0, 113, 227, 0.08);
+}
+
+.external-icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.group-source-link:hover .external-icon {
+  opacity: 0.7;
 }
 
 .group-count {

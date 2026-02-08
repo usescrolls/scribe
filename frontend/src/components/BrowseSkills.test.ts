@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import { Dialogs } from "@wailsio/runtime"
 import BrowseSkills from "./BrowseSkills.vue"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
 describe("BrowseSkills", () => {
@@ -109,6 +109,51 @@ describe("BrowseSkills", () => {
       const sources = wrapper.findAll(".group-source")
       expect(sources[0].text()).toBe("vercel-labs/skills")
       expect(sources[1].text()).toBe("vue/skills")
+    })
+
+    it("renders source as link when sourceUrl is present", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+        {
+          ...mockSkills[1],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+        mockSkills[2],
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const links = wrapper.findAll(".group-source-link")
+      expect(links).toHaveLength(1)
+      expect(links[0].text()).toBe("vercel-labs/skills")
+
+      // Group without sourceUrl renders as plain span
+      const plainSources = wrapper.findAll(
+        ".group-source:not(.group-source-link)",
+      )
+      expect(plainSources).toHaveLength(1)
+      expect(plainSources[0].text()).toBe("vue/skills")
+    })
+
+    it("opens source URL in browser on click", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const link = wrapper.find(".group-source-link")
+      await link.trigger("click")
+
+      expect(mockBrowser.OpenURL).toHaveBeenCalledWith(
+        "https://github.com/vercel-labs/skills",
+      )
     })
 
     it("shows skill count per group", async () => {

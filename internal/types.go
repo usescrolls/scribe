@@ -67,10 +67,11 @@ type SourceInfo struct {
 type SkillInfo struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
-	Source      string   `json:"source"`      // Human-readable source
-	SourceType  string   `json:"sourceType"`  // github, local, url, etc.
-	InstalledAt string   `json:"installedAt"` // ISO formatted timestamp
-	Agents      []string `json:"agents"`      // List of agent IDs with this skill
+	Source      string   `json:"source"`              // Human-readable source
+	SourceType  string   `json:"sourceType"`          // github, local, url, etc.
+	SourceURL   string   `json:"sourceUrl,omitempty"` // Full URL to source repo/page
+	InstalledAt string   `json:"installedAt"`         // ISO formatted timestamp
+	Agents      []string `json:"agents"`              // List of agent IDs with this skill
 }
 
 // WorkspaceInfo is the frontend-friendly representation of a workspace

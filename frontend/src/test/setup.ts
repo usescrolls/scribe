@@ -43,8 +43,13 @@ export const mockEvents = {
   Emit: vi.fn(),
 }
 
+export const mockBrowser = {
+  OpenURL: vi.fn(),
+}
+
 vi.mock("@wailsio/runtime", () => ({
   Events: mockEvents,
+  Browser: mockBrowser,
   Dialogs: {
     Question: vi.fn(),
   },

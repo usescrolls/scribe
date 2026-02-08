@@ -309,6 +309,7 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 	if skill.Meta != nil {
 		info.Source = skill.Meta.Source
 		info.SourceType = skill.Meta.SourceType
+		info.SourceURL = skill.Meta.SourceURL
 		info.InstalledAt = skill.Meta.InstalledAt
 	}
 
