@@ -1,5 +1,14 @@
 <template>
   <div class="browse-skills">
+    <ConfirmDialog
+      v-if="confirmUninstallName"
+      title="Uninstall Skill"
+      :message="`Uninstall &quot;${confirmUninstallName}&quot;? This will remove it from all workspaces.`"
+      confirm-label="Uninstall"
+      :danger="true"
+      @confirm="executeUninstall"
+      @cancel="confirmUninstallName = null"
+    />
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
       <span>Loading skills...</span>
@@ -55,9 +64,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Browser, Dialogs, Events } from '@wailsio/runtime'
+import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const allSkillsRaw = ref<SkillInfo[]>([])
@@ -127,20 +137,19 @@ async function handleRemoveFromWorkspace(skillName: string, workspaceName: strin
   }
 }
 
-async function handleUninstall(name: string) {
+const confirmUninstallName = ref<string | null>(null)
+
+function handleUninstall(name: string) {
+  confirmUninstallName.value = name
+}
+
+async function executeUninstall() {
+  const name = confirmUninstallName.value
+  confirmUninstallName.value = null
+  if (!name) return
   try {
-    const result = await Dialogs.Question({
-      Title: 'Uninstall Skill',
-      Message: `Uninstall "${name}"? This will remove it from all workspaces.`,
-      Buttons: [
-        { Label: 'Uninstall', IsDefault: true },
-        { Label: 'Cancel', IsCancel: true }
-      ]
-    })
-    if (result === 'Uninstall') {
-      await AppService.RemoveSkill(name)
-      await fetchAll()
-    }
+    await AppService.RemoveSkill(name)
+    await fetchAll()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to uninstall skill'
   }

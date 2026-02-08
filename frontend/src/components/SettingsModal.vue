@@ -1,33 +1,41 @@
 <template>
   <Teleport to="body">
-    <div class="settings-backdrop" @click.self="$emit('close')">
-      <div class="settings-modal" @keydown.escape="$emit('close')">
-        <div class="modal-header">
-          <h2>Settings</h2>
-          <button class="close-btn" @click="$emit('close')" title="Close">×</button>
-        </div>
-        <div class="modal-body">
-          <section class="settings-section">
-            <h3 class="section-title">Agents</h3>
-            <AgentStatusPanel />
-          </section>
+    <Transition name="modal" appear @after-leave="$emit('close')">
+      <div v-if="visible" class="settings-backdrop" @click.self="handleClose">
+        <div class="settings-modal">
+          <div class="modal-header">
+            <h2>Settings</h2>
+            <button class="close-btn" @click="handleClose" title="Close">×</button>
+          </div>
+          <div class="modal-body">
+            <section class="settings-section">
+              <h3 class="section-title">Agents</h3>
+              <AgentStatusPanel />
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AgentStatusPanel from './AgentStatusPanel.vue'
 
-const emit = defineEmits<{
+defineEmits<{
   close: []
 }>()
 
+const visible = ref(true)
+
+function handleClose() {
+  visible.value = false
+}
+
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
-    emit('close')
+    handleClose()
   }
 }
 
@@ -119,5 +127,31 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 0.75rem 0;
+}
+
+/* Modal transition */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.modal-enter-active .settings-modal,
+.modal-leave-active .settings-modal {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-from .settings-modal {
+  transform: scale(0.95);
+  opacity: 0;
+}
+
+.modal-leave-to .settings-modal {
+  transform: scale(0.95);
+  opacity: 0;
 }
 </style>

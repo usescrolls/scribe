@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
-import { Dialogs } from "@wailsio/runtime"
 import BrowseSkills from "./BrowseSkills.vue"
+import ConfirmDialog from "./ConfirmDialog.vue"
 import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
@@ -255,8 +255,19 @@ describe("BrowseSkills", () => {
   })
 
   describe("uninstall", () => {
+    it("shows confirm dialog on uninstall", async () => {
+      const wrapper = await mountBrowseSkills()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("uninstall", "typescript-tips")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      expect(dialog.exists()).toBe(true)
+      expect(dialog.props("title")).toBe("Uninstall Skill")
+      expect(dialog.props("danger")).toBe(true)
+    })
+
     it("calls RemoveSkill on confirm", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Uninstall")
       mockAppService.RemoveSkill.mockResolvedValue(undefined)
 
       const wrapper = await mountBrowseSkills()
@@ -264,25 +275,27 @@ describe("BrowseSkills", () => {
       await card.vm.$emit("uninstall", "typescript-tips")
       await flushPromises()
 
-      expect(Dialogs.Question).toHaveBeenCalledWith(
-        expect.objectContaining({ Title: "Uninstall Skill" }),
-      )
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("confirm")
+      await flushPromises()
+
       expect(mockAppService.RemoveSkill).toHaveBeenCalledWith("typescript-tips")
     })
 
     it("does not uninstall on cancel", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Cancel")
-
       const wrapper = await mountBrowseSkills()
       const card = wrapper.findComponent({ name: "SkillCard" })
       await card.vm.$emit("uninstall", "typescript-tips")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("cancel")
       await flushPromises()
 
       expect(mockAppService.RemoveSkill).not.toHaveBeenCalled()
     })
 
     it("shows error on uninstall failure", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Uninstall")
       mockAppService.RemoveSkill.mockRejectedValue(
         new Error("Uninstall failed"),
       )
@@ -290,6 +303,10 @@ describe("BrowseSkills", () => {
       const wrapper = await mountBrowseSkills()
       const card = wrapper.findComponent({ name: "SkillCard" })
       await card.vm.$emit("uninstall", "react-patterns")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("confirm")
       await flushPromises()
 
       expect(wrapper.text()).toContain("Uninstall failed")

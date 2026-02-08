@@ -1,5 +1,14 @@
 <template>
   <div class="skill-list">
+    <ConfirmDialog
+      v-if="confirmRemoveName"
+      title="Remove from Workspace"
+      :message="`Remove &quot;${confirmRemoveName}&quot; from this workspace?`"
+      confirm-label="Remove"
+      :danger="true"
+      @confirm="executeRemove"
+      @cancel="confirmRemoveName = null"
+    />
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
       <span>Loading skills...</span>
@@ -48,10 +57,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Browser, Dialogs, Events } from '@wailsio/runtime'
+import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import EmptyState from './EmptyState.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const skills = ref<SkillInfo[]>([])
@@ -109,20 +119,19 @@ async function fetchAll() {
   }
 }
 
-async function handleRemove(name: string) {
+const confirmRemoveName = ref<string | null>(null)
+
+function handleRemove(name: string) {
+  confirmRemoveName.value = name
+}
+
+async function executeRemove() {
+  const name = confirmRemoveName.value
+  confirmRemoveName.value = null
+  if (!name) return
   try {
-    const result = await Dialogs.Question({
-      Title: 'Remove from Workspace',
-      Message: `Remove "${name}" from this workspace?`,
-      Buttons: [
-        { Label: 'Remove', IsDefault: true },
-        { Label: 'Cancel', IsCancel: true }
-      ]
-    })
-    if (result === 'Remove') {
-      await AppService.RemoveSkillFromWorkspace(name, activeWorkspace.value?.name || 'default')
-      await fetchAll()
-    }
+    await AppService.RemoveSkillFromWorkspace(name, activeWorkspace.value?.name || 'default')
+    await fetchAll()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to remove skill from workspace'
   }

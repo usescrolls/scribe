@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
-import { Dialogs } from "@wailsio/runtime"
 import SkillList from "./SkillList.vue"
+import ConfirmDialog from "./ConfirmDialog.vue"
 import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
@@ -167,8 +167,19 @@ describe("SkillList", () => {
       expect(card.props("showRemove")).toBe(true)
     })
 
+    it("shows confirm dialog on remove", async () => {
+      const wrapper = await mountSkillList()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("remove", "react-patterns")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      expect(dialog.exists()).toBe(true)
+      expect(dialog.props("title")).toBe("Remove from Workspace")
+      expect(dialog.props("danger")).toBe(true)
+    })
+
     it("calls RemoveSkillFromWorkspace on confirm", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Remove")
       mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
 
       const wrapper = await mountSkillList()
@@ -176,9 +187,10 @@ describe("SkillList", () => {
       await card.vm.$emit("remove", "react-patterns")
       await flushPromises()
 
-      expect(Dialogs.Question).toHaveBeenCalledWith(
-        expect.objectContaining({ Title: "Remove from Workspace" }),
-      )
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("confirm")
+      await flushPromises()
+
       expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
         "react-patterns",
         "default",
@@ -186,18 +198,19 @@ describe("SkillList", () => {
     })
 
     it("does not remove on cancel", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Cancel")
-
       const wrapper = await mountSkillList()
       const card = wrapper.findComponent({ name: "SkillCard" })
       await card.vm.$emit("remove", "react-patterns")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("cancel")
       await flushPromises()
 
       expect(mockAppService.RemoveSkillFromWorkspace).not.toHaveBeenCalled()
     })
 
     it("shows error on remove failure", async () => {
-      vi.mocked(Dialogs.Question).mockResolvedValue("Remove")
       mockAppService.RemoveSkillFromWorkspace.mockRejectedValue(
         new Error("Permission denied"),
       )
@@ -205,6 +218,10 @@ describe("SkillList", () => {
       const wrapper = await mountSkillList()
       const card = wrapper.findComponent({ name: "SkillCard" })
       await card.vm.$emit("remove", "react-patterns")
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      await dialog.vm.$emit("confirm")
       await flushPromises()
 
       expect(wrapper.text()).toContain("Permission denied")

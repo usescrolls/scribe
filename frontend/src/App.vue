@@ -44,9 +44,11 @@
       <WorkspaceDropdown />
     </nav>
     <main class="main">
-      <SkillList v-if="activeTab === 'workspace'" />
-      <BrowseSkills v-else-if="activeTab === 'browse'" />
-      <InstallSkills v-else-if="activeTab === 'install'" />
+      <Transition name="fade" mode="out-in">
+        <SkillList v-if="activeTab === 'workspace'" key="workspace" />
+        <BrowseSkills v-else-if="activeTab === 'browse'" key="browse" />
+        <InstallSkills v-else-if="activeTab === 'install'" key="install" />
+      </Transition>
     </main>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
   </div>
@@ -216,5 +218,16 @@ function onOnboardingComplete() {
   padding: 1.5rem;
   overflow-y: auto;
   overscroll-behavior: none;
+}
+
+/* Fade transition (matches onboarding) */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
