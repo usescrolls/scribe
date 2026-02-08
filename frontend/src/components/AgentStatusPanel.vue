@@ -9,11 +9,7 @@
       <div
         v-for="agent in sortedAgents"
         :key="agent.id"
-        :class="['agent-item', {
-          installed: agent.installed,
-          selected: selectedAgent === agent.id
-        }]"
-        @click="handleAgentClick(agent)"
+        :class="['agent-item', { installed: agent.installed }]"
       >
         <div class="agent-icon">
           <span v-if="agent.installed" class="checkmark">&#10003;</span>
@@ -35,16 +31,11 @@
 import { ref, computed } from 'vue'
 import { useAgents } from '../composables/useAgents'
 
-const emit = defineEmits<{
-  'agent-selected': [agentId: string | null]
-}>()
-
-const { agents, selectedAgent, installedCount, totalCount, selectAgent } = useAgents()
+const { agents, installedCount, totalCount } = useAgents()
 
 const isCollapsed = ref(false)
 
 const sortedAgents = computed(() => {
-  // Show installed agents first, then alphabetically by name
   return [...agents.value].sort((a, b) => {
     if (a.installed !== b.installed) {
       return a.installed ? -1 : 1
@@ -55,18 +46,6 @@ const sortedAgents = computed(() => {
 
 function toggleCollapse() {
   isCollapsed.value = !isCollapsed.value
-}
-
-function handleAgentClick(agent: { id: string; installed: boolean }) {
-  if (!agent.installed) return
-
-  if (selectedAgent.value === agent.id) {
-    selectAgent(null)
-    emit('agent-selected', null)
-  } else {
-    selectAgent(agent.id)
-    emit('agent-selected', agent.id)
-  }
 }
 </script>
 
@@ -121,21 +100,10 @@ function handleAgentClick(agent: { id: string; installed: boolean }) {
   align-items: center;
   gap: 0.625rem;
   padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.agent-item:hover {
-  background-color: var(--bg-primary);
-}
-
-.agent-item.selected {
-  background-color: rgba(0, 113, 227, 0.1);
 }
 
 .agent-item:not(.installed) {
   opacity: 0.5;
-  cursor: default;
 }
 
 .agent-icon {

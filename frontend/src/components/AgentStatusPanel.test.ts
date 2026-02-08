@@ -118,51 +118,6 @@ describe("AgentStatusPanel", () => {
     })
   })
 
-  describe("agent selection", () => {
-    it("emits agent-selected on installed agent click", async () => {
-      const wrapper = await mountAgentStatusPanel()
-
-      const installedAgent = wrapper.findAll(".agent-item")[0]
-      await installedAgent.trigger("click")
-
-      expect(wrapper.emitted("agent-selected")).toBeTruthy()
-      expect(wrapper.emitted("agent-selected")![0]).toEqual(["claude-code"])
-    })
-
-    it("toggles selection on second click", async () => {
-      const wrapper = await mountAgentStatusPanel()
-
-      const installedAgent = wrapper.findAll(".agent-item")[0]
-
-      // First click - select
-      await installedAgent.trigger("click")
-      expect(wrapper.emitted("agent-selected")![0]).toEqual(["claude-code"])
-
-      // Second click - deselect
-      await installedAgent.trigger("click")
-      expect(wrapper.emitted("agent-selected")![1]).toEqual([null])
-    })
-
-    it("does not emit for non-installed agent click", async () => {
-      const wrapper = await mountAgentStatusPanel()
-
-      // Find the non-installed agent (GitHub Copilot)
-      const nonInstalledAgent = wrapper.findAll(".agent-item")[2]
-      await nonInstalledAgent.trigger("click")
-
-      expect(wrapper.emitted("agent-selected")).toBeFalsy()
-    })
-
-    it("applies selected class to selected agent", async () => {
-      const wrapper = await mountAgentStatusPanel()
-
-      const installedAgent = wrapper.findAll(".agent-item")[0]
-      await installedAgent.trigger("click")
-
-      expect(installedAgent.classes()).toContain("selected")
-    })
-  })
-
   describe("singular/plural handling", () => {
     it('uses singular "skill" for count of 1', async () => {
       mockAppService.GetAgentStatus.mockResolvedValue([

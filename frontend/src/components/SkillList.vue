@@ -34,10 +34,6 @@ import SkillCard from './SkillCard.vue'
 import EmptyState from './EmptyState.vue'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
-const props = defineProps<{
-  agentFilter?: string | null
-}>()
-
 const skills = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
 const loading = ref(true)
@@ -54,15 +50,7 @@ const workspaceSkillNames = computed(() => {
 })
 
 const filteredSkills = computed(() => {
-  // First filter by workspace
-  let result = skills.value.filter(skill => workspaceSkillNames.value.has(skill.name))
-
-  // Then filter by agent if specified
-  if (props.agentFilter) {
-    result = result.filter(skill => skill.agents.includes(props.agentFilter!))
-  }
-
-  return result
+  return skills.value.filter(skill => workspaceSkillNames.value.has(skill.name))
 })
 
 async function fetchAll() {

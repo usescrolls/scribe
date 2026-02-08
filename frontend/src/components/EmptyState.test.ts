@@ -6,20 +6,14 @@ describe("EmptyState", () => {
   it("renders the title", () => {
     const wrapper = mount(EmptyState)
 
-    expect(wrapper.find("h2").text()).toBe("No skills installed")
-  })
-
-  it("shows CLI instruction", () => {
-    const wrapper = mount(EmptyState)
-
-    expect(wrapper.find("code").text()).toBe("scribe install owner/repo")
+    expect(wrapper.find("h2").text()).toBe("No skills in this workspace")
   })
 
   it("shows description text", () => {
     const wrapper = mount(EmptyState)
 
     expect(wrapper.find("p").text()).toContain(
-      "Install skills from useScrolls.com",
+      "Add skills from the Browse All tab",
     )
   })
 })

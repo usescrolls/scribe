@@ -5,11 +5,8 @@
         <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     </div>
-    <h2>No skills installed</h2>
-    <p>Install skills from useScrolls.com or via the CLI</p>
-    <div class="instructions">
-      <code>scribe install owner/repo</code>
-    </div>
+    <h2>No skills in this workspace</h2>
+    <p>Add skills from the Browse All tab, or install new ones from the Install tab</p>
   </div>
 </template>
 

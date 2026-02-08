@@ -40,8 +40,8 @@ describe("SkillList", () => {
     mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
   })
 
-  async function mountSkillList(props: { agentFilter?: string | null } = {}) {
-    const wrapper = mount(SkillList, { props })
+  async function mountSkillList() {
+    const wrapper = mount(SkillList)
     await flushPromises()
     return wrapper
   }
@@ -109,15 +109,6 @@ describe("SkillList", () => {
       const wrapper = await mountSkillList()
 
       expect(wrapper.find(".count").text()).toBe("1 skill in workspace")
-    })
-  })
-
-  describe("agent filtering", () => {
-    it("filters skills by agent", async () => {
-      const wrapper = await mountSkillList({ agentFilter: "cursor" })
-
-      const cards = wrapper.findAllComponents({ name: "SkillCard" })
-      expect(cards).toHaveLength(1)
     })
   })
 
