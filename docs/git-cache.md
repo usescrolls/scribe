@@ -15,8 +15,10 @@ Cloned repositories are cached at `~/.scribe/cache/`, organized by host and owne
 ├── github.com/
 │   ├── vercel-labs/agent-skills/
 │   └── owner/repo/
-└── gitlab.com/
-    └── org/repo/
+├── gitlab.com/
+│   └── org/repo/
+└── bitbucket.org/
+    └── team/repo/
 ```
 
 ### Cache Behavior
@@ -37,6 +39,7 @@ Cloned repositories are cached at `~/.scribe/cache/`, organized by host and owne
 |-------------|--------|--------|
 | GitHub (`owner/repo`) | Yes | Keyed by `github.com/owner/repo` |
 | GitLab (`gitlab.com/owner/repo`) | Yes | Keyed by `gitlab.com/owner/repo` |
+| Bitbucket (`bitbucket.org/owner/repo`) | Yes | Keyed by `bitbucket.org/owner/repo` |
 | Local path (`./path`) | No | Already on disk |
 | Zip URL (`https://example.com/skills.zip`) | No | No natural cache key |
 

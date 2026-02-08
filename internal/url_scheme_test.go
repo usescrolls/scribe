@@ -62,6 +62,14 @@ func TestFormatSource_GitLabWithRef(t *testing.T) {
 	}
 }
 
+func TestFormatSource_Bitbucket(t *testing.T) {
+	source := &SourceInfo{Type: "bitbucket", Owner: "team", Repo: "project"}
+	got := FormatSource(source)
+	if got != "bitbucket:team/project" {
+		t.Errorf("FormatSource(bitbucket) = %q, want %q", got, "bitbucket:team/project")
+	}
+}
+
 func TestFormatSource_Local(t *testing.T) {
 	source := &SourceInfo{Type: "local", LocalPath: "/home/user/my-skill"}
 	got := FormatSource(source)
@@ -217,8 +225,27 @@ func TestParseInstallURL_MissingRepo(t *testing.T) {
 	}
 }
 
+func TestParseInstallURL_BitbucketSource(t *testing.T) {
+	source, skill, err := ParseInstallURL("agenthub://install?source=bitbucket&repo=myteam/myproject")
+	if err != nil {
+		t.Fatalf("ParseInstallURL(bitbucket) error: %v", err)
+	}
+	if source.Type != "bitbucket" {
+		t.Errorf("Type = %q, want 'bitbucket'", source.Type)
+	}
+	if source.Owner != "myteam" || source.Repo != "myproject" {
+		t.Errorf("Owner/Repo = %q/%q, want 'myteam'/'myproject'", source.Owner, source.Repo)
+	}
+	if source.URL != "https://bitbucket.org/myteam/myproject" {
+		t.Errorf("URL = %q, want 'https://bitbucket.org/myteam/myproject'", source.URL)
+	}
+	if skill != "" {
+		t.Errorf("skill = %q, want empty", skill)
+	}
+}
+
 func TestParseInstallURL_UnsupportedSourceType(t *testing.T) {
-	_, _, err := ParseInstallURL("agenthub://install?source=bitbucket&repo=user/repo")
+	_, _, err := ParseInstallURL("agenthub://install?source=azure&repo=user/repo")
 	if err == nil {
 		t.Error("ParseInstallURL unsupported source: expected error, got nil")
 	}

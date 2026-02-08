@@ -325,6 +325,8 @@ func parseGitRemoteURL(remoteURL string) *SourceInfo {
 		sourceType = "github"
 	case "gitlab.com":
 		sourceType = "gitlab"
+	case "bitbucket.org":
+		sourceType = "bitbucket"
 	default:
 		return nil
 	}

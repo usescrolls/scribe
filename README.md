@@ -58,10 +58,12 @@ For Linux, Windows, and other installation methods, see [Installation](docs/inst
 
 ```bash
 # Install skills from various sources
-scribe install owner/repo                    # GitHub shorthand
-scribe install https://github.com/owner/repo # Full GitHub URL
-scribe install ./local/path                  # Local directory
-scribe install https://example.com/skills.zip # Zip URL
+scribe install owner/repo                          # GitHub shorthand
+scribe install https://github.com/owner/repo       # Full GitHub URL
+scribe install https://gitlab.com/owner/repo       # GitLab URL
+scribe install https://bitbucket.org/owner/repo    # Bitbucket URL
+scribe install ./local/path                        # Local directory
+scribe install https://example.com/skills.zip      # Zip URL
 
 # List installed skills
 scribe list

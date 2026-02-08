@@ -14,7 +14,7 @@ type Skill struct {
 // Stored in .scribe-meta.json sidecar file alongside SKILL.md
 type SkillMeta struct {
 	Source      string `json:"source"`              // e.g., "owner/repo"
-	SourceType  string `json:"sourceType"`          // github, gitlab, local, url, well-known
+	SourceType  string `json:"sourceType"`          // github, gitlab, bitbucket, local, url, well-known
 	SourceURL   string `json:"sourceUrl,omitempty"` // Full URL if applicable
 	SkillPath   string `json:"skillPath,omitempty"` // Path within source repo
 	ContentHash string `json:"contentHash"`         // SHA256 hash of SKILL.md content
@@ -54,7 +54,7 @@ type InstallOptions struct {
 
 // SourceInfo represents a parsed source reference
 type SourceInfo struct {
-	Type      string // github, gitlab, local, url, well-known, zip
+	Type      string // github, gitlab, bitbucket, local, url, well-known, zip
 	Owner     string // GitHub/GitLab owner
 	Repo      string // Repository name
 	Ref       string // Branch, tag, or commit

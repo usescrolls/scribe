@@ -142,6 +142,16 @@ func ParseInstallURL(urlString string) (*SourceInfo, string, error) {
 		source.Repo = parts[1]
 		source.URL = fmt.Sprintf("https://gitlab.com/%s/%s", source.Owner, source.Repo)
 
+	case "bitbucket":
+		source.Type = "bitbucket"
+		parts := strings.Split(repo, "/")
+		if len(parts) < 2 {
+			return nil, "", fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		source.Owner = parts[0]
+		source.Repo = parts[1]
+		source.URL = fmt.Sprintf("https://bitbucket.org/%s/%s", source.Owner, source.Repo)
+
 	case "url", "zip":
 		source.Type = "zip"
 		source.URL = repo // In this case, repo contains the full URL
@@ -183,6 +193,8 @@ func FormatSource(source *SourceInfo) string {
 		return "github:" + s
 	case "gitlab":
 		return "gitlab:" + source.Owner + "/" + source.Repo
+	case "bitbucket":
+		return "bitbucket:" + source.Owner + "/" + source.Repo
 	case "local":
 		return "local:" + source.LocalPath
 	case "zip":

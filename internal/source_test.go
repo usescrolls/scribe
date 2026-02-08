@@ -99,6 +99,20 @@ func TestParseSourceString(t *testing.T) {
 			expectRepo:  "repo",
 		},
 		{
+			name:        "bitbucket url",
+			input:       "https://bitbucket.org/owner/repo",
+			expectType:  "bitbucket",
+			expectOwner: "owner",
+			expectRepo:  "repo",
+		},
+		{
+			name:        "bitbucket url with .git suffix",
+			input:       "https://bitbucket.org/owner/repo.git",
+			expectType:  "bitbucket",
+			expectOwner: "owner",
+			expectRepo:  "repo",
+		},
+		{
 			name:       "zip url",
 			input:      "https://example.com/skills.zip",
 			expectType: "zip",

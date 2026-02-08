@@ -706,10 +706,42 @@ func TestParseGitRemoteURL_UnknownHost(t *testing.T) {
 	}
 }
 
-func TestParseGitRemoteURL_UnknownSSHHost(t *testing.T) {
+func TestParseGitRemoteURL_BitbucketSSH(t *testing.T) {
 	source := parseGitRemoteURL("git@bitbucket.org:team/repo.git")
+	if source == nil {
+		t.Fatal("parseGitRemoteURL returned nil for Bitbucket SSH URL")
+	}
+	if source.Type != "bitbucket" {
+		t.Errorf("Type = %q, want 'bitbucket'", source.Type)
+	}
+	if source.Owner != "team" {
+		t.Errorf("Owner = %q, want 'team'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
+	}
+}
+
+func TestParseGitRemoteURL_BitbucketHTTPS(t *testing.T) {
+	source := parseGitRemoteURL("https://bitbucket.org/team/repo.git")
+	if source == nil {
+		t.Fatal("parseGitRemoteURL returned nil for Bitbucket HTTPS URL")
+	}
+	if source.Type != "bitbucket" {
+		t.Errorf("Type = %q, want 'bitbucket'", source.Type)
+	}
+	if source.Owner != "team" {
+		t.Errorf("Owner = %q, want 'team'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
+	}
+}
+
+func TestParseGitRemoteURL_UnknownSSHHost(t *testing.T) {
+	source := parseGitRemoteURL("git@gitea.example.com:team/repo.git")
 	if source != nil {
-		t.Errorf("parseGitRemoteURL(bitbucket SSH) = %v, want nil", source)
+		t.Errorf("parseGitRemoteURL(unknown SSH host) = %v, want nil", source)
 	}
 }
 

@@ -28,6 +28,7 @@ scribe install <source> [flags]
 | GitHub with branch | `owner/repo#branch` |
 | GitHub with path | `owner/repo/path/to/skills` |
 | GitLab URL | `https://gitlab.com/owner/repo` |
+| Bitbucket URL | `https://bitbucket.org/owner/repo` |
 | Local path | `./local/path` or `/absolute/path` |
 | Zip URL | `https://example.com/skills.zip` |
 

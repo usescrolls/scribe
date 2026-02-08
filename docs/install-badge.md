@@ -35,7 +35,7 @@ The `agenthub://install` URL supports the following parameters:
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `source` | No | Source type: `github` (default), `gitlab`, or `zip` |
+| `source` | No | Source type: `github` (default), `gitlab`, `bitbucket`, or `zip` |
 | `repo` | Yes | Repository path (e.g., `owner/repo`) or full URL for zip sources |
 | `name` | No | Install only a specific skill by name |
 | `ref` | No | Git branch, tag, or commit to install from |
@@ -70,6 +70,11 @@ agenthub://install?source=github&repo=myuser/monorepo/skills/my-skill
 **Install from GitLab:**
 ```
 agenthub://install?source=gitlab&repo=myuser/my-skills
+```
+
+**Install from Bitbucket:**
+```
+agenthub://install?source=bitbucket&repo=myteam/my-skills
 ```
 
 ## Complete README Example

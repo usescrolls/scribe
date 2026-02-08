@@ -38,6 +38,11 @@ func ParseSourceString(arg string) (*SourceInfo, error) {
 		return parseGitLabURL(arg)
 	}
 
+	// Check for Bitbucket URL
+	if strings.HasPrefix(arg, "https://bitbucket.org/") {
+		return parseBitbucketURL(arg)
+	}
+
 	// Check for generic URL
 	if strings.HasPrefix(arg, "https://") || strings.HasPrefix(arg, "http://") {
 		if strings.HasSuffix(arg, ".zip") {
@@ -114,6 +119,19 @@ func parseGitLabURL(url string) (*SourceInfo, error) {
 	source := &SourceInfo{Type: "gitlab", URL: url}
 
 	path := strings.TrimPrefix(url, "https://gitlab.com/")
+	parts := strings.Split(path, "/")
+	if len(parts) >= 2 {
+		source.Owner = parts[0]
+		source.Repo = strings.TrimSuffix(parts[1], ".git")
+	}
+
+	return source, nil
+}
+
+func parseBitbucketURL(url string) (*SourceInfo, error) {
+	source := &SourceInfo{Type: "bitbucket", URL: url}
+
+	path := strings.TrimPrefix(url, "https://bitbucket.org/")
 	parts := strings.Split(path, "/")
 	if len(parts) >= 2 {
 		source.Owner = parts[0]
