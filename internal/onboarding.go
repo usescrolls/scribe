@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/go-git/go-git/v5"
 )
 
 // DemoSkillContent is the content of the demo skill installed during onboarding
@@ -73,6 +76,10 @@ func DetectExistingSkills() ([]ExistingSkillInfo, error) {
 			continue
 		}
 
+		// Check if the skills directory itself is a git repo (monorepo pattern:
+		// user cloned a repo of skills directly as the agent's skills dir)
+		parentIsGitRepo := dirExists(filepath.Join(skillsDir, ".git"))
+
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
@@ -86,9 +93,9 @@ func DetectExistingSkills() ([]ExistingSkillInfo, error) {
 				continue
 			}
 
-			// Check if it's a git repo
+			// Check if it's a git repo (either the skill dir itself or its parent)
 			gitPath := filepath.Join(skillPath, ".git")
-			isGitRepo := dirExists(gitPath)
+			isGitRepo := dirExists(gitPath) || parentIsGitRepo
 
 			skills = append(skills, ExistingSkillInfo{
 				Name:      entry.Name(),
@@ -144,21 +151,17 @@ func ImportExistingSkills(skills []ExistingSkillInfo) error {
 
 		destDir := filepath.Join(scrollsDir, skill.Name)
 
+		// Extract git source info BEFORE moving (move may alter .git paths)
+		meta := buildSkillMeta(skill)
+
 		// Move the skill directory to scrolls
 		if err := moveDir(skill.Path, destDir); err != nil {
 			Logger.Error("failed to move skill", "name", skill.Name, "error", err)
 			return fmt.Errorf("failed to import skill %s: %w", skill.Name, err)
 		}
 
-		// Create metadata file
+		// Write metadata file
 		metaPath := filepath.Join(destDir, MetaFileName)
-		meta := &SkillMeta{
-			Source:      "local",
-			SourceType:  "local",
-			ContentHash: "", // Will be computed if needed
-			InstalledAt: time.Now().Format(time.RFC3339),
-			UpdatedAt:   time.Now().Format(time.RFC3339),
-		}
 		if err := WriteSkillMeta(metaPath, meta); err != nil {
 			Logger.Warn("failed to write skill meta", "name", skill.Name, "error", err)
 		}
@@ -261,6 +264,113 @@ func InstallDemoSkill() error {
 
 	Logger.Info("installed demo skill", "name", skillName)
 	return nil
+}
+
+// extractGitRemoteURL reads the "origin" remote URL from a git repository.
+// Returns empty string if the repo can't be opened or has no origin remote.
+// Also checks the parent directory to support monorepo layouts where skills
+// are subdirectories within a single cloned repo.
+func extractGitRemoteURL(repoPath string) string {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		// Try parent directory (monorepo: skillsDir is the repo root)
+		repo, err = git.PlainOpen(filepath.Dir(repoPath))
+		if err != nil {
+			return ""
+		}
+	}
+
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		return ""
+	}
+
+	urls := remote.Config().URLs
+	if len(urls) == 0 {
+		return ""
+	}
+
+	return urls[0]
+}
+
+// parseGitRemoteURL parses a git remote URL (HTTPS or SSH) into a SourceInfo.
+// Returns nil if the URL is empty, malformed, or for an unsupported host.
+// Supported hosts: github.com, gitlab.com
+func parseGitRemoteURL(remoteURL string) *SourceInfo {
+	if remoteURL == "" {
+		return nil
+	}
+
+	var host, ownerRepo string
+
+	// Handle various remote URL formats
+	switch {
+	case strings.HasPrefix(remoteURL, "git@"):
+		// SSH format: git@host:owner/repo.git
+		rest := strings.TrimPrefix(remoteURL, "git@")
+		host, ownerRepo, _ = strings.Cut(rest, ":")
+	case strings.HasPrefix(remoteURL, "https://") || strings.HasPrefix(remoteURL, "http://"):
+		// HTTPS format: https://host/owner/repo.git
+		trimmed := strings.TrimPrefix(remoteURL, "https://")
+		trimmed = strings.TrimPrefix(trimmed, "http://")
+		host, ownerRepo, _ = strings.Cut(trimmed, "/")
+	default:
+		return nil
+	}
+
+	// Only support known hosts
+	var sourceType string
+	switch host {
+	case "github.com":
+		sourceType = "github"
+	case "gitlab.com":
+		sourceType = "gitlab"
+	default:
+		return nil
+	}
+
+	// Strip .git suffix and parse owner/repo
+	ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
+	parts := strings.SplitN(ownerRepo, "/", 3)
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return nil
+	}
+
+	return &SourceInfo{
+		Type:  sourceType,
+		Owner: parts[0],
+		Repo:  parts[1],
+		URL:   fmt.Sprintf("https://%s/%s/%s", host, parts[0], parts[1]),
+	}
+}
+
+// buildSkillMeta creates a SkillMeta for an imported skill.
+// For git-tracked skills, it attempts to extract source info from the git remote.
+// Falls back to "local" if extraction fails or skill is not git-tracked.
+func buildSkillMeta(skill ExistingSkillInfo) *SkillMeta {
+	now := time.Now().Format(time.RFC3339)
+
+	if skill.IsGitRepo {
+		remoteURL := extractGitRemoteURL(skill.Path)
+		if source := parseGitRemoteURL(remoteURL); source != nil {
+			return &SkillMeta{
+				Source:      formatSource(source),
+				SourceType:  source.Type,
+				SourceURL:   source.URL,
+				ContentHash: "",
+				InstalledAt: now,
+				UpdatedAt:   now,
+			}
+		}
+	}
+
+	return &SkillMeta{
+		Source:      "local",
+		SourceType:  "local",
+		ContentHash: "",
+		InstalledAt: now,
+		UpdatedAt:   now,
+	}
 }
 
 // moveDir moves a directory from src to dest, preserving git history if present
