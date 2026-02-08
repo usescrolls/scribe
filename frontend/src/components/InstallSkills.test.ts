@@ -595,6 +595,106 @@ describe("InstallSkills", () => {
     })
   })
 
+  describe("installing progress step", () => {
+    it("shows installing step with skill list while ConfirmInstall is pending", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [
+          { name: "skill-alpha", description: "Alpha desc" },
+          { name: "skill-beta", description: "Beta desc" },
+        ],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+      // Never resolves - simulates slow install
+      mockAppService.ConfirmInstall.mockReturnValue(new Promise(() => {}))
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      // Continue to workspace step
+      await wrapper.find(".btn-primary").trigger("click")
+      await flushPromises()
+
+      // Click install
+      await wrapper.find(".btn-primary").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.find(".step-installing").exists()).toBe(true)
+      expect(wrapper.text()).toContain("Installing skills")
+      expect(wrapper.text()).toContain("skill-alpha")
+      expect(wrapper.text()).toContain("skill-beta")
+    })
+
+    it("updates per-skill progress when install-progress events fire", async () => {
+      interface ProgressData {
+        skillName: string
+        current: number
+        total: number
+      }
+      type ProgressCallback = (event: { data: ProgressData }) => void
+      let progressCallback: ProgressCallback | null = null
+      ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
+        (event: string, cb: ProgressCallback) => {
+          if (event === "install-progress") {
+            progressCallback = cb
+          }
+          return vi.fn()
+        },
+      )
+
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [
+          { name: "skill-alpha", description: "Alpha desc" },
+          { name: "skill-beta", description: "Beta desc" },
+        ],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+      mockAppService.ConfirmInstall.mockReturnValue(new Promise(() => {}))
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      await wrapper.find(".btn-primary").trigger("click")
+      await flushPromises()
+
+      await wrapper.find(".btn-primary").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.find(".step-installing").exists()).toBe(true)
+
+      // All items start as pending (no active or done classes)
+      const itemsBefore = wrapper.findAll(".installing-skill-item")
+      expect(itemsBefore[0].classes()).not.toContain("active")
+      expect(itemsBefore[0].classes()).not.toContain("done")
+
+      // Simulate first skill progress event
+      expect(progressCallback).not.toBeNull()
+      progressCallback!({
+        data: { skillName: "skill-alpha", current: 1, total: 2 },
+      })
+      await flushPromises()
+
+      const itemsAfterFirst = wrapper.findAll(".installing-skill-item")
+      expect(itemsAfterFirst[0].classes()).toContain("active")
+      expect(itemsAfterFirst[0].find(".spinner-xs").exists()).toBe(true)
+
+      // Simulate second skill progress event - first should become done
+      progressCallback!({
+        data: { skillName: "skill-beta", current: 2, total: 2 },
+      })
+      await flushPromises()
+
+      const itemsAfterSecond = wrapper.findAll(".installing-skill-item")
+      expect(itemsAfterSecond[0].classes()).toContain("done")
+      expect(itemsAfterSecond[1].classes()).toContain("active")
+    })
+  })
+
   describe("cleanup on unmount", () => {
     it("does not throw when unmounting", () => {
       const wrapper = mountInstallSkills()
@@ -622,7 +722,7 @@ describe("InstallSkills", () => {
   describe("workspace-changed event", () => {
     it("refreshes workspace list when workspace-changed fires", async () => {
       // Capture the callback registered for 'workspace-changed'
-      type Callback = () => void
+      type Callback = (...args: unknown[]) => void
       let workspaceChangedCallback: Callback | null = null
       ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
         (event: string, cb: Callback) => {

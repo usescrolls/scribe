@@ -141,21 +141,42 @@
         <button class="btn-secondary" @click="step = 'review'">Back</button>
         <button
           class="btn-primary"
-          :disabled="installing"
           @click="handleConfirmInstall"
         >
-          <template v-if="installing">
-            <div class="spinner-sm"></div>
-            Installing...
-          </template>
-          <template v-else>
-            Install {{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }}
-          </template>
+          Install {{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }}
         </button>
       </div>
     </div>
 
-    <!-- Step 4: Result -->
+    <!-- Step 4: Installing Progress -->
+    <div v-else-if="step === 'installing'" class="step-installing">
+      <div class="installing-header">
+        <div class="spinner"></div>
+        <span>Installing skills...</span>
+      </div>
+      <div class="installing-progress">
+        <div
+          v-for="skillName in [...selectedSkills]"
+          :key="skillName"
+          class="installing-skill-item"
+          :class="{
+            done: installedSoFar.has(skillName),
+            active: installingNow === skillName
+          }"
+        >
+          <div class="installing-skill-icon">
+            <svg v-if="installedSoFar.has(skillName)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <div v-else-if="installingNow === skillName" class="spinner-xs"></div>
+            <div v-else class="pending-dot"></div>
+          </div>
+          <span class="installing-skill-name">{{ skillName }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Result -->
     <div v-else-if="step === 'result'" class="step-result">
       <div v-if="installResult" class="result" :class="installResult.success ? 'result-success' : 'result-error'">
         <div class="result-content">
@@ -192,12 +213,11 @@ import { AppService } from '../bindings/scribe'
 import { Events } from '@wailsio/runtime'
 import type { DiscoverResult, InstallResult, WorkspaceInfo } from '../types/skill'
 
-type Step = 'source' | 'review' | 'workspaces' | 'result'
+type Step = 'source' | 'review' | 'workspaces' | 'installing' | 'result'
 
 const sourceStr = ref('')
 const step = ref<Step>('source')
 const discovering = ref(false)
-const installing = ref(false)
 const error = ref<string | null>(null)
 const sourceInput = ref<HTMLInputElement | null>(null)
 
@@ -207,16 +227,30 @@ const workspaces = ref<WorkspaceInfo[]>([])
 const selectedWorkspaces = reactive(new Set<string>())
 const installResult = ref<InstallResult | null>(null)
 
+// Per-skill install progress
+const installingNow = ref<string | null>(null)
+const installedSoFar = reactive(new Set<string>())
+
 let unsubscribeWorkspace: { (): void } | null = null
+let unsubscribeProgress: { (): void } | null = null
 
 onMounted(() => {
   sourceInput.value?.focus()
   unsubscribeWorkspace = Events.On('workspace-changed', fetchWorkspaces)
+  unsubscribeProgress = Events.On('install-progress', (event: { data: { skillName: string; current: number; total: number } }) => {
+    const { skillName } = event.data
+    // Mark the previous skill as done
+    if (installingNow.value && installingNow.value !== skillName) {
+      installedSoFar.add(installingNow.value)
+    }
+    installingNow.value = skillName
+  })
   fetchWorkspaces()
 })
 
 onUnmounted(() => {
   if (unsubscribeWorkspace) unsubscribeWorkspace()
+  if (unsubscribeProgress) unsubscribeProgress()
 })
 
 async function fetchWorkspaces() {
@@ -275,23 +309,28 @@ function toggleWorkspace(name: string) {
 }
 
 async function handleConfirmInstall() {
-  if (installing.value) return
+  if (step.value === 'installing') return
 
-  installing.value = true
+  // Reset progress state and transition to installing step
+  installingNow.value = null
+  installedSoFar.clear()
   error.value = null
+  step.value = 'installing'
 
   try {
     const res = await AppService.ConfirmInstall(
       [...selectedSkills],
       [...selectedWorkspaces]
     )
+    // Mark the last skill as done
+    if (installingNow.value) {
+      installedSoFar.add(installingNow.value)
+    }
     installResult.value = res as InstallResult
     step.value = 'result'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Installation failed'
     step.value = 'source'
-  } finally {
-    installing.value = false
   }
 }
 
@@ -728,5 +767,80 @@ function fillExample(example: string) {
 
 .reset-btn {
   margin-top: 1rem;
+}
+
+/* Installing progress step */
+.installing-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.installing-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.installing-skill-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.installing-skill-item.active {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+.installing-skill-item.done {
+  color: var(--success-color);
+}
+
+.installing-skill-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.installing-skill-name {
+  font-weight: 500;
+}
+
+.spinner-xs {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--border-color);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 </style>

@@ -312,4 +312,98 @@ describe("BrowseSkills", () => {
       expect(wrapper.text()).toContain("Uninstall failed")
     })
   })
+
+  describe("uninstall all from source", () => {
+    it("shows uninstall all button for groups with multiple skills", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const buttons = wrapper.findAll(".group-uninstall-btn")
+      // vercel-labs/skills has 2 skills -> shows button
+      // vue/skills has 1 skill -> no button
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0].text()).toBe("Uninstall all")
+    })
+
+    it("does not show uninstall all button for single-skill groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        mockSkills[2], // vue/skills group with 1 skill
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".group-uninstall-btn").exists()).toBe(false)
+    })
+
+    it("shows confirm dialog when uninstall all is clicked", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".group-uninstall-btn").trigger("click")
+      await flushPromises()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find(
+        (d) => d.props("title") === "Uninstall All Skills",
+      )
+      expect(groupDialog).toBeDefined()
+      expect(groupDialog!.props("message")).toContain("2 skills")
+      expect(groupDialog!.props("message")).toContain("vercel-labs/skills")
+      expect(groupDialog!.props("danger")).toBe(true)
+    })
+
+    it("calls RemoveSkill for each skill in group on confirm", async () => {
+      mockAppService.RemoveSkill.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".group-uninstall-btn").trigger("click")
+      await flushPromises()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find(
+        (d) => d.props("title") === "Uninstall All Skills",
+      )
+      await groupDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkill).toHaveBeenCalledWith("react-patterns")
+      expect(mockAppService.RemoveSkill).toHaveBeenCalledWith("typescript-tips")
+      expect(mockAppService.RemoveSkill).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not uninstall on cancel", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".group-uninstall-btn").trigger("click")
+      await flushPromises()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find(
+        (d) => d.props("title") === "Uninstall All Skills",
+      )
+      await groupDialog!.vm.$emit("cancel")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkill).not.toHaveBeenCalled()
+    })
+
+    it("shows error on bulk uninstall failure", async () => {
+      mockAppService.RemoveSkill.mockRejectedValue(
+        new Error("Bulk uninstall failed"),
+      )
+
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".group-uninstall-btn").trigger("click")
+      await flushPromises()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find(
+        (d) => d.props("title") === "Uninstall All Skills",
+      )
+      await groupDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      expect(wrapper.text()).toContain("Bulk uninstall failed")
+    })
+  })
 })

@@ -640,12 +640,25 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Filter to only requested skills
+	var toInstall []*scribe.Skill
+	for _, skill := range a.pendingSkills {
+		if requested[skill.Name] {
+			toInstall = append(toInstall, skill)
+		}
+	}
+
 	// Install each requested skill
 	result := &scribe.InstallResult{}
 	opts := scribe.InstallOptions{Yes: true}
-	for _, skill := range a.pendingSkills {
-		if !requested[skill.Name] {
-			continue
+	for i, skill := range toInstall {
+		// Emit progress event so the frontend can show per-skill status
+		if wailsApp != nil {
+			wailsApp.Event.Emit("install-progress", map[string]interface{}{
+				"skillName": skill.Name,
+				"current":   i + 1,
+				"total":     len(toInstall),
+			})
 		}
 
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)

@@ -9,6 +9,15 @@
       @confirm="executeUninstall"
       @cancel="confirmUninstallName = null"
     />
+    <ConfirmDialog
+      v-if="confirmUninstallGroup"
+      title="Uninstall All Skills"
+      :message="`Uninstall all ${confirmUninstallGroup.skills.length} skills from &quot;${confirmUninstallGroup.source}&quot;? This will remove them from all workspaces.`"
+      confirm-label="Uninstall All"
+      :danger="true"
+      @confirm="executeUninstallGroup"
+      @cancel="confirmUninstallGroup = null"
+    />
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
       <span>Loading skills...</span>
@@ -42,6 +51,13 @@
           </a>
           <span v-else class="group-source">{{ group.source }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
+          <button
+            v-if="group.skills.length > 1"
+            class="group-uninstall-btn"
+            @click="handleUninstallGroup(group)"
+          >
+            Uninstall all
+          </button>
         </div>
         <div class="skills-list">
           <SkillCard
@@ -138,6 +154,7 @@ async function handleRemoveFromWorkspace(skillName: string, workspaceName: strin
 }
 
 const confirmUninstallName = ref<string | null>(null)
+const confirmUninstallGroup = ref<SourceGroup | null>(null)
 
 function handleUninstall(name: string) {
   confirmUninstallName.value = name
@@ -152,6 +169,24 @@ async function executeUninstall() {
     await fetchAll()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to uninstall skill'
+  }
+}
+
+function handleUninstallGroup(group: SourceGroup) {
+  confirmUninstallGroup.value = group
+}
+
+async function executeUninstallGroup() {
+  const group = confirmUninstallGroup.value
+  confirmUninstallGroup.value = null
+  if (!group) return
+  try {
+    for (const skill of group.skills) {
+      await AppService.RemoveSkill(skill.name)
+    }
+    await fetchAll()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to uninstall skills'
   }
 }
 
@@ -294,6 +329,28 @@ onUnmounted(() => {
   font-size: 0.6875rem;
   color: var(--text-secondary);
   margin-left: auto;
+}
+
+.group-uninstall-btn {
+  padding: 0.125rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.group-header:hover .group-uninstall-btn {
+  opacity: 1;
+}
+
+.group-uninstall-btn:hover {
+  background-color: var(--danger-color);
+  color: white;
 }
 
 .skills-list {
