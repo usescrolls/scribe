@@ -128,6 +128,77 @@ func parseGitLabURL(url string) (*SourceInfo, error) {
 	return source, nil
 }
 
+// ReconstructSource creates a SourceInfo from stored SkillMeta.
+// This is the inverse of formatSource — it rebuilds the full source reference
+// so the skill can be fetched again for updates or checks.
+func ReconstructSource(meta *SkillMeta) *SourceInfo {
+	source := &SourceInfo{
+		Type: meta.SourceType,
+		URL:  meta.SourceURL,
+	}
+
+	switch meta.SourceType {
+	case "github":
+		srcStr := meta.Source
+		parts := strings.Split(srcStr, "/")
+		if len(parts) >= 2 {
+			source.Owner = parts[0]
+			repoAndRef := strings.SplitN(parts[1], "#", 2)
+			source.Repo = repoAndRef[0]
+			if len(repoAndRef) > 1 {
+				source.Ref = repoAndRef[1]
+			}
+			if len(parts) > 2 {
+				source.Subpath = strings.Join(parts[2:], "/")
+			}
+		}
+		if source.URL == "" {
+			source.URL = "https://github.com/" + source.Owner + "/" + source.Repo
+		}
+
+	case "gitlab":
+		srcStr := meta.Source
+		parts := strings.Split(srcStr, "/")
+		if len(parts) >= 2 {
+			source.Owner = parts[0]
+			source.Repo = parts[1]
+		}
+		if source.URL == "" {
+			source.URL = "https://gitlab.com/" + source.Owner + "/" + source.Repo
+		}
+
+	case "bitbucket":
+		srcStr := meta.Source
+		parts := strings.Split(srcStr, "/")
+		if len(parts) >= 2 {
+			source.Owner = parts[0]
+			source.Repo = parts[1]
+		}
+		if source.URL == "" {
+			source.URL = "https://bitbucket.org/" + source.Owner + "/" + source.Repo
+		}
+
+	case "zip":
+		if source.URL == "" {
+			source.URL = meta.Source
+		}
+
+	case "url", "well-known":
+		if source.URL == "" {
+			source.URL = meta.Source
+		}
+
+	case "local":
+		source.LocalPath = meta.Source
+	}
+
+	if meta.SkillPath != "" {
+		source.Subpath = meta.SkillPath
+	}
+
+	return source
+}
+
 func parseBitbucketURL(url string) (*SourceInfo, error) {
 	source := &SourceInfo{Type: "bitbucket", URL: url}
 

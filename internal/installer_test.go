@@ -409,7 +409,7 @@ func TestBoost_SyncAllSkillsToAgents(t *testing.T) {
 }
 
 // ============================================================================
-// copyFile / copySkillDir (installer.go)
+// copyFile / CopySkillDir (installer.go)
 // ============================================================================
 
 func TestBoost_CopySkillDir(t *testing.T) {
@@ -425,9 +425,9 @@ func TestBoost_CopySkillDir(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(srcDir, "sub", "nested.txt"), []byte("nested"), 0o644)
 
 	dstDir := filepath.Join(tmpDir, "dst")
-	err = copySkillDir(srcDir, dstDir)
+	err = CopySkillDir(srcDir, dstDir)
 	if err != nil {
-		t.Fatalf("copySkillDir() error: %v", err)
+		t.Fatalf("CopySkillDir() error: %v", err)
 	}
 
 	// Verify root file

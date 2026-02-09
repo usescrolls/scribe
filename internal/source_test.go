@@ -220,6 +220,205 @@ func TestParseSourceStringLocalPathIsAbsolute(t *testing.T) {
 }
 
 // Integration test: ParseSourceString → FetchAndDiscoverSkills → InstallSkill
+func TestReconstructSource(t *testing.T) {
+	tests := []struct {
+		name          string
+		meta          *SkillMeta
+		expectType    string
+		expectOwner   string
+		expectRepo    string
+		expectRef     string
+		expectURL     string
+		expectSubpath string
+		expectLocal   string
+	}{
+		{
+			name: "github owner/repo",
+			meta: &SkillMeta{
+				Source:     "myowner/myrepo",
+				SourceType: "github",
+			},
+			expectType:  "github",
+			expectOwner: "myowner",
+			expectRepo:  "myrepo",
+			expectURL:   "https://github.com/myowner/myrepo",
+		},
+		{
+			name: "github with ref",
+			meta: &SkillMeta{
+				Source:     "myowner/myrepo#v2.0",
+				SourceType: "github",
+			},
+			expectType:  "github",
+			expectOwner: "myowner",
+			expectRepo:  "myrepo",
+			expectRef:   "v2.0",
+			expectURL:   "https://github.com/myowner/myrepo",
+		},
+		{
+			name: "github with existing URL preserved",
+			meta: &SkillMeta{
+				Source:     "myowner/myrepo",
+				SourceType: "github",
+				SourceURL:  "https://github.com/myowner/myrepo",
+			},
+			expectType:  "github",
+			expectOwner: "myowner",
+			expectRepo:  "myrepo",
+			expectURL:   "https://github.com/myowner/myrepo",
+		},
+		{
+			name: "github with subpath in source",
+			meta: &SkillMeta{
+				Source:     "myowner/myrepo/skills/react",
+				SourceType: "github",
+			},
+			expectType:    "github",
+			expectOwner:   "myowner",
+			expectRepo:    "myrepo",
+			expectSubpath: "skills/react",
+			expectURL:     "https://github.com/myowner/myrepo",
+		},
+		{
+			name: "github skillPath overrides subpath",
+			meta: &SkillMeta{
+				Source:     "myowner/myrepo",
+				SourceType: "github",
+				SkillPath:  "deep/path/to/skill",
+			},
+			expectType:    "github",
+			expectOwner:   "myowner",
+			expectRepo:    "myrepo",
+			expectSubpath: "deep/path/to/skill",
+			expectURL:     "https://github.com/myowner/myrepo",
+		},
+		{
+			name: "gitlab owner/repo",
+			meta: &SkillMeta{
+				Source:     "glowner/glrepo",
+				SourceType: "gitlab",
+			},
+			expectType:  "gitlab",
+			expectOwner: "glowner",
+			expectRepo:  "glrepo",
+			expectURL:   "https://gitlab.com/glowner/glrepo",
+		},
+		{
+			name: "gitlab with existing URL preserved",
+			meta: &SkillMeta{
+				Source:     "owner/repo",
+				SourceType: "gitlab",
+				SourceURL:  "https://gitlab.com/owner/repo",
+			},
+			expectType: "gitlab",
+			expectURL:  "https://gitlab.com/owner/repo",
+		},
+		{
+			name: "bitbucket owner/repo",
+			meta: &SkillMeta{
+				Source:     "bbowner/bbrepo",
+				SourceType: "bitbucket",
+			},
+			expectType:  "bitbucket",
+			expectOwner: "bbowner",
+			expectRepo:  "bbrepo",
+			expectURL:   "https://bitbucket.org/bbowner/bbrepo",
+		},
+		{
+			name: "bitbucket with existing URL preserved",
+			meta: &SkillMeta{
+				Source:     "bbowner/bbrepo",
+				SourceType: "bitbucket",
+				SourceURL:  "https://bitbucket.org/bbowner/bbrepo",
+			},
+			expectType: "bitbucket",
+			expectURL:  "https://bitbucket.org/bbowner/bbrepo",
+		},
+		{
+			name: "zip source",
+			meta: &SkillMeta{
+				Source:     "https://example.com/skills.zip",
+				SourceType: "zip",
+			},
+			expectType: "zip",
+			expectURL:  "https://example.com/skills.zip",
+		},
+		{
+			name: "zip with existing URL preserved",
+			meta: &SkillMeta{
+				Source:     "https://example.com/skills.zip",
+				SourceType: "zip",
+				SourceURL:  "https://example.com/skills.zip",
+			},
+			expectType: "zip",
+			expectURL:  "https://example.com/skills.zip",
+		},
+		{
+			name: "url type",
+			meta: &SkillMeta{
+				Source:     "https://example.com/my-skills",
+				SourceType: "url",
+			},
+			expectType: "url",
+			expectURL:  "https://example.com/my-skills",
+		},
+		{
+			name: "well-known type",
+			meta: &SkillMeta{
+				Source:     "https://example.com",
+				SourceType: "well-known",
+			},
+			expectType: "well-known",
+			expectURL:  "https://example.com",
+		},
+		{
+			name: "local source",
+			meta: &SkillMeta{
+				Source:     "/home/user/my-skills",
+				SourceType: "local",
+			},
+			expectType:  "local",
+			expectLocal: "/home/user/my-skills",
+		},
+		{
+			name: "unknown type preserves type",
+			meta: &SkillMeta{
+				Source:     "something",
+				SourceType: "unknown",
+			},
+			expectType: "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ReconstructSource(tt.meta)
+			if result.Type != tt.expectType {
+				t.Errorf("Type = %q, want %q", result.Type, tt.expectType)
+			}
+			if tt.expectOwner != "" && result.Owner != tt.expectOwner {
+				t.Errorf("Owner = %q, want %q", result.Owner, tt.expectOwner)
+			}
+			if tt.expectRepo != "" && result.Repo != tt.expectRepo {
+				t.Errorf("Repo = %q, want %q", result.Repo, tt.expectRepo)
+			}
+			if tt.expectRef != "" && result.Ref != tt.expectRef {
+				t.Errorf("Ref = %q, want %q", result.Ref, tt.expectRef)
+			}
+			if tt.expectURL != "" && result.URL != tt.expectURL {
+				t.Errorf("URL = %q, want %q", result.URL, tt.expectURL)
+			}
+			if tt.expectSubpath != "" && result.Subpath != tt.expectSubpath {
+				t.Errorf("Subpath = %q, want %q", result.Subpath, tt.expectSubpath)
+			}
+			if tt.expectLocal != "" && result.LocalPath != tt.expectLocal {
+				t.Errorf("LocalPath = %q, want %q", result.LocalPath, tt.expectLocal)
+			}
+		})
+	}
+}
+
+// Integration test: ParseSourceString → FetchAndDiscoverSkills → InstallSkill
 func TestInstallFromLocalSource_SingleSkill(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)

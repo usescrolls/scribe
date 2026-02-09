@@ -406,4 +406,121 @@ describe("BrowseSkills", () => {
       expect(wrapper.text()).toContain("Bulk uninstall failed")
     })
   })
+
+  describe("update group", () => {
+    it("shows update button for github source groups", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const buttons = wrapper.findAll(".group-update-btn")
+      // Both groups are github -> both get update button
+      expect(buttons).toHaveLength(2)
+      expect(buttons[0].text()).toBe("Update")
+    })
+
+    it("does not show update button for local source groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "local-skill",
+          description: "A local skill",
+          source: "/path/to/skill",
+          sourceType: "local",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".group-update-btn").exists()).toBe(false)
+    })
+
+    it("does not show update button for builtin source groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "builtin-skill",
+          description: "A builtin skill",
+          source: "builtin",
+          sourceType: "builtin",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".group-update-btn").exists()).toBe(false)
+    })
+
+    it("calls UpdateSkill for each skill in the group", async () => {
+      mockAppService.UpdateSkill.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      // Click update on the first group (vercel-labs/skills with 2 skills)
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.UpdateSkill).toHaveBeenCalledWith("react-patterns")
+      expect(mockAppService.UpdateSkill).toHaveBeenCalledWith("typescript-tips")
+      expect(mockAppService.UpdateSkill).toHaveBeenCalledTimes(2)
+    })
+
+    it("shows 'Updating...' text while updating", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      let resolveUpdate: () => void = () => {}
+      mockAppService.UpdateSkill.mockImplementation(
+        () =>
+          new Promise<void>((r) => {
+            resolveUpdate = r
+          }),
+      )
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await wrapper.vm.$nextTick()
+
+      // Button should show "Updating..." and be disabled
+      const btn = wrapper.findAll(".group-update-btn")[0]
+      expect(btn.text()).toBe("Updating...")
+      expect(btn.attributes("disabled")).toBeDefined()
+
+      // Resolve to clean up
+      resolveUpdate()
+      await flushPromises()
+    })
+
+    it("refreshes skills after update completes", async () => {
+      mockAppService.UpdateSkill.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      // Clear to track calls after update
+      mockAppService.GetSkills.mockClear()
+      mockAppService.GetWorkspaces.mockClear()
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.GetSkills).toHaveBeenCalled()
+      expect(mockAppService.GetWorkspaces).toHaveBeenCalled()
+    })
+
+    it("shows error on update failure", async () => {
+      mockAppService.UpdateSkill.mockRejectedValue(new Error("Update failed"))
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      expect(wrapper.text()).toContain("Update failed")
+    })
+  })
 })

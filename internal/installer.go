@@ -24,7 +24,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
 	}
 
 	// Copy skill to canonical location
-	if err := copySkillDir(skill.Path, skillDir); err != nil {
+	if err := CopySkillDir(skill.Path, skillDir); err != nil {
 		return fmt.Errorf("failed to copy skill: %w", err)
 	}
 
@@ -114,7 +114,7 @@ func SyncSkillToAgents(skillName string, agentIDs []string) error {
 		// Create symlink
 		if err := CreateSymlink(skillDir, linkPath); err != nil {
 			// Fall back to copy if symlink fails
-			if err := copySkillDir(skillDir, linkPath); err != nil {
+			if err := CopySkillDir(skillDir, linkPath); err != nil {
 				continue
 			}
 		}
@@ -178,8 +178,8 @@ func createWindowsJunction(target, link string) error {
 	return os.Symlink(absTarget, link)
 }
 
-// copySkillDir copies a skill directory to a new location
-func copySkillDir(src, dst string) error {
+// CopySkillDir copies a skill directory to a new location
+func CopySkillDir(src, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

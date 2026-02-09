@@ -26,6 +26,7 @@ export const mockAppService = {
   DeleteAllExistingSkills: vi.fn(),
   ResolveSkillConflict: vi.fn(),
   InstallDemoSkill: vi.fn(),
+  UpdateSkill: vi.fn(),
   InstallFromSource: vi.fn(),
   DiscoverFromSource: vi.fn(),
   ConfirmInstall: vi.fn(),

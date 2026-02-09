@@ -52,8 +52,16 @@
           <span v-else class="group-source">{{ group.source }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
           <button
+            v-if="isGroupUpdatable(group)"
+            class="group-action-btn group-update-btn"
+            :disabled="updatingGroup === group.source"
+            @click="handleUpdateGroup(group)"
+          >
+            {{ updatingGroup === group.source ? 'Updating...' : 'Update' }}
+          </button>
+          <button
             v-if="group.skills.length > 1"
-            class="group-uninstall-btn"
+            class="group-action-btn group-uninstall-btn"
             @click="handleUninstallGroup(group)"
           >
             Uninstall all
@@ -150,6 +158,27 @@ async function handleRemoveFromWorkspace(skillName: string, workspaceName: strin
     await fetchAll()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to remove skill from workspace'
+  }
+}
+
+const updatingGroup = ref<string | null>(null)
+
+function isGroupUpdatable(group: SourceGroup): boolean {
+  return !!group.sourceType && group.sourceType !== 'local' && group.sourceType !== 'builtin'
+}
+
+async function handleUpdateGroup(group: SourceGroup) {
+  if (updatingGroup.value) return
+  updatingGroup.value = group.source
+  try {
+    for (const skill of group.skills) {
+      await AppService.UpdateSkill(skill.name)
+    }
+    await fetchAll()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to update skills'
+  } finally {
+    updatingGroup.value = null
   }
 }
 
@@ -331,7 +360,7 @@ onUnmounted(() => {
   margin-left: auto;
 }
 
-.group-uninstall-btn {
+.group-action-btn {
   padding: 0.125rem 0.5rem;
   border: none;
   border-radius: 4px;
@@ -344,8 +373,18 @@ onUnmounted(() => {
   transition: all 0.15s;
 }
 
-.group-header:hover .group-uninstall-btn {
+.group-header:hover .group-action-btn {
   opacity: 1;
+}
+
+.group-action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.group-update-btn:hover:not(:disabled) {
+  background-color: var(--accent-color);
+  color: white;
 }
 
 .group-uninstall-btn:hover {

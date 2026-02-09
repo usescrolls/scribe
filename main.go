@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -285,6 +286,109 @@ func (a *AppService) RemoveSkill(name string) error {
 	}
 
 	scribe.Logger.Info("AppService.RemoveSkill succeeded", "name", name)
+
+	// Emit event to update frontend
+	if wailsApp != nil {
+		wailsApp.Event.Emit("skills-updated", nil)
+	}
+
+	return nil
+}
+
+// UpdateSkill updates a skill to its latest version from the original source
+func (a *AppService) UpdateSkill(name string) error {
+	scribe.Logger.Info("AppService.UpdateSkill called", "name", name)
+
+	// Read existing skill and metadata
+	skill, err := scribe.ReadSkill(name)
+	if err != nil {
+		return fmt.Errorf("skill not found: %w", err)
+	}
+	if skill.Meta == nil {
+		return fmt.Errorf("skill has no metadata, cannot update")
+	}
+	if skill.Meta.SourceType == "local" {
+		return fmt.Errorf("local source, cannot update")
+	}
+
+	// Reconstruct source from metadata
+	source := scribe.ReconstructSource(skill.Meta)
+
+	// Fetch remote content
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	if err != nil {
+		return fmt.Errorf("failed to fetch from source: %w", err)
+	}
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
+
+	// Find the specific skill in fetched results
+	var newSkill *scribe.Skill
+	for _, s := range skills {
+		if s.Name == name {
+			newSkill = s
+			break
+		}
+	}
+	if newSkill == nil {
+		return fmt.Errorf("skill not found in source")
+	}
+
+	// Read new content and check if update is needed
+	newContent, err := os.ReadFile(filepath.Join(newSkill.Path, scribe.SkillFileName))
+	if err != nil {
+		return fmt.Errorf("failed to read new skill content: %w", err)
+	}
+
+	skillDir, err := scribe.GetSkillDir(name)
+	if err != nil {
+		return fmt.Errorf("failed to get skill directory: %w", err)
+	}
+
+	needsUpdate, err := scribe.SkillNeedsUpdate(skillDir, string(newContent))
+	if err != nil {
+		return fmt.Errorf("failed to check for updates: %w", err)
+	}
+	if !needsUpdate {
+		scribe.Logger.Info("skill already up-to-date", "name", name)
+		return nil
+	}
+
+	// Copy new skill content to canonical location
+	if err := os.RemoveAll(skillDir); err != nil {
+		return fmt.Errorf("failed to remove old skill: %w", err)
+	}
+	if err := scribe.CopySkillDir(newSkill.Path, skillDir); err != nil {
+		return fmt.Errorf("failed to copy updated skill: %w", err)
+	}
+
+	// Update metadata
+	metaPath, err := scribe.GetMetaPath(name)
+	if err != nil {
+		return fmt.Errorf("failed to get meta path: %w", err)
+	}
+	meta, err := scribe.ReadSkillMeta(metaPath)
+	if err != nil {
+		meta = scribe.NewSkillMeta(source, skill.Meta.SkillPath, string(newContent))
+	} else {
+		scribe.UpdateSkillMeta(meta, string(newContent))
+	}
+	if err := scribe.WriteSkillMeta(metaPath, meta); err != nil {
+		return fmt.Errorf("failed to write metadata: %w", err)
+	}
+
+	// Re-sync to all agents
+	agents := scribe.DetectInstalledAgents()
+	agentIDs := make([]string, len(agents))
+	for i, a := range agents {
+		agentIDs[i] = a.ID
+	}
+	if err := scribe.SyncSkillToAgents(name, agentIDs); err != nil {
+		scribe.Logger.Warn("failed to sync to agents", "skill", name, "error", err)
+	}
+
+	scribe.Logger.Info("AppService.UpdateSkill succeeded", "name", name)
 
 	// Emit event to update frontend
 	if wailsApp != nil {

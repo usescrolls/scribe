@@ -383,8 +383,8 @@ func moveDir(src, dest string) error {
 	}
 
 	// If rename fails (cross-device), fall back to copy + delete
-	// Uses copySkillDir from installer.go
-	if err := copySkillDir(src, dest); err != nil {
+	// Uses CopySkillDir from installer.go
+	if err := CopySkillDir(src, dest); err != nil {
 		return err
 	}
 

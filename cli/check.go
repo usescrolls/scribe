@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -143,64 +142,7 @@ func checkSkill(skillName string) CheckResult {
 
 // reconstructSource creates a SourceInfo from SkillMeta
 func reconstructSource(meta *scribe.SkillMeta) *scribe.SourceInfo {
-	source := &scribe.SourceInfo{
-		Type: meta.SourceType,
-		URL:  meta.SourceURL,
-	}
-
-	switch meta.SourceType {
-	case "github":
-		// Parse "owner/repo" or "owner/repo#ref" from meta.Source
-		srcStr := meta.Source
-		parts := strings.Split(srcStr, "/")
-		if len(parts) >= 2 {
-			source.Owner = parts[0]
-			// Handle ref in repo name (owner/repo#ref)
-			repoAndRef := strings.SplitN(parts[1], "#", 2)
-			source.Repo = repoAndRef[0]
-			if len(repoAndRef) > 1 {
-				source.Ref = repoAndRef[1]
-			}
-			// Handle subpath if more parts
-			if len(parts) > 2 {
-				source.Subpath = strings.Join(parts[2:], "/")
-			}
-		}
-		if source.URL == "" {
-			source.URL = "https://github.com/" + source.Owner + "/" + source.Repo
-		}
-
-	case "gitlab":
-		srcStr := meta.Source
-		parts := strings.Split(srcStr, "/")
-		if len(parts) >= 2 {
-			source.Owner = parts[0]
-			source.Repo = parts[1]
-		}
-		if source.URL == "" {
-			source.URL = "https://gitlab.com/" + source.Owner + "/" + source.Repo
-		}
-
-	case "zip":
-		if source.URL == "" {
-			source.URL = meta.Source
-		}
-
-	case "url", "well-known":
-		if source.URL == "" {
-			source.URL = meta.Source
-		}
-
-	case "local":
-		source.LocalPath = meta.Source
-	}
-
-	// Set skill path if available
-	if meta.SkillPath != "" {
-		source.Subpath = meta.SkillPath
-	}
-
-	return source
+	return scribe.ReconstructSource(meta)
 }
 
 func checkOutputJSON(results []CheckResult) error {
