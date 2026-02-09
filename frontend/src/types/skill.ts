@@ -5,7 +5,19 @@ export interface SkillInfo {
   sourceType: string
   sourceUrl?: string
   installedAt: string
+  updatedAt?: string
+  contentHash?: string
+  commitHash?: string
+  commitDate?: string
   agents: string[]
+}
+
+export interface UpdateResult {
+  skillName: string
+  updated: boolean
+  oldHash?: string
+  newHash?: string
+  commitDate?: string
 }
 
 export interface WorkspaceInfo {

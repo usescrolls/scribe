@@ -457,7 +457,7 @@ func TestInstallFromLocalSource_SingleSkill(t *testing.T) {
 	}
 
 	// Install
-	err = InstallSkill(skills[0], source, InstallOptions{})
+	err = InstallSkill(skills[0], source, InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill error: %v", err)
 	}
@@ -509,7 +509,7 @@ func TestInstallFromLocalSource_MultipleSkills(t *testing.T) {
 	// Install all
 	installed := []string{}
 	for _, skill := range skills {
-		if err := InstallSkill(skill, source, InstallOptions{}); err != nil {
+		if err := InstallSkill(skill, source, InstallOptions{}, nil); err != nil {
 			t.Errorf("InstallSkill(%s) error: %v", skill.Name, err)
 			continue
 		}

@@ -33,7 +33,7 @@ func TestBoost_InstallSkill_Success(t *testing.T) {
 		URL:   "https://github.com/testuser/testrepo",
 	}
 
-	err := InstallSkill(skill, source, InstallOptions{})
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestBoost_InstallSkill_AlreadyExists(t *testing.T) {
 	}
 	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
 
-	err := InstallSkill(skill, source, InstallOptions{})
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
 	if err == nil {
 		t.Error("expected error when skill already exists")
 	}
@@ -97,7 +97,7 @@ func TestBoost_InstallSkill_WithSubpath(t *testing.T) {
 		Subpath: "skills/subpath-install",
 	}
 
-	err := InstallSkill(skill, source, InstallOptions{})
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestBoost_InstallSkill_WithSpecificAgents(t *testing.T) {
 
 	err := InstallSkill(skill, source, InstallOptions{
 		Agents: []string{"claude-code"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}

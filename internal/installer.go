@@ -9,7 +9,7 @@ import (
 )
 
 // InstallSkill installs a skill to the canonical location and syncs to agents
-func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
+func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo) error {
 	// Determine target directory (always global)
 	scrollsDir, err := GetScrollsDir()
 	if err != nil {
@@ -40,7 +40,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions) error {
 		return fmt.Errorf("failed to read skill content: %w", err)
 	}
 
-	meta := NewSkillMeta(source, skillPathInSource, string(skillContent))
+	meta := NewSkillMeta(source, skillPathInSource, string(skillContent), gitInfo)
 	metaPath := filepath.Join(skillDir, MetaFileName)
 	if err := WriteSkillMeta(metaPath, meta); err != nil {
 		return fmt.Errorf("failed to write metadata: %w", err)

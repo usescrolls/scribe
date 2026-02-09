@@ -311,6 +311,10 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 		info.SourceType = skill.Meta.SourceType
 		info.SourceURL = skill.Meta.SourceURL
 		info.InstalledAt = skill.Meta.InstalledAt
+		info.UpdatedAt = skill.Meta.UpdatedAt
+		info.ContentHash = skill.Meta.ContentHash
+		info.CommitHash = skill.Meta.CommitHash
+		info.CommitDate = skill.Meta.CommitDate
 	}
 
 	return info
@@ -318,16 +322,23 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 
 // GetAllSkillInfo returns SkillInfo for all installed skills
 func GetAllSkillInfo() ([]SkillInfo, error) {
-	skills, err := ReadAllSkills()
+	dirNames, err := ListInstalledSkills()
 	if err != nil {
 		return nil, err
 	}
 
-	infos := make([]SkillInfo, len(skills))
-	for i, skill := range skills {
-		infos[i] = GetSkillInfo(skill)
-		// Find which agents have this skill
-		infos[i].Agents = getAgentsWithSkill(skill.Name)
+	var infos []SkillInfo
+	for _, dirName := range dirNames {
+		skill, err := ReadSkill(dirName)
+		if err != nil {
+			continue
+		}
+		info := GetSkillInfo(skill)
+		// Use the directory name as the canonical identifier for API operations.
+		// The frontmatter "name" field may differ from the directory name.
+		info.Name = dirName
+		info.Agents = getAgentsWithSkill(dirName)
+		infos = append(infos, info)
 	}
 
 	return infos, nil

@@ -64,7 +64,7 @@ func TestNewSkillMeta_GitHub(t *testing.T) {
 		Repo:  "skills",
 		URL:   "https://github.com/octocat/skills",
 	}
-	meta := NewSkillMeta(source, "skills/test", "content body")
+	meta := NewSkillMeta(source, "skills/test", "content body", nil)
 
 	if meta.SourceType != "github" {
 		t.Errorf("SourceType = %q, want 'github'", meta.SourceType)
@@ -97,7 +97,7 @@ func TestNewSkillMeta_NoURL(t *testing.T) {
 		Type:      "local",
 		LocalPath: "/path/to/skill",
 	}
-	meta := NewSkillMeta(source, "", "local content")
+	meta := NewSkillMeta(source, "", "local content", nil)
 
 	if meta.SourceURL != "" {
 		t.Errorf("SourceURL = %q, want empty for local source with no URL", meta.SourceURL)
@@ -115,7 +115,7 @@ func TestNewSkillMeta_WithRef(t *testing.T) {
 		Ref:   "v2.0.0",
 		URL:   "https://github.com/user/repo",
 	}
-	meta := NewSkillMeta(source, "", "content")
+	meta := NewSkillMeta(source, "", "content", nil)
 	// formatSource (private) includes ref only for non main/master
 	if !strings.Contains(meta.Source, "v2.0.0") {
 		t.Errorf("Source = %q, expected it to contain ref 'v2.0.0'", meta.Source)
@@ -124,11 +124,11 @@ func TestNewSkillMeta_WithRef(t *testing.T) {
 
 func TestUpdateSkillMeta_ContentChange(t *testing.T) {
 	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
-	meta := NewSkillMeta(source, "", "old content")
+	meta := NewSkillMeta(source, "", "old content", nil)
 	oldHash := meta.ContentHash
 	oldUpdated := meta.UpdatedAt
 
-	UpdateSkillMeta(meta, "new content")
+	UpdateSkillMeta(meta, "new content", nil)
 
 	if meta.ContentHash == oldHash {
 		t.Error("UpdateSkillMeta did not change ContentHash")
@@ -247,7 +247,7 @@ func TestSaveSkillWithMeta_FullRoundtrip(t *testing.T) {
 	}
 
 	destDir := filepath.Join(tmpDir, "dest-skill")
-	err = SaveSkillWithMeta(destDir, skill, source, "skills/test-save")
+	err = SaveSkillWithMeta(destDir, skill, source, "skills/test-save", nil)
 	if err != nil {
 		t.Fatalf("SaveSkillWithMeta() error: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestBoost_SaveSkillWithMeta_MissingSource(t *testing.T) {
 	}
 	source := &SourceInfo{Type: "local", LocalPath: "/nonexistent"}
 
-	err := SaveSkillWithMeta(filepath.Join(tmpDir, "output"), skill, source, "")
+	err := SaveSkillWithMeta(filepath.Join(tmpDir, "output"), skill, source, "", nil)
 	if err == nil {
 		t.Error("expected error when source SKILL.md doesn't exist")
 	}
@@ -609,8 +609,175 @@ func TestFormatSourcePrivate_Unknown(t *testing.T) {
 
 func TestBoost_FormatSourcePrivate_Zip(t *testing.T) {
 	source := &SourceInfo{Type: "zip", URL: "https://example.com/archive.zip"}
-	meta := NewSkillMeta(source, "", "content")
+	meta := NewSkillMeta(source, "", "content", nil)
 	if meta.Source != "https://example.com/archive.zip" {
 		t.Errorf("meta.Source = %q, want URL", meta.Source)
+	}
+}
+
+// ============================================================================
+// NewSkillMeta / UpdateSkillMeta with GitCommitInfo (meta.go)
+// ============================================================================
+
+func TestNewSkillMeta_WithGitInfo(t *testing.T) {
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "octocat",
+		Repo:  "skills",
+		URL:   "https://github.com/octocat/skills",
+	}
+	gitInfo := &GitCommitInfo{
+		Hash: "abc1234",
+		Date: "2025-06-15T10:30:00Z",
+	}
+	meta := NewSkillMeta(source, "skills/test", "content body", gitInfo)
+
+	if meta.CommitHash != "abc1234" {
+		t.Errorf("CommitHash = %q, want 'abc1234'", meta.CommitHash)
+	}
+	if meta.CommitDate != "2025-06-15T10:30:00Z" {
+		t.Errorf("CommitDate = %q, want '2025-06-15T10:30:00Z'", meta.CommitDate)
+	}
+	// Other fields should still be set
+	if meta.SourceType != "github" {
+		t.Errorf("SourceType = %q, want 'github'", meta.SourceType)
+	}
+	if meta.ContentHash == "" {
+		t.Error("ContentHash is empty")
+	}
+}
+
+func TestNewSkillMeta_NilGitInfo(t *testing.T) {
+	source := &SourceInfo{
+		Type:      "local",
+		LocalPath: "/path/to/skill",
+	}
+	meta := NewSkillMeta(source, "", "content", nil)
+
+	if meta.CommitHash != "" {
+		t.Errorf("CommitHash = %q, want empty for nil gitInfo", meta.CommitHash)
+	}
+	if meta.CommitDate != "" {
+		t.Errorf("CommitDate = %q, want empty for nil gitInfo", meta.CommitDate)
+	}
+}
+
+func TestUpdateSkillMeta_WithGitInfo(t *testing.T) {
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
+	meta := NewSkillMeta(source, "", "old content", nil)
+
+	// Initially no commit info
+	if meta.CommitHash != "" {
+		t.Errorf("initial CommitHash = %q, want empty", meta.CommitHash)
+	}
+
+	gitInfo := &GitCommitInfo{
+		Hash: "def5678",
+		Date: "2025-07-01T12:00:00Z",
+	}
+	UpdateSkillMeta(meta, "new content", gitInfo)
+
+	if meta.CommitHash != "def5678" {
+		t.Errorf("CommitHash = %q, want 'def5678'", meta.CommitHash)
+	}
+	if meta.CommitDate != "2025-07-01T12:00:00Z" {
+		t.Errorf("CommitDate = %q, want '2025-07-01T12:00:00Z'", meta.CommitDate)
+	}
+	if meta.ContentHash != ComputeContentHash("new content") {
+		t.Errorf("ContentHash not updated to new content hash")
+	}
+}
+
+func TestUpdateSkillMeta_NilGitInfo_PreservesExisting(t *testing.T) {
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
+	gitInfo := &GitCommitInfo{Hash: "abc1234", Date: "2025-06-15T10:00:00Z"}
+	meta := NewSkillMeta(source, "", "content", gitInfo)
+
+	// Update with nil gitInfo — existing commit fields should remain unchanged
+	UpdateSkillMeta(meta, "new content", nil)
+
+	if meta.CommitHash != "abc1234" {
+		t.Errorf("CommitHash = %q, want 'abc1234' (should be preserved)", meta.CommitHash)
+	}
+	if meta.CommitDate != "2025-06-15T10:00:00Z" {
+		t.Errorf("CommitDate = %q, want preserved value", meta.CommitDate)
+	}
+}
+
+func TestSaveSkillWithMeta_WithGitInfo(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a source skill directory with SKILL.md
+	srcDir := filepath.Join(tmpDir, "src-skill")
+	_ = os.MkdirAll(srcDir, 0o755)
+	_ = os.WriteFile(filepath.Join(srcDir, "SKILL.md"), []byte("---\nname: git-save\ndescription: Test git save\n---\n# Content\n"), 0o644)
+
+	skill := &Skill{
+		Name:        "git-save",
+		Description: "Test git save",
+		Path:        srcDir,
+	}
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "testuser",
+		Repo:  "testrepo",
+		URL:   "https://github.com/testuser/testrepo",
+	}
+	gitInfo := &GitCommitInfo{Hash: "fed9876", Date: "2025-08-01T08:00:00Z"}
+
+	destDir := filepath.Join(tmpDir, "dest-skill")
+	err = SaveSkillWithMeta(destDir, skill, source, "skills/git-save", gitInfo)
+	if err != nil {
+		t.Fatalf("SaveSkillWithMeta() error: %v", err)
+	}
+
+	meta, err := ReadSkillMeta(filepath.Join(destDir, ".scribe-meta.json"))
+	if err != nil {
+		t.Fatalf("ReadSkillMeta() error: %v", err)
+	}
+	if meta.CommitHash != "fed9876" {
+		t.Errorf("meta.CommitHash = %q, want 'fed9876'", meta.CommitHash)
+	}
+	if meta.CommitDate != "2025-08-01T08:00:00Z" {
+		t.Errorf("meta.CommitDate = %q, want '2025-08-01T08:00:00Z'", meta.CommitDate)
+	}
+}
+
+func TestReadWriteSkillMeta_CommitFields_Roundtrip(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	metaPath := filepath.Join(tmpDir, ".scribe-meta.json")
+	original := &SkillMeta{
+		Source:      "user/repo",
+		SourceType:  "github",
+		ContentHash: "sha256:abc",
+		CommitHash:  "abc1234",
+		CommitDate:  "2025-06-15T10:30:00Z",
+		InstalledAt: "2025-06-01T12:00:00Z",
+		UpdatedAt:   "2025-06-15T14:30:00Z",
+	}
+
+	if err := WriteSkillMeta(metaPath, original); err != nil {
+		t.Fatalf("WriteSkillMeta() error: %v", err)
+	}
+
+	loaded, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		t.Fatalf("ReadSkillMeta() error: %v", err)
+	}
+
+	if loaded.CommitHash != "abc1234" {
+		t.Errorf("CommitHash = %q, want 'abc1234'", loaded.CommitHash)
+	}
+	if loaded.CommitDate != "2025-06-15T10:30:00Z" {
+		t.Errorf("CommitDate = %q, want '2025-06-15T10:30:00Z'", loaded.CommitDate)
 	}
 }

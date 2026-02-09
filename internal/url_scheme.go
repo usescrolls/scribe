@@ -63,12 +63,15 @@ func HandleInstallURL(urlString string) *InstallResult {
 		Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Extract git commit info from fetched repo
+	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
+
 	// Install each skill
 	opts := InstallOptions{Yes: true} // Auto-confirm for URL scheme installs
 	for _, skill := range skills {
 		Logger.Info("installing skill", "name", skill.Name)
 
-		if err := InstallSkill(skill, source, opts); err != nil {
+		if err := InstallSkill(skill, source, opts, gitInfo); err != nil {
 			Logger.Error("failed to install skill", "name", skill.Name, "error", err)
 			continue
 		}

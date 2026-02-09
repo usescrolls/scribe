@@ -186,9 +186,9 @@ func updateSkill(skillName string, force bool) error {
 	meta, err := scribe.ReadSkillMeta(metaPath)
 	if err != nil {
 		// Create new meta if not found
-		meta = scribe.NewSkillMeta(source, skill.Meta.SkillPath, string(newContent))
+		meta = scribe.NewSkillMeta(source, skill.Meta.SkillPath, string(newContent), scribe.GetHeadCommitInfo(fetchResult.ContentDir))
 	} else {
-		scribe.UpdateSkillMeta(meta, string(newContent))
+		scribe.UpdateSkillMeta(meta, string(newContent), scribe.GetHeadCommitInfo(fetchResult.ContentDir))
 	}
 
 	if err := scribe.WriteSkillMeta(metaPath, meta); err != nil {

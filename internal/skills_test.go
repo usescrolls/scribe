@@ -165,6 +165,58 @@ func TestGetSkillInfo_WithMeta(t *testing.T) {
 	}
 }
 
+func TestGetSkillInfo_MapsVersionFields(t *testing.T) {
+	skill := &Skill{
+		Name:        "version-skill",
+		Description: "Skill with version fields",
+		Meta: &SkillMeta{
+			Source:      "octocat/skills",
+			SourceType:  "github",
+			SourceURL:   "https://github.com/octocat/skills",
+			ContentHash: "sha256:abcdef1234567890",
+			CommitHash:  "abc1234",
+			CommitDate:  "2025-06-15T10:30:00Z",
+			InstalledAt: "2025-06-01T12:00:00Z",
+			UpdatedAt:   "2025-06-15T14:30:00Z",
+		},
+	}
+	info := GetSkillInfo(skill)
+
+	if info.UpdatedAt != "2025-06-15T14:30:00Z" {
+		t.Errorf("info.UpdatedAt = %q, want '2025-06-15T14:30:00Z'", info.UpdatedAt)
+	}
+	if info.ContentHash != "sha256:abcdef1234567890" {
+		t.Errorf("info.ContentHash = %q, want 'sha256:abcdef1234567890'", info.ContentHash)
+	}
+	if info.CommitHash != "abc1234" {
+		t.Errorf("info.CommitHash = %q, want 'abc1234'", info.CommitHash)
+	}
+	if info.CommitDate != "2025-06-15T10:30:00Z" {
+		t.Errorf("info.CommitDate = %q, want '2025-06-15T10:30:00Z'", info.CommitDate)
+	}
+}
+
+func TestGetSkillInfo_NoMeta_VersionFieldsEmpty(t *testing.T) {
+	skill := &Skill{
+		Name:        "no-meta-skill",
+		Description: "No metadata",
+	}
+	info := GetSkillInfo(skill)
+
+	if info.UpdatedAt != "" {
+		t.Errorf("info.UpdatedAt = %q, want empty", info.UpdatedAt)
+	}
+	if info.ContentHash != "" {
+		t.Errorf("info.ContentHash = %q, want empty", info.ContentHash)
+	}
+	if info.CommitHash != "" {
+		t.Errorf("info.CommitHash = %q, want empty", info.CommitHash)
+	}
+	if info.CommitDate != "" {
+		t.Errorf("info.CommitDate = %q, want empty", info.CommitDate)
+	}
+}
+
 // ============================================================================
 // GetAgentsWithSkill (skills.go)
 // ============================================================================
@@ -518,6 +570,33 @@ func TestBoost_GetAllSkillInfo(t *testing.T) {
 	}
 	if infos[0].Name != "info-skill" {
 		t.Errorf("skill name = %q, want 'info-skill'", infos[0].Name)
+	}
+}
+
+func TestGetAllSkillInfo_UsesDirNameNotFrontmatterName(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create a skill where directory name differs from frontmatter name
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "dir-name")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: frontmatter-name\ndescription: Mismatched names\n---\n# Content\n"), 0o644)
+
+	infos, err := GetAllSkillInfo()
+	if err != nil {
+		t.Fatalf("GetAllSkillInfo() error: %v", err)
+	}
+	if len(infos) != 1 {
+		t.Fatalf("expected 1 skill info, got %d", len(infos))
+	}
+	// SkillInfo.Name must be the directory name, not the frontmatter name,
+	// because backend operations (UpdateSkill, RemoveSkill, etc.) resolve by directory name.
+	if infos[0].Name != "dir-name" {
+		t.Errorf("SkillInfo.Name = %q, want 'dir-name' (directory name), not 'frontmatter-name'", infos[0].Name)
+	}
+	if infos[0].Description != "Mismatched names" {
+		t.Errorf("SkillInfo.Description = %q, want 'Mismatched names'", infos[0].Description)
 	}
 }
 

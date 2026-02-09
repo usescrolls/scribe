@@ -40,7 +40,7 @@ func ComputeContentHash(content string) string {
 }
 
 // NewSkillMeta creates a new SkillMeta with the current timestamp
-func NewSkillMeta(source *SourceInfo, skillPath, content string) *SkillMeta {
+func NewSkillMeta(source *SourceInfo, skillPath, content string, gitInfo *GitCommitInfo) *SkillMeta {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	meta := &SkillMeta{
@@ -57,6 +57,11 @@ func NewSkillMeta(source *SourceInfo, skillPath, content string) *SkillMeta {
 
 	if skillPath != "" {
 		meta.SkillPath = skillPath
+	}
+
+	if gitInfo != nil {
+		meta.CommitHash = gitInfo.Hash
+		meta.CommitDate = gitInfo.Date
 	}
 
 	return meta
@@ -93,9 +98,13 @@ func formatSource(source *SourceInfo) string {
 }
 
 // UpdateSkillMeta updates an existing SkillMeta with new content info
-func UpdateSkillMeta(meta *SkillMeta, content string) {
+func UpdateSkillMeta(meta *SkillMeta, content string, gitInfo *GitCommitInfo) {
 	meta.ContentHash = ComputeContentHash(content)
 	meta.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if gitInfo != nil {
+		meta.CommitHash = gitInfo.Hash
+		meta.CommitDate = gitInfo.Date
+	}
 }
 
 // LoadSkillWithMeta loads a skill and its metadata from a skill directory
@@ -145,7 +154,7 @@ func ListSkillsWithMeta(scrollsDir string) ([]*Skill, error) {
 }
 
 // SaveSkillWithMeta saves a skill's SKILL.md and .scribe-meta.json to a directory
-func SaveSkillWithMeta(skillDir string, skill *Skill, source *SourceInfo, skillPathInSource string) error {
+func SaveSkillWithMeta(skillDir string, skill *Skill, source *SourceInfo, skillPathInSource string, gitInfo *GitCommitInfo) error {
 	// Ensure directory exists
 	if err := EnsureDir(skillDir); err != nil {
 		return err
@@ -164,7 +173,7 @@ func SaveSkillWithMeta(skillDir string, skill *Skill, source *SourceInfo, skillP
 	}
 
 	// Create and write metadata
-	meta := NewSkillMeta(source, skillPathInSource, string(originalContent))
+	meta := NewSkillMeta(source, skillPathInSource, string(originalContent), gitInfo)
 	metaPath := skillDir + "/" + MetaFileName
 	if err := WriteSkillMeta(metaPath, meta); err != nil {
 		return err

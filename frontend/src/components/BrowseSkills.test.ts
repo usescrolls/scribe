@@ -520,7 +520,117 @@ describe("BrowseSkills", () => {
       await updateButtons[0].trigger("click")
       await flushPromises()
 
-      expect(wrapper.text()).toContain("Update failed")
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Update failed")
+      expect(toast.props("type")).toBe("error")
+    })
+
+    it("shows success toast when skills are updated", async () => {
+      mockAppService.UpdateSkill.mockResolvedValue({
+        skillName: "react-patterns",
+        updated: true,
+        oldHash: "abc1234",
+        newHash: "def5678",
+      })
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Updated")
+      expect(toast.props("message")).toContain("abc1234")
+      expect(toast.props("message")).toContain("def5678")
+      expect(toast.props("type")).toBe("success")
+    })
+
+    it("shows info toast when all skills already up to date", async () => {
+      mockAppService.UpdateSkill.mockResolvedValue({
+        skillName: "react-patterns",
+        updated: false,
+      })
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("already up to date")
+      expect(toast.props("type")).toBe("info")
+    })
+
+    it("shows error toast on update failure", async () => {
+      mockAppService.UpdateSkill.mockRejectedValue(new Error("Network error"))
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Network error")
+      expect(toast.props("type")).toBe("error")
+    })
+  })
+
+  describe("version display", () => {
+    it("shows commit hash with relative time in group header", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          commitHash: "abc1234",
+          commitDate: "2025-06-15T10:30:00Z",
+        },
+        {
+          ...mockSkills[1],
+          commitHash: "abc1234",
+          commitDate: "2025-06-15T10:30:00Z",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const version = wrapper.find(".group-version")
+      expect(version.exists()).toBe(true)
+      const text = version.text()
+      expect(text).toContain("abc1234")
+      expect(text).toContain("·")
+      expect(text).toMatch(/ago|just now/)
+    })
+
+    it("does not show version when no commit hash", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Default mockSkills have no commitHash
+      const versions = wrapper.findAll(".group-version")
+      expect(versions).toHaveLength(0)
+    })
+
+    it("shows tooltip with commit details", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          commitHash: "abc1234",
+          commitDate: "2025-06-15T10:30:00Z",
+          updatedAt: "2025-06-15T14:30:00Z",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const version = wrapper.find(".group-version")
+      expect(version.exists()).toBe(true)
+      const title = version.attributes("title")
+      expect(title).toContain("Commit: abc1234")
     })
   })
 })

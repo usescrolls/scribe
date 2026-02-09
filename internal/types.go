@@ -10,16 +10,24 @@ type Skill struct {
 	Meta        *SkillMeta     `json:"meta,omitempty"`     // Source tracking (from .scribe-meta.json)
 }
 
+// GitCommitInfo holds the short hash and date of a git commit
+type GitCommitInfo struct {
+	Hash string // short hash, 7 chars
+	Date string // ISO 8601
+}
+
 // SkillMeta tracks the source and installation info for a skill
 // Stored in .scribe-meta.json sidecar file alongside SKILL.md
 type SkillMeta struct {
-	Source      string `json:"source"`              // e.g., "owner/repo"
-	SourceType  string `json:"sourceType"`          // github, gitlab, bitbucket, local, url, well-known
-	SourceURL   string `json:"sourceUrl,omitempty"` // Full URL if applicable
-	SkillPath   string `json:"skillPath,omitempty"` // Path within source repo
-	ContentHash string `json:"contentHash"`         // SHA256 hash of SKILL.md content
-	InstalledAt string `json:"installedAt"`         // ISO 8601 timestamp
-	UpdatedAt   string `json:"updatedAt"`           // ISO 8601 timestamp
+	Source      string `json:"source"`               // e.g., "owner/repo"
+	SourceType  string `json:"sourceType"`           // github, gitlab, bitbucket, local, url, well-known
+	SourceURL   string `json:"sourceUrl,omitempty"`  // Full URL if applicable
+	SkillPath   string `json:"skillPath,omitempty"`  // Path within source repo
+	ContentHash string `json:"contentHash"`          // SHA256 hash of SKILL.md content
+	CommitHash  string `json:"commitHash,omitempty"` // Short git commit hash
+	CommitDate  string `json:"commitDate,omitempty"` // ISO 8601 commit timestamp
+	InstalledAt string `json:"installedAt"`          // ISO 8601 timestamp
+	UpdatedAt   string `json:"updatedAt"`            // ISO 8601 timestamp
 }
 
 // Agent represents a coding agent with its skill directories
@@ -71,7 +79,20 @@ type SkillInfo struct {
 	SourceType  string   `json:"sourceType"`          // github, local, url, etc.
 	SourceURL   string   `json:"sourceUrl,omitempty"` // Full URL to source repo/page
 	InstalledAt string   `json:"installedAt"`         // ISO formatted timestamp
-	Agents      []string `json:"agents"`              // List of agent IDs with this skill
+	UpdatedAt   string   `json:"updatedAt,omitempty"`
+	ContentHash string   `json:"contentHash,omitempty"`
+	CommitHash  string   `json:"commitHash,omitempty"`
+	CommitDate  string   `json:"commitDate,omitempty"`
+	Agents      []string `json:"agents"` // List of agent IDs with this skill
+}
+
+// UpdateResult contains the outcome of a skill update operation
+type UpdateResult struct {
+	SkillName  string `json:"skillName"`
+	Updated    bool   `json:"updated"`
+	OldHash    string `json:"oldHash,omitempty"`    // Previous commit hash or truncated content hash
+	NewHash    string `json:"newHash,omitempty"`    // New commit hash or truncated content hash
+	CommitDate string `json:"commitDate,omitempty"` // New commit date if available
 }
 
 // WorkspaceInfo is the frontend-friendly representation of a workspace

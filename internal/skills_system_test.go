@@ -433,7 +433,7 @@ func TestSkillMetaReadWrite(t *testing.T) {
 		Owner: "user",
 		Repo:  "repo",
 	}
-	meta := NewSkillMeta(source, "skills/test", "test content")
+	meta := NewSkillMeta(source, "skills/test", "test content", nil)
 
 	// Write
 	err = WriteSkillMeta(metaPath, meta)
@@ -663,7 +663,7 @@ description: Test skill for installation
 	}
 
 	// Install
-	err = InstallSkill(skill, source, opts)
+	err = InstallSkill(skill, source, opts, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
@@ -861,7 +861,7 @@ This skill does cool things.
 		agentIDs[i] = a.ID
 	}
 
-	err = InstallSkill(skill, source, InstallOptions{Agents: agentIDs})
+	err = InstallSkill(skill, source, InstallOptions{Agents: agentIDs}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
@@ -1112,12 +1112,12 @@ func TestUpdateSkillMeta(t *testing.T) {
 		Owner: "user",
 		Repo:  "repo",
 	}
-	meta := NewSkillMeta(source, "skills/test", "original content")
+	meta := NewSkillMeta(source, "skills/test", "original content", nil)
 
 	originalHash := meta.ContentHash
 
 	// Update with new content
-	UpdateSkillMeta(meta, "new content")
+	UpdateSkillMeta(meta, "new content", nil)
 
 	if meta.ContentHash == originalHash {
 		t.Error("ContentHash should change after update")
@@ -1163,7 +1163,7 @@ description: A test skill
 
 	// Create meta file
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
-	meta := NewSkillMeta(source, "", skillContent)
+	meta := NewSkillMeta(source, "", skillContent, nil)
 	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	// Load with meta
@@ -1251,7 +1251,7 @@ func TestSkillNeedsUpdate(t *testing.T) {
 
 	// Create meta file
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
-	meta := NewSkillMeta(source, "", content)
+	meta := NewSkillMeta(source, "", content, nil)
 	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	// Same content - should not need update
@@ -1660,7 +1660,7 @@ description: A test skill
 
 	// Add meta and read again
 	source := &SourceInfo{Type: "local", LocalPath: skillDir}
-	meta := NewSkillMeta(source, "", skillContent)
+	meta := NewSkillMeta(source, "", skillContent, nil)
 	_ = WriteSkillMeta(filepath.Join(skillDir, ".scribe-meta.json"), meta)
 
 	skill, err = ReadSkill("test-skill")
@@ -2097,7 +2097,7 @@ description: Skill for save test
 
 	// Save to target directory
 	targetDir := filepath.Join(tmpDir, "target", "save-skill")
-	err = SaveSkillWithMeta(targetDir, skill, source, "skills/save-skill")
+	err = SaveSkillWithMeta(targetDir, skill, source, "skills/save-skill", nil)
 	if err != nil {
 		t.Fatalf("SaveSkillWithMeta() error: %v", err)
 	}
@@ -2327,7 +2327,7 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 	// Install all skills
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
 	for _, skill := range discovered {
-		err = InstallSkill(skill, source, InstallOptions{})
+		err = InstallSkill(skill, source, InstallOptions{}, nil)
 		if err != nil {
 			t.Fatalf("InstallSkill(%s) error: %v", skill.Name, err)
 		}
@@ -2436,7 +2436,7 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 
 		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-		_ = InstallSkill(skill, source, InstallOptions{})
+		_ = InstallSkill(skill, source, InstallOptions{}, nil)
 		_ = AddSkillToActiveAndDefaultWorkspace(name)
 	}
 
@@ -2613,7 +2613,7 @@ func TestIntegration_SkillMetadataTracking(t *testing.T) {
 		Repo:  "test-repo",
 		URL:   "https://github.com/test-org/test-repo",
 	}
-	_ = InstallSkill(skill, source, InstallOptions{})
+	_ = InstallSkill(skill, source, InstallOptions{}, nil)
 
 	// Read back the installed skill with metadata
 	skillDir, _ := GetSkillDir("tracked-skill")
@@ -2690,7 +2690,7 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-	_ = InstallSkill(skill, source, InstallOptions{})
+	_ = InstallSkill(skill, source, InstallOptions{}, nil)
 
 	// Verify symlink exists in all agent directories
 	for _, agent := range agents {
@@ -2753,7 +2753,7 @@ func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
 
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-	_ = InstallSkill(skill, source, InstallOptions{})
+	_ = InstallSkill(skill, source, InstallOptions{}, nil)
 	_ = AddSkillToActiveAndDefaultWorkspace("workspace-test-skill")
 
 	// Create a custom workspace without the skill
@@ -2875,7 +2875,7 @@ func TestIntegration_RebuildDefaultWorkspace(t *testing.T) {
 
 		skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 		source := &SourceInfo{Type: "local", LocalPath: sourceDir}
-		_ = InstallSkill(skill, source, InstallOptions{})
+		_ = InstallSkill(skill, source, InstallOptions{}, nil)
 		// Intentionally NOT adding to workspace
 	}
 

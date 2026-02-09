@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -214,6 +215,34 @@ func buildCloneURL(source *SourceInfo) string {
 		cloneURL += ".git"
 	}
 	return cloneURL
+}
+
+// GetHeadCommitInfo extracts the HEAD commit's short hash and date from a git repo directory.
+// Returns nil if the directory is not a git repo or the commit can't be read.
+func GetHeadCommitInfo(repoDir string) *GitCommitInfo {
+	if repoDir == "" {
+		return nil
+	}
+
+	repo, err := git.PlainOpen(repoDir)
+	if err != nil {
+		return nil
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		return nil
+	}
+
+	commit, err := repo.CommitObject(head.Hash())
+	if err != nil {
+		return nil
+	}
+
+	return &GitCommitInfo{
+		Hash: commit.Hash.String()[:7],
+		Date: commit.Author.When.UTC().Format(time.RFC3339),
+	}
 }
 
 // ClearCache removes the entire cache directory.

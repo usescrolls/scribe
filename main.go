@@ -296,19 +296,25 @@ func (a *AppService) RemoveSkill(name string) error {
 }
 
 // UpdateSkill updates a skill to its latest version from the original source
-func (a *AppService) UpdateSkill(name string) error {
+func (a *AppService) UpdateSkill(name string) (*scribe.UpdateResult, error) {
 	scribe.Logger.Info("AppService.UpdateSkill called", "name", name)
 
 	// Read existing skill and metadata
 	skill, err := scribe.ReadSkill(name)
 	if err != nil {
-		return fmt.Errorf("skill not found: %w", err)
+		return nil, fmt.Errorf("skill not found: %w", err)
 	}
 	if skill.Meta == nil {
-		return fmt.Errorf("skill has no metadata, cannot update")
+		return nil, fmt.Errorf("skill has no metadata, cannot update")
 	}
 	if skill.Meta.SourceType == "local" {
-		return fmt.Errorf("local source, cannot update")
+		return nil, fmt.Errorf("local source, cannot update")
+	}
+
+	// Capture old hash for result
+	oldHash := skill.Meta.CommitHash
+	if oldHash == "" && len(skill.Meta.ContentHash) > 13 {
+		oldHash = skill.Meta.ContentHash[7:14] // truncate "sha256:abcdefg..." to "abcdefg"
 	}
 
 	// Reconstruct source from metadata
@@ -317,65 +323,97 @@ func (a *AppService) UpdateSkill(name string) error {
 	// Fetch remote content
 	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
-		return fmt.Errorf("failed to fetch from source: %w", err)
+		return nil, fmt.Errorf("failed to fetch from source: %w", err)
 	}
 	if fetchResult != nil {
 		defer fetchResult.Cleanup()
 	}
 
-	// Find the specific skill in fetched results
+	// Extract git commit info from fetched repo
+	gitInfo := scribe.GetHeadCommitInfo(fetchResult.ContentDir)
+
+	// Find the specific skill in fetched results.
+	// Match by frontmatter name or by source directory basename, since the
+	// local directory name may differ from the frontmatter name.
 	var newSkill *scribe.Skill
 	for _, s := range skills {
-		if s.Name == name {
+		if s.Name == name || filepath.Base(s.Path) == name {
 			newSkill = s
 			break
 		}
 	}
 	if newSkill == nil {
-		return fmt.Errorf("skill not found in source")
+		return nil, fmt.Errorf("skill not found in source")
 	}
 
 	// Read new content and check if update is needed
 	newContent, err := os.ReadFile(filepath.Join(newSkill.Path, scribe.SkillFileName))
 	if err != nil {
-		return fmt.Errorf("failed to read new skill content: %w", err)
+		return nil, fmt.Errorf("failed to read new skill content: %w", err)
 	}
 
 	skillDir, err := scribe.GetSkillDir(name)
 	if err != nil {
-		return fmt.Errorf("failed to get skill directory: %w", err)
+		return nil, fmt.Errorf("failed to get skill directory: %w", err)
 	}
 
 	needsUpdate, err := scribe.SkillNeedsUpdate(skillDir, string(newContent))
 	if err != nil {
-		return fmt.Errorf("failed to check for updates: %w", err)
+		return nil, fmt.Errorf("failed to check for updates: %w", err)
 	}
+
+	// Build new hash for result
+	newHash := ""
+	commitDate := ""
+	if gitInfo != nil {
+		newHash = gitInfo.Hash
+		commitDate = gitInfo.Date
+	}
+
 	if !needsUpdate {
 		scribe.Logger.Info("skill already up-to-date", "name", name)
-		return nil
+
+		// Backfill git info into metadata if missing (e.g. skill was installed
+		// before commit tracking was added).
+		if gitInfo != nil && skill.Meta.CommitHash == "" {
+			metaPath, err := scribe.GetMetaPath(name)
+			if err == nil {
+				skill.Meta.CommitHash = gitInfo.Hash
+				skill.Meta.CommitDate = gitInfo.Date
+				_ = scribe.WriteSkillMeta(metaPath, skill.Meta)
+			}
+		}
+
+		return &scribe.UpdateResult{
+			SkillName:  name,
+			Updated:    false,
+			OldHash:    oldHash,
+			NewHash:    newHash,
+			CommitDate: commitDate,
+		}, nil
 	}
 
 	// Copy new skill content to canonical location
 	if err := os.RemoveAll(skillDir); err != nil {
-		return fmt.Errorf("failed to remove old skill: %w", err)
+		return nil, fmt.Errorf("failed to remove old skill: %w", err)
 	}
 	if err := scribe.CopySkillDir(newSkill.Path, skillDir); err != nil {
-		return fmt.Errorf("failed to copy updated skill: %w", err)
+		return nil, fmt.Errorf("failed to copy updated skill: %w", err)
 	}
 
 	// Update metadata
 	metaPath, err := scribe.GetMetaPath(name)
 	if err != nil {
-		return fmt.Errorf("failed to get meta path: %w", err)
+		return nil, fmt.Errorf("failed to get meta path: %w", err)
 	}
 	meta, err := scribe.ReadSkillMeta(metaPath)
 	if err != nil {
-		meta = scribe.NewSkillMeta(source, skill.Meta.SkillPath, string(newContent))
+		meta = scribe.NewSkillMeta(source, skill.Meta.SkillPath, string(newContent), gitInfo)
 	} else {
-		scribe.UpdateSkillMeta(meta, string(newContent))
+		scribe.UpdateSkillMeta(meta, string(newContent), gitInfo)
 	}
 	if err := scribe.WriteSkillMeta(metaPath, meta); err != nil {
-		return fmt.Errorf("failed to write metadata: %w", err)
+		return nil, fmt.Errorf("failed to write metadata: %w", err)
 	}
 
 	// Re-sync to all agents
@@ -395,7 +433,13 @@ func (a *AppService) UpdateSkill(name string) error {
 		wailsApp.Event.Emit("skills-updated", nil)
 	}
 
-	return nil
+	return &scribe.UpdateResult{
+		SkillName:  name,
+		Updated:    true,
+		OldHash:    oldHash,
+		NewHash:    newHash,
+		CommitDate: commitDate,
+	}, nil
 }
 
 // ======================================================================
@@ -624,13 +668,16 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		return &scribe.InstallResult{ErrorMessage: "No skills found in source"}, nil
 	}
 
+	// Extract git commit info from fetched repo
+	gitInfo := scribe.GetHeadCommitInfo(fetchResult.ContentDir)
+
 	// Install each discovered skill
 	result := &scribe.InstallResult{}
 	opts := scribe.InstallOptions{Yes: true}
 	for _, skill := range skills {
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
-		if err := scribe.InstallSkill(skill, source, opts); err != nil {
+		if err := scribe.InstallSkill(skill, source, opts, gitInfo); err != nil {
 			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
 			continue
 		}
@@ -752,6 +799,12 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 		}
 	}
 
+	// Extract git commit info from cached repo
+	var gitInfo *scribe.GitCommitInfo
+	if a.pendingFetch != nil {
+		gitInfo = scribe.GetHeadCommitInfo(a.pendingFetch.ContentDir)
+	}
+
 	// Install each requested skill
 	result := &scribe.InstallResult{}
 	opts := scribe.InstallOptions{Yes: true}
@@ -767,7 +820,7 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
-		if err := scribe.InstallSkill(skill, a.pendingSource, opts); err != nil {
+		if err := scribe.InstallSkill(skill, a.pendingSource, opts, gitInfo); err != nil {
 			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
 			continue
 		}

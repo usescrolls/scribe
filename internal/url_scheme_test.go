@@ -478,7 +478,7 @@ func TestBoost_HandleInstallURL_FullSuccess(t *testing.T) {
 	_ = EnsureDefaultWorkspace()
 	opts := InstallOptions{Yes: true}
 	for _, skill := range skills {
-		err := InstallSkill(skill, source, opts)
+		err := InstallSkill(skill, source, opts, nil)
 		if err != nil {
 			t.Fatalf("InstallSkill error: %v", err)
 		}
@@ -568,7 +568,7 @@ func TestBoost_HandleInstallURL_WithFilter_Match(t *testing.T) {
 	// Install the filtered skill
 	_ = EnsureDefaultWorkspace()
 	for _, skill := range filtered {
-		err := InstallSkill(skill, source, InstallOptions{Yes: true})
+		err := InstallSkill(skill, source, InstallOptions{Yes: true}, nil)
 		if err != nil {
 			t.Fatalf("InstallSkill error: %v", err)
 		}

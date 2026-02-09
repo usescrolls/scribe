@@ -55,7 +55,7 @@ func installFakeSkill(t *testing.T, name, description, sourceType, source string
 		Owner: "testowner",
 		Repo:  "testrepo",
 		URL:   "https://github.com/testowner/testrepo",
-	}, "", content)
+	}, "", content, nil)
 	meta.Source = source
 	meta.SourceType = sourceType
 

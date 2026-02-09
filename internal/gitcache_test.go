@@ -626,6 +626,65 @@ func TestCloneOrUpdateRepo_CorruptedCache(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// GetHeadCommitInfo (gitcache.go)
+// ============================================================================
+
+func TestGetHeadCommitInfo_ValidRepo(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-head-info-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	repoDir := filepath.Join(tmpDir, "repo")
+	createTestGitRepo(t, repoDir, map[string]string{
+		"SKILL.md": "---\nname: test\ndescription: test\n---\n# Test\n",
+	})
+
+	info := GetHeadCommitInfo(repoDir)
+	if info == nil {
+		t.Fatal("GetHeadCommitInfo returned nil for valid git repo")
+	}
+	if len(info.Hash) != 7 {
+		t.Errorf("Hash length = %d, want 7 (short hash)", len(info.Hash))
+	}
+	if info.Date == "" {
+		t.Error("Date is empty")
+	}
+	// Verify date is valid RFC3339
+	if !strings.Contains(info.Date, "T") || !strings.Contains(info.Date, "Z") {
+		t.Errorf("Date = %q, does not look like RFC3339", info.Date)
+	}
+}
+
+func TestGetHeadCommitInfo_NonGitDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-head-info-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	info := GetHeadCommitInfo(tmpDir)
+	if info != nil {
+		t.Errorf("GetHeadCommitInfo(non-git dir) = %+v, want nil", info)
+	}
+}
+
+func TestGetHeadCommitInfo_EmptyString(t *testing.T) {
+	info := GetHeadCommitInfo("")
+	if info != nil {
+		t.Errorf("GetHeadCommitInfo('') = %+v, want nil", info)
+	}
+}
+
+func TestGetHeadCommitInfo_NonExistentDir(t *testing.T) {
+	info := GetHeadCommitInfo("/tmp/nonexistent-scribe-dir-xyz-12345")
+	if info != nil {
+		t.Errorf("GetHeadCommitInfo(nonexistent) = %+v, want nil", info)
+	}
+}
+
 func TestCloneOrUpdateRepo_FetchFails(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)

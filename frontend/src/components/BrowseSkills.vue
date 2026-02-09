@@ -18,6 +18,12 @@
       @confirm="executeUninstallGroup"
       @cancel="confirmUninstallGroup = null"
     />
+    <ToastNotification
+      v-if="toast"
+      :message="toast.message"
+      :type="toast.type"
+      @close="toast = null"
+    />
     <div v-if="loading" class="loading">
       <div class="spinner"></div>
       <span>Loading skills...</span>
@@ -50,6 +56,7 @@
             </svg>
           </a>
           <span v-else class="group-source">{{ group.source }}</span>
+          <span v-if="getGroupVersion(group)" class="group-version" :title="getGroupVersionTooltip(group)">{{ getGroupVersion(group) }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
           <button
             v-if="isGroupUpdatable(group)"
@@ -92,12 +99,14 @@ import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
-import type { SkillInfo, WorkspaceInfo } from '../types/skill'
+import ToastNotification from './ToastNotification.vue'
+import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
 
 const allSkillsRaw = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const toast = ref<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 let unsubscribeSkills: { (): void } | null = null
 let unsubscribeWorkspace: { (): void } | null = null
 
@@ -171,15 +180,68 @@ async function handleUpdateGroup(group: SourceGroup) {
   if (updatingGroup.value) return
   updatingGroup.value = group.source
   try {
+    const results: UpdateResult[] = []
     for (const skill of group.skills) {
-      await AppService.UpdateSkill(skill.name)
+      const result = await AppService.UpdateSkill(skill.name)
+      if (result) results.push(result as UpdateResult)
     }
     await fetchAll()
+
+    // Show toast with update summary
+    const updated = results.filter(r => r.updated)
+    if (updated.length > 0) {
+      const hashInfo = updated[0].newHash
+        ? updated[0].oldHash
+          ? ` (${updated[0].oldHash} \u2192 ${updated[0].newHash})`
+          : ` (${updated[0].newHash})`
+        : ''
+      toast.value = {
+        message: `Updated ${updated.length} skill${updated.length !== 1 ? 's' : ''}${hashInfo}`,
+        type: 'success',
+      }
+    } else {
+      toast.value = { message: 'All skills already up to date', type: 'info' }
+    }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to update skills'
+    toast.value = {
+      message: err instanceof Error ? err.message : 'Failed to update skills',
+      type: 'error',
+    }
   } finally {
     updatingGroup.value = null
   }
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  return `${months}mo ago`
+}
+
+function getGroupVersion(group: SourceGroup): string | null {
+  const first = group.skills[0]
+  if (!first?.commitHash) return null
+  const hash = first.commitHash
+  const date = first.commitDate || first.updatedAt
+  if (date) return `${hash} · ${relativeTime(date)}`
+  return hash
+}
+
+function getGroupVersionTooltip(group: SourceGroup): string {
+  const first = group.skills[0]
+  const parts: string[] = []
+  if (first?.commitHash) parts.push(`Commit: ${first.commitHash}`)
+  if (first?.commitDate) parts.push(`Date: ${new Date(first.commitDate).toLocaleDateString()}`)
+  if (first?.updatedAt) parts.push(`Updated: ${new Date(first.updatedAt).toLocaleDateString()}`)
+  return parts.join('\n')
 }
 
 const confirmUninstallName = ref<string | null>(null)
@@ -352,6 +414,16 @@ onUnmounted(() => {
 
 .group-source-link:hover .external-icon {
   opacity: 0.7;
+}
+
+.group-version {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  background-color: var(--bg-primary);
+  padding: 0.0625rem 0.3125rem;
+  border-radius: 3px;
+  cursor: default;
 }
 
 .group-count {

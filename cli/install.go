@@ -131,6 +131,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Extract git commit info from fetched repo
+	gitInfo := scribe.GetHeadCommitInfo(fetchResult.ContentDir)
+
 	// Install each skill
 	opts := scribe.InstallOptions{
 		Agents: targetAgents,
@@ -143,7 +146,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Installing %s...\n", skill.Name)
 		}
 
-		if err := scribe.InstallSkill(skill, source, opts); err != nil {
+		if err := scribe.InstallSkill(skill, source, opts, gitInfo); err != nil {
 			fmt.Fprintf(os.Stderr, "  x Failed to install %s: %v\n", skill.Name, err)
 			continue
 		}
