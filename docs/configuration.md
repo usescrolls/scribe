@@ -22,7 +22,11 @@ All Scribe data is stored in the user's home directory:
 │   ├── default.json            # Default workspace (all skills)
 │   ├── web-dev.json
 │   └── backend.json
-└── config.json                 # Global config (active workspace)
+├── cache/                      # Local git clone cache
+│   └── github.com/
+│       └── owner/
+│           └── repo/           # Cached shallow clones
+└── config.json                 # Global config (active workspace, onboarding)
 ```
 
 ### Skill Storage (`~/.scribe/scrolls/`)
@@ -48,6 +52,8 @@ Each skill has its own metadata file for source tracking:
   "sourceUrl": "https://github.com/vercel-labs/agent-skills",
   "skillPath": "skills/react-best-practices",
   "contentHash": "sha256:abc123...",
+  "commitHash": "a1b2c3d",
+  "commitDate": "2025-01-28T15:00:00Z",
   "installedAt": "2025-01-29T10:30:00Z",
   "updatedAt": "2025-01-29T10:30:00Z"
 }
@@ -81,7 +87,8 @@ Global configuration:
 
 ```json
 {
-  "activeWorkspace": "default"
+  "activeWorkspace": "default",
+  "onboardingCompleted": true
 }
 ```
 
@@ -96,6 +103,7 @@ Global configuration:
 | GitHub Subpath | `owner/repo/path/to/skills` | Clone repo, use subpath |
 | GitHub Branch | `owner/repo#branch` | Clone specific branch |
 | GitLab | `https://gitlab.com/owner/repo` | Clone repo |
+| Bitbucket | `https://bitbucket.org/owner/repo` | Clone repo |
 | Local Path | `./local/path` | Read directly |
 | Zip URL | `https://example.com/skills.zip` | Download, extract, discover skills |
 
@@ -165,17 +173,45 @@ Scribe distributes skills by creating symlinks in each agent's skills directory.
 
 | Agent | Config Dir | Skills Dir |
 |-------|-----------|------------|
+| AdaL | `~/.adal` | `~/.adal/skills/` |
+| Amp | `~/.config/amp` | `~/.config/agents/skills/` |
+| Antigravity | `~/.gemini/antigravity` | `~/.gemini/antigravity/skills/` |
+| Augment | `~/.augment` | `~/.augment/rules/` |
 | Claude Code | `~/.claude` | `~/.claude/skills/` |
-| Cursor | `~/.cursor` | `~/.cursor/skills/` |
-| GitHub Copilot | `~/.copilot` | `~/.copilot/skills/` |
 | Cline | `~/.cline` | `~/.cline/skills/` |
-| Continue | `~/.continue` | `~/.continue/skills/` |
-| Windsurf | `~/.codeium/windsurf` | `~/.codeium/windsurf/skills/` |
-| OpenCode | `~/.config/opencode` | `~/.config/opencode/skills/` |
+| CodeBuddy | `~/.codebuddy` | `~/.codebuddy/skills/` |
 | Codex | `~/.codex` | `~/.codex/skills/` |
+| Command Code | `~/.commandcode` | `~/.commandcode/skills/` |
+| Continue | `~/.continue` | `~/.continue/skills/` |
+| Crush | `~/.config/crush` | `~/.config/crush/skills/` |
+| Cursor | `~/.cursor` | `~/.cursor/skills/` |
+| Droid | `~/.factory` | `~/.factory/skills/` |
 | Gemini CLI | `~/.gemini` | `~/.gemini/skills/` |
+| GitHub Copilot | `~/.copilot` | `~/.copilot/skills/` |
 | Goose | `~/.config/goose` | `~/.config/goose/skills/` |
-| + 35 more... | | |
+| iFlow CLI | `~/.iflow` | `~/.iflow/skills/` |
+| Junie | `~/.junie` | `~/.junie/skills/` |
+| Kilo Code | `~/.kilocode` | `~/.kilocode/skills/` |
+| Kimi CLI | `~/.kimi` | `~/.config/agents/skills/` |
+| Kiro CLI | `~/.kiro` | `~/.kiro/skills/` |
+| Kode | `~/.kode` | `~/.kode/skills/` |
+| MCPJam | `~/.mcpjam` | `~/.mcpjam/skills/` |
+| Mistral Vibe | `~/.vibe` | `~/.vibe/skills/` |
+| Mux | `~/.mux` | `~/.mux/skills/` |
+| Neovate | `~/.neovate` | `~/.neovate/skills/` |
+| OpenClaw | `~/.openclaw` | `~/.openclaw/skills/` |
+| OpenCode | `~/.config/opencode` | `~/.config/opencode/skills/` |
+| OpenHands | `~/.openhands` | `~/.openhands/skills/` |
+| Pi | `~/.pi/agent` | `~/.pi/agent/skills/` |
+| Pochi | `~/.pochi` | `~/.pochi/skills/` |
+| Qoder | `~/.qoder` | `~/.qoder/skills/` |
+| Qwen Code | `~/.qwen` | `~/.qwen/skills/` |
+| Replit | `~/.config/agents` | `~/.config/agents/skills/` |
+| Roo Code | `~/.roo` | `~/.roo/skills/` |
+| Trae | `~/.trae` | `~/.trae/skills/` |
+| Trae CN | `~/.trae-cn` | `~/.trae-cn/skills/` |
+| Windsurf | `~/.codeium/windsurf` | `~/.codeium/windsurf/skills/` |
+| Zencoder | `~/.zencoder` | `~/.zencoder/skills/` |
 
 ---
 

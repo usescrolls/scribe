@@ -20,12 +20,7 @@ curl -fsSL https://usescrolls.com/releases/scribe-darwin-arm64 -o scribe
 chmod +x scribe
 ./scribe
 
-# macOS (Intel)
-curl -fsSL https://usescrolls.com/releases/scribe-darwin-amd64 -o scribe
-chmod +x scribe
-./scribe
-
-# Linux
+# Linux (x86_64)
 curl -fsSL https://usescrolls.com/releases/scribe-linux-amd64 -o scribe
 chmod +x scribe
 ./scribe
@@ -35,20 +30,37 @@ Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe 
 .\scribe.exe
 ```
 
+> **Note (macOS):** The raw binary does not support URL scheme handling (`agenthub://`). For full functionality including URL scheme support, use the DMG installer or Homebrew which provide a proper `.app` bundle.
+
+> **Note (Linux):** The binary requires the following runtime dependencies: `libgtk-3`, `libwebkit2gtk-4.1`, and `libayatana-appindicator3`. Install them via your package manager before running Scribe:
+> ```bash
+> # Debian/Ubuntu
+> sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
+>
+> # Fedora
+> sudo dnf install gtk3 webkit2gtk4.1 libayatana-appindicator-gtk3
+>
+> # Arch Linux
+> sudo pacman -S gtk3 webkit2gtk-4.1 libayatana-appindicator
+> ```
+
 ## Option 4: Windows PowerShell Installer
 
-For Windows, use the PowerShell installer script for full setup including URL scheme registration:
+For Windows, use the PowerShell installer script for full setup including URL scheme registration. The install script is available in the repository at `packaging/windows/install.ps1`:
 
 ```powershell
-# Download the binary and installer
+# Download the binary
 Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe -OutFile scribe.exe
-Invoke-WebRequest -Uri https://usescrolls.com/releases/install.ps1 -OutFile install.ps1
+
+# Clone the repo to get the installer script (or download install.ps1 from the repo)
+git clone https://github.com/usescrolls/scribe.git
+copy scribe.exe scribe\packaging\windows\
 
 # System-wide install (requires admin)
-.\install.ps1
+.\scribe\packaging\windows\install.ps1
 
 # Or user-only install (no admin required)
-.\install.ps1 -UserInstall
+.\scribe\packaging\windows\install.ps1 -UserInstall
 ```
 
 The installer:
@@ -166,10 +178,12 @@ scribe install <source> [flags]
 
 **Sources:**
 ```bash
-scribe install owner/repo                    # GitHub shorthand
-scribe install https://github.com/owner/repo # Full GitHub URL
-scribe install ./local/path                  # Local directory
-scribe install https://example.com/skills.zip # Zip URL
+scribe install owner/repo                          # GitHub shorthand
+scribe install https://github.com/owner/repo       # Full GitHub URL
+scribe install https://gitlab.com/owner/repo       # GitLab URL
+scribe install https://bitbucket.org/owner/repo    # Bitbucket URL
+scribe install ./local/path                        # Local directory
+scribe install https://example.com/skills.zip      # Zip URL
 ```
 
 **Flags:**
@@ -179,6 +193,7 @@ scribe install https://example.com/skills.zip # Zip URL
 | `--skill` | `-s` | Select specific skills to install |
 | `--list` | `-l` | List available skills without installing |
 | `--yes` | `-y` | Skip interactive prompts |
+| `--all` | | Install all skills to all detected agents |
 
 ### Uninstall Skills
 
@@ -205,14 +220,16 @@ scribe info <skill-name>
 ### Check for Updates
 
 ```bash
-scribe check
+scribe check                    # Check all skills
+scribe check <skill-name>       # Check a specific skill
 ```
 
 ### Update Skills
 
 ```bash
-scribe update              # Update all
-scribe update <skill-name> # Update specific skill
+scribe update                    # Update all outdated skills
+scribe update <skill-name>       # Update specific skill
+scribe update --force            # Force update even if up-to-date
 ```
 
 ### Workspace Commands
@@ -225,6 +242,14 @@ scribe workspace add <skill>       # Add skill to workspace
 scribe workspace remove <skill>    # Remove skill from workspace
 scribe workspace current           # Show active workspace
 scribe workspace delete <name>     # Delete workspace
+```
+
+### Setup & Cache
+
+```bash
+scribe setup                       # Run first-time onboarding wizard
+scribe cache path                  # Print cache directory path
+scribe cache clear                 # Clear the local clone cache
 ```
 
 ### Global Flags

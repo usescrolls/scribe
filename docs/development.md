@@ -27,14 +27,17 @@ scribe/
 ├── main.go                     # Wails app entry, bindings
 ├── internal/                   # Core business logic
 │   ├── types.go                # Data structures (Skill, Agent, Workspace)
-│   ├── agents.go               # 45 agent definitions with detection
+│   ├── agents.go               # 39 agent definitions with detection
 │   ├── skills.go               # SKILL.md parsing and discovery
 │   ├── installer.go            # Symlink-based installation
 │   ├── workspace.go            # Workspace CRUD and switching
 │   ├── meta.go                 # Sidecar .scribe-meta.json management
 │   ├── storage.go              # Canonical storage paths
+│   ├── fetcher.go              # Git clone and source fetching (go-git)
+│   ├── source.go               # Source string parsing
 │   ├── url_scheme.go           # agenthub:// URL scheme handler
-│   └── skills_system_test.go   # Backend unit tests
+│   ├── onboarding.go           # Onboarding logic (agent detection, skill import)
+│   └── *_test.go               # Backend unit tests (per-file)
 ├── cli/                        # CLI commands
 │   ├── root.go                 # Root command setup
 │   ├── install.go              # Install command
@@ -44,20 +47,34 @@ scribe/
 │   ├── check.go                # Check for updates
 │   ├── update.go               # Update skills
 │   ├── workspace.go            # Workspace commands
-│   └── cli_test.go             # CLI tests
+│   ├── cache.go                # Cache management commands
+│   ├── onboarding.go           # CLI onboarding/setup wizard
+│   └── *_test.go               # CLI tests (per-file)
 ├── frontend/                   # Vue 3 frontend
 │   ├── src/
-│   │   ├── App.vue             # Main layout with sidebar
+│   │   ├── App.vue             # Main layout with onboarding gate
 │   │   ├── components/
-│   │   │   ├── SkillList.vue
-│   │   │   ├── SkillCard.vue
-│   │   │   ├── WorkspaceSelector.vue
-│   │   │   ├── AgentStatusPanel.vue
-│   │   │   └── EmptyState.vue
+│   │   │   ├── SkillList.vue           # Workspace skills list
+│   │   │   ├── SkillCard.vue           # Skill display card
+│   │   │   ├── BrowseSkills.vue        # All skills browser with update support
+│   │   │   ├── InstallSkills.vue       # Multi-step install wizard
+│   │   │   ├── WorkspaceDropdown.vue   # Workspace selector
+│   │   │   ├── AgentStatusPanel.vue    # Agent status display
+│   │   │   ├── OnboardingWizard.vue    # First-run onboarding
+│   │   │   ├── SettingsModal.vue       # Settings panel
+│   │   │   ├── ToastNotification.vue   # Notification system
+│   │   │   ├── ConfirmDialog.vue       # Confirmation dialogs
+│   │   │   └── onboarding/             # Onboarding step components
+│   │   │       ├── WelcomeStep.vue
+│   │   │       ├── AgentDetectionStep.vue
+│   │   │       ├── ExistingSkillsStep.vue
+│   │   │       ├── InstallDemoStep.vue
+│   │   │       └── CompleteStep.vue
 │   │   ├── composables/
 │   │   │   ├── useSkills.ts
 │   │   │   ├── useWorkspaces.ts
-│   │   │   └── useAgents.ts
+│   │   │   ├── useAgents.ts
+│   │   │   └── useOnboarding.ts
 │   │   └── types/
 │   │       └── skill.ts
 │   └── src/**/*.test.ts        # Frontend tests (Vitest)
@@ -147,7 +164,7 @@ TEST_PATTERN=TestInstall docker-compose -f docker-compose.test.yml run --rm test
 
 #### Test Coverage
 
-Current test coverage is approximately **72.5%** for the internal package. Coverage reports can be generated in multiple formats:
+Coverage reports can be generated in multiple formats:
 
 ```bash
 # Terminal output
@@ -240,6 +257,8 @@ type SkillMeta struct {
     SourceURL   string `json:"sourceUrl"`
     SkillPath   string `json:"skillPath,omitempty"`
     ContentHash string `json:"contentHash"`
+    CommitHash  string `json:"commitHash,omitempty"`
+    CommitDate  string `json:"commitDate,omitempty"`
     InstalledAt string `json:"installedAt"`
     UpdatedAt   string `json:"updatedAt"`
 }

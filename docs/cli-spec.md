@@ -2,7 +2,7 @@
 
 ## Overview
 
-Scribe CLI distributes AI coding skills to 45+ coding agents. Built with [Cobra](https://github.com/spf13/cobra).
+Scribe CLI distributes AI coding skills to 39 coding agents. Built with [Cobra](https://github.com/spf13/cobra).
 
 ## Command Structure
 
@@ -158,10 +158,10 @@ Agents:       claude-code, cursor, cline, windsurf
 
 ### `scribe check`
 
-Check installed skills for available updates.
+Check installed skills for available updates. Without arguments, checks all installed skills. With a skill name, checks only that skill.
 
 ```bash
-scribe check [flags]
+scribe check [skill-name] [flags]
 ```
 
 **Flags:**
@@ -171,7 +171,8 @@ scribe check [flags]
 
 **Examples:**
 ```bash
-scribe check
+scribe check                    # Check all skills
+scribe check react-patterns     # Check a specific skill
 ```
 
 **Output:**
@@ -189,21 +190,22 @@ Run 'scribe update' to update all skills
 
 ### `scribe update`
 
-Update installed skills to their latest versions.
+Update installed skills to their latest versions. Without arguments, updates all outdated skills. With a skill name, updates only that skill.
 
 ```bash
 scribe update [skill-name] [flags]
 ```
 
 **Flags:**
-| Flag | Description |
-|------|-------------|
-| `--all` | Update all skills (default if no skill specified) |
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--force` | `-f` | Force update even if up-to-date |
 
 **Examples:**
 ```bash
-scribe update                    # Update all skills
+scribe update                    # Update all outdated skills
 scribe update react-patterns     # Update specific skill
+scribe update --force            # Force update all skills
 ```
 
 ### `scribe workspace`
@@ -295,6 +297,36 @@ Delete a workspace.
 
 ```bash
 scribe workspace delete <name>
+```
+
+### `scribe setup`
+
+Run the first-time onboarding wizard. Detects installed agents, optionally imports existing skills from agent directories, and installs a demo skill.
+
+```bash
+scribe setup
+```
+
+This runs automatically on first use if onboarding hasn't been completed. You can also run it manually to re-run the setup process.
+
+### `scribe cache`
+
+Manage the local clone cache. Scribe caches cloned repositories to speed up subsequent installs, checks, and updates.
+
+#### `scribe cache path`
+
+Print the cache directory path.
+
+```bash
+scribe cache path
+```
+
+#### `scribe cache clear`
+
+Clear the entire clone cache.
+
+```bash
+scribe cache clear
 ```
 
 ### `scribe help`

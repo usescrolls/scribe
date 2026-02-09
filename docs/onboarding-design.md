@@ -1,8 +1,10 @@
 # Onboarding Flow Design Document
 
+> **Status: Fully Implemented.** This design has been implemented in both the GUI (`frontend/src/components/OnboardingWizard.vue` and `frontend/src/components/onboarding/`) and CLI (`cli/onboarding.go`), with backend logic in `internal/onboarding.go`. The `scribe setup` command runs the CLI wizard. The GUI wizard runs automatically on first launch.
+
 ## Overview
 
-Scribe needs a first-run onboarding experience to help new users understand what Scribe does, detect their coding agents, and optionally import existing skills into Scribe's management system.
+Scribe has a first-run onboarding experience that helps new users understand what Scribe does, detects their coding agents, and optionally imports existing skills into Scribe's management system.
 
 ## Key Decisions
 
