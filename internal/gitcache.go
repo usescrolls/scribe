@@ -247,35 +247,37 @@ func resetToRemote(repo *git.Repository, ref string) error {
 		return err
 	}
 
-	// Get the remote HEAD reference
-	remoteRefs, err := repo.References()
-	if err != nil {
-		return err
-	}
-
 	var targetHash plumbing.Hash
 	var found bool
 
-	err = remoteRefs.ForEach(func(r *plumbing.Reference) error {
-		refName := r.Name().String()
-
-		if ref == "" {
-			// No specific ref requested -- use origin's HEAD
-			if r.Name() == plumbing.HEAD || strings.HasPrefix(refName, "refs/remotes/origin/") {
-				targetHash = r.Hash()
-				found = true
-			}
+	if ref != "" {
+		// Look for the specific ref as a remote branch, then as a tag
+		remoteRef, err := repo.Reference(
+			plumbing.NewRemoteReferenceName("origin", ref), true)
+		if err == nil {
+			targetHash = remoteRef.Hash()
+			found = true
 		} else {
-			// Look for the specific ref in remotes
-			if strings.HasSuffix(refName, "/"+ref) {
-				targetHash = r.Hash()
+			tagRef, err := repo.Reference(
+				plumbing.NewTagReferenceName(ref), true)
+			if err == nil {
+				targetHash = tagRef.Hash()
 				found = true
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		return err
+	} else {
+		// No specific ref -- find the remote tracking branch for the local HEAD.
+		// The local HEAD branch name (e.g. "main") tells us which remote ref to use.
+		headRef, err := repo.Head()
+		if err == nil {
+			branchName := headRef.Name().Short()
+			remoteRef, err := repo.Reference(
+				plumbing.NewRemoteReferenceName("origin", branchName), true)
+			if err == nil {
+				targetHash = remoteRef.Hash()
+				found = true
+			}
+		}
 	}
 
 	if !found {

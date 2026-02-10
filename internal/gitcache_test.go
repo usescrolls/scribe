@@ -5,9 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 func TestCacheKeyForSource(t *testing.T) {
@@ -875,5 +877,235 @@ func TestFetchRepo_PublicHTTPS_AuthNotRequired(t *testing.T) {
 	}
 	if authRequired {
 		t.Error("expected authRequired=false for public repo fetch")
+	}
+}
+
+func TestCloneOrUpdateRepo_StaleCache_UpdatesWorktree(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create a remote repo without a skills directory
+	remoteDir := filepath.Join(tmpDir, "remote-evolving")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"README.md": "# Hello",
+	})
+
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "testuser",
+		Repo:  "evolving-repo",
+		URL:   remoteDir,
+	}
+
+	// First clone — no skills directory
+	repoDir, _, _, err := CloneOrUpdateRepo(source)
+	if err != nil {
+		t.Fatalf("first clone error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(repoDir, "skills")); !os.IsNotExist(err) {
+		t.Fatal("skills/ should not exist yet")
+	}
+
+	// Add a SKILL.md to the remote repo (simulating upstream update)
+	repo, err := git.PlainOpen(remoteDir)
+	if err != nil {
+		t.Fatalf("open remote: %v", err)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("worktree: %v", err)
+	}
+	skillDir := filepath.Join(remoteDir, "skills", "my-skill")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	skillContent := "---\nname: my-skill\ndescription: A new skill\n---\n# My Skill\n"
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := wt.Add("skills/my-skill/SKILL.md"); err != nil {
+		t.Fatalf("git add: %v", err)
+	}
+	_, err = wt.Commit("add skill", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@test.com", When: time.Now()},
+	})
+	if err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	// Second call — should fetch + reset worktree to include the new skill
+	repoDir2, _, _, err := CloneOrUpdateRepo(source)
+	if err != nil {
+		t.Fatalf("second clone error: %v", err)
+	}
+	if repoDir2 != repoDir {
+		t.Errorf("expected same cache path, got %q vs %q", repoDir2, repoDir)
+	}
+
+	// Verify the new file is present in the worktree
+	skillPath := filepath.Join(repoDir2, "skills", "my-skill", "SKILL.md")
+	if _, err := os.Stat(skillPath); err != nil {
+		t.Errorf("SKILL.md not found after cache update: %v", err)
+	}
+}
+
+func TestResetToRemote_MultipleRemoteBranches(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	// Create a remote repo
+	remoteDir := filepath.Join(tmpDir, "remote-multi-branch")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"file.txt": "main-content",
+	})
+
+	// Add several branches with different content to the remote
+	remoteRepo, err := git.PlainOpen(remoteDir)
+	if err != nil {
+		t.Fatalf("open remote: %v", err)
+	}
+	remoteWt, err := remoteRepo.Worktree()
+	if err != nil {
+		t.Fatalf("worktree: %v", err)
+	}
+	headRef, err := remoteRepo.Head()
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+
+	// Create branches that sort alphabetically after "main"
+	for _, branch := range []string{"zzz-feature", "xyz-branch"} {
+		branchRef := plumbing.NewHashReference(
+			plumbing.NewBranchReferenceName(branch), headRef.Hash())
+		if err := remoteRepo.Storer.SetReference(branchRef); err != nil {
+			t.Fatalf("create branch %s: %v", branch, err)
+		}
+	}
+
+	// Now update main with new content
+	if err := os.WriteFile(filepath.Join(remoteDir, "file.txt"), []byte("updated-main"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := remoteWt.Add("file.txt"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	_, err = remoteWt.Commit("update main", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@test.com", When: time.Now()},
+	})
+	if err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	// Clone with depth 1, then fetch to get all remote refs
+	cloneDir := filepath.Join(tmpDir, "clone-multi")
+	cloneRepo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{
+		URL:   remoteDir,
+		Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	// Fetch to pick up all remote branches
+	err = cloneRepo.Fetch(&git.FetchOptions{Depth: 1, Force: true})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		t.Fatalf("fetch: %v", err)
+	}
+
+	// resetToRemote with no ref should follow origin/main, not zzz-feature
+	err = resetToRemote(cloneRepo, "")
+	if err != nil {
+		t.Fatalf("resetToRemote: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(cloneDir, "file.txt"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(content) != "updated-main" {
+		t.Errorf("file content = %q, want %q (resetToRemote picked wrong branch)", string(content), "updated-main")
+	}
+}
+
+func TestResetToRemote_WithSpecificRef(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	// Create a remote repo
+	remoteDir := filepath.Join(tmpDir, "remote-specific-ref")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"file.txt": "main-content",
+	})
+
+	// Create a branch with different content
+	remoteRepo, err := git.PlainOpen(remoteDir)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	remoteWt, err := remoteRepo.Worktree()
+	if err != nil {
+		t.Fatalf("worktree: %v", err)
+	}
+
+	// Create and checkout a new branch
+	headRef, err := remoteRepo.Head()
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	branchRefName := plumbing.NewBranchReferenceName("feature-branch")
+	branchRef := plumbing.NewHashReference(branchRefName, headRef.Hash())
+	if err := remoteRepo.Storer.SetReference(branchRef); err != nil {
+		t.Fatalf("set branch: %v", err)
+	}
+	if err := remoteWt.Checkout(&git.CheckoutOptions{Branch: branchRefName}); err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(remoteDir, "file.txt"), []byte("feature-content"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := remoteWt.Add("file.txt"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	_, err = remoteWt.Commit("feature commit", &git.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "test@test.com", When: time.Now()},
+	})
+	if err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	// Switch remote back to the default branch
+	if err := remoteWt.Checkout(&git.CheckoutOptions{
+		Branch: headRef.Name(),
+	}); err != nil {
+		t.Fatalf("checkout default branch: %v", err)
+	}
+
+	// Clone and fetch
+	cloneDir := filepath.Join(tmpDir, "clone-specific-ref")
+	cloneRepo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{
+		URL:   remoteDir,
+		Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	err = cloneRepo.Fetch(&git.FetchOptions{Depth: 1, Force: true})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		t.Fatalf("fetch: %v", err)
+	}
+
+	// resetToRemote with specific ref should use that branch
+	err = resetToRemote(cloneRepo, "feature-branch")
+	if err != nil {
+		t.Fatalf("resetToRemote(feature-branch): %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(cloneDir, "file.txt"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(content) != "feature-content" {
+		t.Errorf("file content = %q, want %q", string(content), "feature-content")
 	}
 }
