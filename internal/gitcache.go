@@ -36,6 +36,12 @@ func CacheKeyForSource(source *SourceInfo) string {
 		return filepath.Join("gitlab.com", source.Owner, source.Repo)
 	case "bitbucket":
 		return filepath.Join("bitbucket.org", source.Owner, source.Repo)
+	case "git":
+		host := hostFromURL(source.URL)
+		if host == "" {
+			return ""
+		}
+		return filepath.Join(host, source.Owner, source.Repo)
 	default:
 		return ""
 	}

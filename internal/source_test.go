@@ -99,6 +99,20 @@ func TestParseSourceString(t *testing.T) {
 			expectRepo:  "repo",
 		},
 		{
+			name:        "gitlab url with subgroup",
+			input:       "https://gitlab.com/group/subgroup/project.git",
+			expectType:  "gitlab",
+			expectOwner: "group/subgroup",
+			expectRepo:  "project",
+		},
+		{
+			name:        "gitlab url with deep subgroup",
+			input:       "https://gitlab.com/org/team/sub/project",
+			expectType:  "gitlab",
+			expectOwner: "org/team/sub",
+			expectRepo:  "project",
+		},
+		{
 			name:        "bitbucket url",
 			input:       "https://bitbucket.org/owner/repo",
 			expectType:  "bitbucket",
@@ -111,6 +125,27 @@ func TestParseSourceString(t *testing.T) {
 			expectType:  "bitbucket",
 			expectOwner: "owner",
 			expectRepo:  "repo",
+		},
+		{
+			name:        "self-hosted git url with .git suffix",
+			input:       "https://gitlab.example.com/username/project.git",
+			expectType:  "git",
+			expectOwner: "username",
+			expectRepo:  "project",
+		},
+		{
+			name:        "self-hosted git url with port and .git suffix",
+			input:       "https://gitlab.example.com:8443/username/project.git",
+			expectType:  "git",
+			expectOwner: "username",
+			expectRepo:  "project",
+		},
+		{
+			name:        "self-hosted git url with nested groups",
+			input:       "https://git.company.com/group/subgroup/project.git",
+			expectType:  "git",
+			expectOwner: "group/subgroup",
+			expectRepo:  "project",
 		},
 		{
 			name:       "zip url",
@@ -624,6 +659,41 @@ func TestParseSSHURL_Bitbucket(t *testing.T) {
 	}
 }
 
+func TestParseSSHURL_GitLabSubgroup(t *testing.T) {
+	source, err := parseSSHURL("git@gitlab.com:group/subgroup/project.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Type != "gitlab" {
+		t.Errorf("Type = %q, want 'gitlab'", source.Type)
+	}
+	if source.Owner != "group/subgroup" {
+		t.Errorf("Owner = %q, want 'group/subgroup'", source.Owner)
+	}
+	if source.Repo != "project" {
+		t.Errorf("Repo = %q, want 'project'", source.Repo)
+	}
+}
+
+func TestParseSSHURL_SelfHosted(t *testing.T) {
+	source, err := parseSSHURL("git@gitlab.example.com:username/project.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Type != "git" {
+		t.Errorf("Type = %q, want 'git'", source.Type)
+	}
+	if source.Owner != "username" {
+		t.Errorf("Owner = %q, want 'username'", source.Owner)
+	}
+	if source.Repo != "project" {
+		t.Errorf("Repo = %q, want 'project'", source.Repo)
+	}
+	if source.URL != "git@gitlab.example.com:username/project.git" {
+		t.Errorf("URL = %q, want original SSH URL", source.URL)
+	}
+}
+
 func TestParseSSHURL_WithoutGitSuffix(t *testing.T) {
 	source, err := parseSSHURL("git@github.com:owner/repo")
 	if err != nil {
@@ -642,12 +712,15 @@ func TestParseSSHURL_UnknownHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseSSHURL error: %v", err)
 	}
-	// Unknown hosts default to github type
-	if source.Type != "github" {
-		t.Errorf("Type = %q, want 'github' (default for unknown)", source.Type)
+	// Unknown hosts use generic git type
+	if source.Type != "git" {
+		t.Errorf("Type = %q, want 'git' (for unknown hosts)", source.Type)
 	}
 	if source.Owner != "org" {
 		t.Errorf("Owner = %q, want 'org'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
 	}
 }
 

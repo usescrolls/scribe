@@ -104,6 +104,18 @@ func isSSHURL(url string) bool {
 	return strings.HasPrefix(url, "git@")
 }
 
+// hostFromURL extracts the hostname from a git URL (SSH or HTTPS).
+func hostFromURL(rawURL string) string {
+	if isSSHURL(rawURL) {
+		rest := strings.TrimPrefix(rawURL, "git@")
+		if host, _, ok := strings.Cut(rest, ":"); ok {
+			return host
+		}
+		return ""
+	}
+	return extractHost(rawURL)
+}
+
 // IsAuthError returns true if the error message suggests an authentication failure.
 func IsAuthError(err error) bool {
 	if err == nil {

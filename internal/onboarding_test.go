@@ -701,8 +701,17 @@ func TestParseGitRemoteURL_Empty(t *testing.T) {
 
 func TestParseGitRemoteURL_UnknownHost(t *testing.T) {
 	source := parseGitRemoteURL("https://selfhosted.example.com/org/repo.git")
-	if source != nil {
-		t.Errorf("parseGitRemoteURL(unknown host) = %v, want nil", source)
+	if source == nil {
+		t.Fatal("parseGitRemoteURL(unknown host) = nil, want git type source")
+	}
+	if source.Type != "git" {
+		t.Errorf("Type = %q, want 'git'", source.Type)
+	}
+	if source.Owner != "org" {
+		t.Errorf("Owner = %q, want 'org'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
 	}
 }
 
@@ -740,8 +749,17 @@ func TestParseGitRemoteURL_BitbucketHTTPS(t *testing.T) {
 
 func TestParseGitRemoteURL_UnknownSSHHost(t *testing.T) {
 	source := parseGitRemoteURL("git@gitea.example.com:team/repo.git")
-	if source != nil {
-		t.Errorf("parseGitRemoteURL(unknown SSH host) = %v, want nil", source)
+	if source == nil {
+		t.Fatal("parseGitRemoteURL(unknown SSH host) = nil, want git type source")
+	}
+	if source.Type != "git" {
+		t.Errorf("Type = %q, want 'git'", source.Type)
+	}
+	if source.Owner != "team" {
+		t.Errorf("Owner = %q, want 'team'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
 	}
 }
 
@@ -1151,7 +1169,7 @@ func TestImportExistingSkills_GitRepoWithUnknownRemote_FallsBackToLocal(t *testi
 		t.Fatalf("ReadSkillMeta() error: %v", err)
 	}
 
-	if meta.SourceType != "local" {
-		t.Errorf("SourceType = %q, want 'local' (fallback for unknown host)", meta.SourceType)
+	if meta.SourceType != "git" {
+		t.Errorf("SourceType = %q, want 'git' (self-hosted git instance)", meta.SourceType)
 	}
 }

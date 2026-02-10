@@ -55,6 +55,10 @@ func ParseSourceString(arg string) (*SourceInfo, error) {
 		if strings.HasSuffix(arg, ".zip") {
 			return &SourceInfo{Type: "zip", URL: arg}, nil
 		}
+		// Self-hosted git instances: https://host/owner/repo.git
+		if strings.HasSuffix(arg, ".git") {
+			return parseGenericGitURL(arg)
+		}
 		return &SourceInfo{Type: "well-known", URL: arg}, nil
 	}
 
@@ -128,8 +132,10 @@ func parseGitLabURL(url string) (*SourceInfo, error) {
 	path := strings.TrimPrefix(url, "https://gitlab.com/")
 	parts := strings.Split(path, "/")
 	if len(parts) >= 2 {
-		source.Owner = parts[0]
-		source.Repo = strings.TrimSuffix(parts[1], ".git")
+		// GitLab supports nested groups: group/subgroup/project
+		// Last component is always the repo, everything before is the owner/group path
+		source.Repo = strings.TrimSuffix(parts[len(parts)-1], ".git")
+		source.Owner = strings.Join(parts[:len(parts)-1], "/")
 	}
 
 	return source, nil
@@ -185,6 +191,15 @@ func ReconstructSource(meta *SkillMeta) *SourceInfo {
 			source.URL = "https://bitbucket.org/" + source.Owner + "/" + source.Repo
 		}
 
+	case "git":
+		srcStr := meta.Source
+		parts := strings.Split(srcStr, "/")
+		if len(parts) >= 2 {
+			source.Repo = parts[len(parts)-1]
+			source.Owner = strings.Join(parts[:len(parts)-1], "/")
+		}
+		// URL must be preserved from meta for git type (no implicit host)
+
 	case "zip":
 		if source.URL == "" {
 			source.URL = meta.Source
@@ -229,25 +244,35 @@ func parseSSHURL(arg string) (*SourceInfo, error) {
 	}
 
 	source := &SourceInfo{
-		Owner: parts[0],
-		Repo:  parts[1],
-		URL:   arg, // Keep the SSH URL as-is for cloning
+		URL: arg, // Keep the SSH URL as-is for cloning
 	}
 
 	// Determine source type from host
 	switch host {
 	case "github.com":
 		source.Type = "github"
+		source.Owner = parts[0]
+		source.Repo = parts[1]
+		if len(parts) > 2 {
+			source.Subpath = strings.Join(parts[2:], "/")
+		}
 	case "gitlab.com":
+		// GitLab supports nested groups: group/subgroup/project
 		source.Type = "gitlab"
+		source.Repo = parts[len(parts)-1]
+		source.Owner = strings.Join(parts[:len(parts)-1], "/")
 	case "bitbucket.org":
 		source.Type = "bitbucket"
+		source.Owner = parts[0]
+		source.Repo = parts[1]
+		if len(parts) > 2 {
+			source.Subpath = strings.Join(parts[2:], "/")
+		}
 	default:
-		source.Type = "github" // Default to github for unknown hosts
-	}
-
-	if len(parts) > 2 {
-		source.Subpath = strings.Join(parts[2:], "/")
+		// Self-hosted git instance — last component is repo, rest is owner/group
+		source.Type = "git"
+		source.Repo = parts[len(parts)-1]
+		source.Owner = strings.Join(parts[:len(parts)-1], "/")
 	}
 
 	return source, nil
@@ -262,6 +287,34 @@ func parseBitbucketURL(url string) (*SourceInfo, error) {
 		source.Owner = parts[0]
 		source.Repo = strings.TrimSuffix(parts[1], ".git")
 	}
+
+	return source, nil
+}
+
+// parseGenericGitURL parses HTTPS git URLs from self-hosted instances.
+// Format: https://host/owner/repo.git or https://host:port/group/subgroup/repo.git
+func parseGenericGitURL(url string) (*SourceInfo, error) {
+	source := &SourceInfo{Type: "git", URL: url}
+
+	// Strip protocol
+	path := strings.TrimPrefix(url, "https://")
+	path = strings.TrimPrefix(path, "http://")
+
+	// Split into host and rest
+	slashIdx := strings.IndexByte(path, '/')
+	if slashIdx == -1 {
+		return nil, fmt.Errorf("invalid git URL: no path after host")
+	}
+	ownerRepo := path[slashIdx+1:]
+
+	parts := strings.Split(ownerRepo, "/")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid git URL: expected at least owner/repo.git")
+	}
+
+	// Last component is repo (strip .git), everything before is owner/group
+	source.Repo = strings.TrimSuffix(parts[len(parts)-1], ".git")
+	source.Owner = strings.Join(parts[:len(parts)-1], "/")
 
 	return source, nil
 }

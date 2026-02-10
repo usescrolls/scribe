@@ -64,7 +64,7 @@ type InstallOptions struct {
 
 // SourceInfo represents a parsed source reference
 type SourceInfo struct {
-	Type      string // github, gitlab, bitbucket, local, url, well-known, zip
+	Type      string // github, gitlab, bitbucket, git, local, url, well-known, zip
 	Owner     string // GitHub/GitLab owner
 	Repo      string // Repository name
 	Ref       string // Branch, tag, or commit

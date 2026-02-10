@@ -198,6 +198,9 @@ func FormatSource(source *SourceInfo) string {
 		return "gitlab:" + source.Owner + "/" + source.Repo
 	case "bitbucket":
 		return "bitbucket:" + source.Owner + "/" + source.Repo
+	case "git":
+		host := hostFromURL(source.URL)
+		return "git:" + host + "/" + source.Owner + "/" + source.Repo
 	case "local":
 		return "local:" + source.LocalPath
 	case "zip":

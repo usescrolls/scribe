@@ -88,6 +88,12 @@ func formatSource(source *SourceInfo) string {
 			s += "#" + source.Ref
 		}
 		return s
+	case "git":
+		s := source.Owner + "/" + source.Repo
+		if source.Ref != "" && source.Ref != "main" && source.Ref != "master" {
+			s += "#" + source.Ref
+		}
+		return s
 	case "local":
 		return source.LocalPath
 	case "url", "well-known", "zip":

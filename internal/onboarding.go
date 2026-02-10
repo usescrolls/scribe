@@ -318,7 +318,7 @@ func parseGitRemoteURL(remoteURL string) *SourceInfo {
 		return nil
 	}
 
-	// Only support known hosts
+	// Determine source type from host
 	var sourceType string
 	switch host {
 	case "github.com":
@@ -328,21 +328,32 @@ func parseGitRemoteURL(remoteURL string) *SourceInfo {
 	case "bitbucket.org":
 		sourceType = "bitbucket"
 	default:
-		return nil
+		sourceType = "git"
 	}
 
 	// Strip .git suffix and parse owner/repo
 	ownerRepo = strings.TrimSuffix(ownerRepo, ".git")
-	parts := strings.SplitN(ownerRepo, "/", 3)
+	parts := strings.Split(ownerRepo, "/")
 	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 		return nil
 	}
 
+	var owner, repo string
+	switch sourceType {
+	case "gitlab", "git":
+		// GitLab and self-hosted support nested groups: last component is repo
+		repo = parts[len(parts)-1]
+		owner = strings.Join(parts[:len(parts)-1], "/")
+	default:
+		owner = parts[0]
+		repo = parts[1]
+	}
+
 	return &SourceInfo{
 		Type:  sourceType,
-		Owner: parts[0],
-		Repo:  parts[1],
-		URL:   fmt.Sprintf("https://%s/%s/%s", host, parts[0], parts[1]),
+		Owner: owner,
+		Repo:  repo,
+		URL:   fmt.Sprintf("https://%s/%s/%s", host, owner, repo),
 	}
 }
 

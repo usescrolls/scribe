@@ -35,6 +35,26 @@ func TestCacheKeyForSource(t *testing.T) {
 			expected: filepath.Join("gitlab.com", "org", "project"),
 		},
 		{
+			name: "git source (self-hosted)",
+			source: &SourceInfo{
+				Type:  "git",
+				Owner: "org",
+				Repo:  "project",
+				URL:   "https://git.company.com/org/project.git",
+			},
+			expected: filepath.Join("git.company.com", "org", "project"),
+		},
+		{
+			name: "git source (SSH self-hosted)",
+			source: &SourceInfo{
+				Type:  "git",
+				Owner: "org",
+				Repo:  "project",
+				URL:   "git@git.company.com:org/project.git",
+			},
+			expected: filepath.Join("git.company.com", "org", "project"),
+		},
+		{
 			name: "local source returns empty",
 			source: &SourceInfo{
 				Type:      "local",
