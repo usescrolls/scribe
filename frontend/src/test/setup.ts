@@ -27,6 +27,7 @@ export const mockAppService = {
   ResolveSkillConflict: vi.fn(),
   InstallDemoSkill: vi.fn(),
   UpdateSkill: vi.fn(),
+  GetSkillContent: vi.fn(),
   InstallFromSource: vi.fn(),
   DiscoverFromSource: vi.fn(),
   ConfirmInstall: vi.fn(),

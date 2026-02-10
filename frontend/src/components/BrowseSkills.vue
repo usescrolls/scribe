@@ -48,7 +48,7 @@
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
           <a
-            v-if="group.sourceUrl"
+            v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
             class="group-source group-source-link"
             @click.prevent="Browser.OpenURL(group.sourceUrl!)"
           >
@@ -87,6 +87,7 @@
             :show-workspace-picker="true"
             :skill-workspaces="getSkillWorkspaces(skill.name)"
             :all-workspaces="workspaces"
+            @detail="handleDetail"
             @add-to-workspace="handleAddToWorkspace"
             @remove-from-workspace="handleRemoveFromWorkspace"
             @uninstall="handleUninstall"
@@ -94,6 +95,11 @@
         </div>
       </div>
     </div>
+    <SkillDetailModal
+      v-if="detailSkill"
+      :skill="detailSkill"
+      @close="detailSkill = null"
+    />
   </div>
 </template>
 
@@ -104,6 +110,7 @@ import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
+import SkillDetailModal from './SkillDetailModal.vue'
 import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
 
 const allSkillsRaw = ref<SkillInfo[]>([])
@@ -260,6 +267,16 @@ function getGroupVersionTooltip(group: SourceGroup): string {
   if (first?.commitDate) parts.push(`Date: ${new Date(first.commitDate).toLocaleDateString()}`)
   if (first?.updatedAt) parts.push(`Updated: ${new Date(first.updatedAt).toLocaleDateString()}`)
   return parts.join('\n')
+}
+
+function isHttpUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://')
+}
+
+const detailSkill = ref<SkillInfo | null>(null)
+
+function handleDetail(skill: SkillInfo) {
+  detailSkill.value = skill
 }
 
 const confirmUninstallName = ref<string | null>(null)

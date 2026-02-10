@@ -260,6 +260,15 @@ func (a *AppService) GetSkills() ([]scribe.SkillInfo, error) {
 	return scribe.GetAllSkillInfo()
 }
 
+// GetSkillContent returns the SKILL.md body content (markdown after frontmatter) for a skill
+func (a *AppService) GetSkillContent(name string) (string, error) {
+	skill, err := scribe.ReadSkill(name)
+	if err != nil {
+		return "", err
+	}
+	return skill.Content, nil
+}
+
 // GetSkillCount returns the number of installed skills
 func (a *AppService) GetSkillCount() int {
 	skills, err := scribe.ReadAllSkills()

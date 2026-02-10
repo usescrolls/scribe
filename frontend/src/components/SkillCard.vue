@@ -1,5 +1,5 @@
 <template>
-  <div class="skill-card" :class="{ compact: mode === 'compact' }">
+  <div class="skill-card" :class="{ compact: mode === 'compact' }" @click="$emit('detail', skill)">
     <div class="skill-main">
       <span class="source-badge">{{ skill.sourceType }}</span>
       <span class="name">{{ skill.name }}</span>
@@ -45,7 +45,7 @@
       <button
         v-if="showAdd"
         class="action-btn add-btn"
-        @click="$emit('add', skill.name)"
+        @click.stop="$emit('add', skill.name)"
         title="Add to workspace"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -57,7 +57,7 @@
       <button
         v-if="showRemove"
         class="action-btn remove-btn"
-        @click="$emit('remove', skill.name)"
+        @click.stop="$emit('remove', skill.name)"
         title="Remove from workspace"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,7 +68,7 @@
       <button
         v-if="showUninstall"
         class="action-btn uninstall-btn"
-        @click="$emit('uninstall', skill.name)"
+        @click.stop="$emit('uninstall', skill.name)"
         title="Uninstall skill"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -105,6 +105,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
+  detail: [skill: SkillInfo]
   uninstall: [name: string]
   remove: [name: string]
   add: [name: string]
@@ -156,6 +157,7 @@ const truncatedDescription = computed(() => {
   align-items: center;
   gap: 0.75rem;
   transition: border-color 0.15s;
+  cursor: pointer;
 }
 
 .skill-card:hover {

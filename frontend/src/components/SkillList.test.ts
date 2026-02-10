@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import SkillList from "./SkillList.vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
+import SkillDetailModal from "./SkillDetailModal.vue"
 import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
@@ -225,6 +226,71 @@ describe("SkillList", () => {
       await flushPromises()
 
       expect(wrapper.text()).toContain("Permission denied")
+    })
+  })
+
+  describe("skill detail modal", () => {
+    it("opens detail modal on card detail event", async () => {
+      mockAppService.GetSkillContent.mockResolvedValue("# Content")
+
+      const wrapper = await mountSkillList()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("detail", mockSkills[0])
+      await flushPromises()
+
+      const modal = wrapper.findComponent(SkillDetailModal)
+      expect(modal.exists()).toBe(true)
+      expect(modal.props("skill")).toEqual(mockSkills[0])
+    })
+
+    it("closes detail modal on close event", async () => {
+      mockAppService.GetSkillContent.mockResolvedValue("# Content")
+
+      const wrapper = await mountSkillList()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("detail", mockSkills[0])
+      await flushPromises()
+
+      const modal = wrapper.findComponent(SkillDetailModal)
+      await modal.vm.$emit("close")
+      await flushPromises()
+
+      expect(wrapper.findComponent(SkillDetailModal).exists()).toBe(false)
+    })
+  })
+
+  describe("source URL validation", () => {
+    it("renders source as link for https URLs", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+
+      expect(wrapper.find(".group-source-link").exists()).toBe(true)
+    })
+
+    it("does not render source as link for SSH URLs", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "git@github.com:vercel-labs/skills.git",
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+
+      expect(wrapper.find(".group-source-link").exists()).toBe(false)
+      expect(wrapper.find(".group-source").exists()).toBe(true)
+    })
+
+    it("does not render source as link when sourceUrl is missing", async () => {
+      const wrapper = await mountSkillList()
+
+      expect(wrapper.find(".group-source-link").exists()).toBe(false)
     })
   })
 })

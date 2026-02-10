@@ -27,7 +27,7 @@
         <div class="group-header">
           <span class="group-badge">{{ group.sourceType }}</span>
           <a
-            v-if="group.sourceUrl"
+            v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
             class="group-source group-source-link"
             @click.prevent="Browser.OpenURL(group.sourceUrl!)"
           >
@@ -47,11 +47,17 @@
             :key="skill.name"
             :skill="skill"
             :show-remove="true"
+            @detail="handleDetail"
             @remove="handleRemove"
           />
         </div>
       </div>
     </div>
+    <SkillDetailModal
+      v-if="detailSkill"
+      :skill="detailSkill"
+      @close="detailSkill = null"
+    />
   </div>
 </template>
 
@@ -62,6 +68,7 @@ import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
 import EmptyState from './EmptyState.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
+import SkillDetailModal from './SkillDetailModal.vue'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const skills = ref<SkillInfo[]>([])
@@ -117,6 +124,16 @@ async function fetchAll() {
   } finally {
     loading.value = false
   }
+}
+
+function isHttpUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://')
+}
+
+const detailSkill = ref<SkillInfo | null>(null)
+
+function handleDetail(skill: SkillInfo) {
+  detailSkill.value = skill
 }
 
 const confirmRemoveName = ref<string | null>(null)

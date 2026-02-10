@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import BrowseSkills from "./BrowseSkills.vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
+import SkillDetailModal from "./SkillDetailModal.vue"
 import { mockAppService, mockBrowser } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
@@ -631,6 +632,95 @@ describe("BrowseSkills", () => {
       expect(version.exists()).toBe(true)
       const title = version.attributes("title")
       expect(title).toContain("Commit: abc1234")
+    })
+  })
+
+  describe("skill detail modal", () => {
+    it("opens detail modal on card detail event", async () => {
+      mockAppService.GetSkillContent.mockResolvedValue("# Content")
+
+      const wrapper = await mountBrowseSkills()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("detail", mockSkills[0])
+      await flushPromises()
+
+      const modal = wrapper.findComponent(SkillDetailModal)
+      expect(modal.exists()).toBe(true)
+      expect(modal.props("skill")).toEqual(mockSkills[0])
+    })
+
+    it("closes detail modal on close event", async () => {
+      mockAppService.GetSkillContent.mockResolvedValue("# Content")
+
+      const wrapper = await mountBrowseSkills()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("detail", mockSkills[0])
+      await flushPromises()
+
+      const modal = wrapper.findComponent(SkillDetailModal)
+      modal.vm.$emit("close")
+      await flushPromises()
+
+      expect(wrapper.findComponent(SkillDetailModal).exists()).toBe(false)
+    })
+  })
+
+  describe("source URL validation", () => {
+    it("renders source as link for https URLs", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+        {
+          ...mockSkills[1],
+          sourceUrl: "https://github.com/vercel-labs/skills",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".group-source-link").exists()).toBe(true)
+    })
+
+    it("does not render source as link for SSH URLs", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "git@github.com:vercel-labs/skills.git",
+        },
+        {
+          ...mockSkills[1],
+          sourceUrl: "git@github.com:vercel-labs/skills.git",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      // SSH URL group should not get a clickable link
+      const links = wrapper.findAll(".group-source-link")
+      expect(links).toHaveLength(0)
+
+      // But should still show source as plain text
+      const plainSources = wrapper.findAll(
+        ".group-source:not(.group-source-link)",
+      )
+      expect(plainSources.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("does not call Browser.OpenURL for SSH URLs", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          sourceUrl: "git@github.com:vercel-labs/skills.git",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      // No link should exist to click
+      expect(wrapper.find(".group-source-link").exists()).toBe(false)
+      expect(mockBrowser.OpenURL).not.toHaveBeenCalled()
     })
   })
 })

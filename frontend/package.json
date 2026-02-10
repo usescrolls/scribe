@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@wailsio/runtime": "^3.0.0-alpha.0",
+    "marked": "^17.0.1",
     "vue": "^3.4.0"
   },
   "devDependencies": {

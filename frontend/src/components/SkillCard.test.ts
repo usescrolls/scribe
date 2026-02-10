@@ -84,6 +84,44 @@ describe("SkillCard", () => {
     })
   })
 
+  describe("detail emit", () => {
+    it("emits detail event with skill on card click", async () => {
+      const wrapper = mountSkillCard()
+
+      await wrapper.find(".skill-card").trigger("click")
+
+      expect(wrapper.emitted("detail")).toBeTruthy()
+      expect(wrapper.emitted("detail")![0]).toEqual([mockSkill])
+    })
+
+    it("does not emit detail when clicking uninstall button", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showUninstall: true })
+
+      await wrapper.find(".uninstall-btn").trigger("click")
+
+      expect(wrapper.emitted("detail")).toBeFalsy()
+      expect(wrapper.emitted("uninstall")).toBeTruthy()
+    })
+
+    it("does not emit detail when clicking remove button", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showRemove: true })
+
+      await wrapper.find(".remove-btn").trigger("click")
+
+      expect(wrapper.emitted("detail")).toBeFalsy()
+      expect(wrapper.emitted("remove")).toBeTruthy()
+    })
+
+    it("does not emit detail when clicking add button", async () => {
+      const wrapper = mountSkillCard(mockSkill, { showAdd: true })
+
+      await wrapper.find(".add-btn").trigger("click")
+
+      expect(wrapper.emitted("detail")).toBeFalsy()
+      expect(wrapper.emitted("add")).toBeTruthy()
+    })
+  })
+
   describe("uninstall button", () => {
     it("hides uninstall button by default", () => {
       const wrapper = mountSkillCard()
