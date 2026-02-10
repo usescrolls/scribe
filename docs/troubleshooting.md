@@ -91,7 +91,7 @@ chmod 755 ~/.scribe/scrolls/
 
 **GitHub source issues:**
 ```bash
-# Verify git is installed
+# Verify git is installed (needed for credential helper)
 git --version
 
 # Test cloning manually
@@ -116,6 +116,48 @@ ls -la ./path/to/skills/
 # Check for SKILL.md files
 find ./path/to/skills -name "SKILL.md"
 ```
+
+---
+
+## Private Repository Authentication
+
+Scribe uses your existing git credentials to access private repositories. If you see errors like "authentication required", "permission denied", or "repository not found", your credentials are likely not configured.
+
+**GitHub (recommended):**
+```bash
+# Install GitHub CLI and authenticate
+gh auth login
+
+# Verify authentication
+gh auth status
+```
+
+**GitLab:**
+```bash
+# Using glab CLI
+glab auth login
+
+# Or configure a personal access token in git
+git config --global credential.helper store
+# Then clone any GitLab repo once to store the token
+```
+
+**SSH (all providers):**
+```bash
+# Ensure your SSH key is loaded
+ssh-add -l
+
+# If no keys listed, add your key
+ssh-add ~/.ssh/id_ed25519
+
+# Test SSH access
+ssh -T git@github.com
+
+# Use SSH URLs with Scribe
+scribe install git@github.com:owner/private-repo.git
+```
+
+**How it works:** For HTTPS URLs, Scribe calls `git credential fill` which queries your system's git credential helper. For SSH URLs (`git@host:owner/repo.git`), Scribe connects through your SSH agent. Scribe does not store any credentials itself.
 
 ---
 

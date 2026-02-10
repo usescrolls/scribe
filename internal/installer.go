@@ -41,6 +41,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 	}
 
 	meta := NewSkillMeta(source, skillPathInSource, string(skillContent), gitInfo)
+	meta.IsPrivate = opts.IsPrivate
 	metaPath := filepath.Join(skillDir, MetaFileName)
 	if err := WriteSkillMeta(metaPath, meta); err != nil {
 		return fmt.Errorf("failed to write metadata: %w", err)

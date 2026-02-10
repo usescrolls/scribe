@@ -43,7 +43,12 @@
             <line x1="15" y1="9" x2="9" y2="15"></line>
             <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
-          <span>{{ error }}</span>
+          <div>
+            <span>{{ error }}</span>
+            <span v-if="isAuthError(error)" class="auth-hint">
+              For private repos, ensure git credentials are configured (e.g. <code>gh auth login</code> for GitHub, or add your SSH key to ssh-agent).
+            </span>
+          </div>
         </div>
         <button class="dismiss-btn" @click="error = null">&times;</button>
       </div>
@@ -358,6 +363,12 @@ function fillExample(example: string) {
   sourceStr.value = example
   sourceInput.value?.focus()
 }
+
+function isAuthError(msg: string): boolean {
+  const lower = msg.toLowerCase()
+  return ['authentication required', 'authentication failed', 'permission denied',
+    'repository not found', 'access denied', '403', '401'].some(p => lower.includes(p))
+}
 </script>
 
 <style scoped>
@@ -495,6 +506,21 @@ function fillExample(example: string) {
 .result-names {
   font-size: 0.75rem;
   opacity: 0.8;
+}
+
+.auth-hint {
+  display: block;
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.auth-hint code {
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 0.6875rem;
+  padding: 0.0625rem 0.25rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
 
 .dismiss-btn {

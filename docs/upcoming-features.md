@@ -11,6 +11,7 @@ These features have been implemented and are available in the current build:
 - **Skill update button** - Update skills directly from the Browse All tab in the GUI
 - **Version tracking** - Git commit hash and date tracking for installed skills
 - **Git clone cache** - Local cache for faster installs, checks, and updates
+- **Private repository support** - Authenticated access via git credential helpers and SSH agent
 
 ---
 
@@ -45,11 +46,6 @@ Use the Wails v3 `start_at_login` plugin to register Scribe as a login item. Cro
 - Windows: Registry `Run` key
 
 Add a toggle in the tray menu and/or settings UI.
-
-### Private Repository Support
-**Priority:** Low
-
-Support authenticated access to private GitHub/GitLab/Bitbucket repositories via personal access tokens or SSH keys.
 
 ### WSL Support
 **Priority:** Low

@@ -17,6 +17,7 @@ type FetchResult struct {
 	ContentDir string // root dir containing the fetched content
 	SkillsDir  string // ContentDir + subpath (where to discover skills)
 	IsCached   bool   // if true, do not delete ContentDir
+	IsPrivate  bool   // true if authentication was used to fetch this source
 }
 
 // Cleanup removes the content directory only if it is not cached.
@@ -48,6 +49,7 @@ func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) 
 		}
 		result.ContentDir = repoDir
 		result.IsCached = isCached
+		result.IsPrivate = isSSHURL(source.URL) || authForSource(source) != nil
 		result.SkillsDir = repoDir
 		if source.Subpath != "" {
 			result.SkillsDir = filepath.Join(repoDir, source.Subpath)

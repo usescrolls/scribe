@@ -574,3 +574,106 @@ func TestInstallFromLocalSource_NoSkillsFound(t *testing.T) {
 		t.Error("expected error for empty source, got nil")
 	}
 }
+
+// ============================================================================
+// parseSSHURL (source.go)
+// ============================================================================
+
+func TestParseSSHURL_GitHub(t *testing.T) {
+	source, err := parseSSHURL("git@github.com:owner/repo.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Type != "github" {
+		t.Errorf("Type = %q, want 'github'", source.Type)
+	}
+	if source.Owner != "owner" {
+		t.Errorf("Owner = %q, want 'owner'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
+	}
+	if source.URL != "git@github.com:owner/repo.git" {
+		t.Errorf("URL = %q, want original SSH URL", source.URL)
+	}
+}
+
+func TestParseSSHURL_GitLab(t *testing.T) {
+	source, err := parseSSHURL("git@gitlab.com:myorg/myproject.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Type != "gitlab" {
+		t.Errorf("Type = %q, want 'gitlab'", source.Type)
+	}
+	if source.Owner != "myorg" {
+		t.Errorf("Owner = %q, want 'myorg'", source.Owner)
+	}
+	if source.Repo != "myproject" {
+		t.Errorf("Repo = %q, want 'myproject'", source.Repo)
+	}
+}
+
+func TestParseSSHURL_Bitbucket(t *testing.T) {
+	source, err := parseSSHURL("git@bitbucket.org:team/project.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Type != "bitbucket" {
+		t.Errorf("Type = %q, want 'bitbucket'", source.Type)
+	}
+}
+
+func TestParseSSHURL_WithoutGitSuffix(t *testing.T) {
+	source, err := parseSSHURL("git@github.com:owner/repo")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	if source.Owner != "owner" {
+		t.Errorf("Owner = %q, want 'owner'", source.Owner)
+	}
+	if source.Repo != "repo" {
+		t.Errorf("Repo = %q, want 'repo'", source.Repo)
+	}
+}
+
+func TestParseSSHURL_UnknownHost(t *testing.T) {
+	source, err := parseSSHURL("git@custom.example.com:org/repo.git")
+	if err != nil {
+		t.Fatalf("parseSSHURL error: %v", err)
+	}
+	// Unknown hosts default to github type
+	if source.Type != "github" {
+		t.Errorf("Type = %q, want 'github' (default for unknown)", source.Type)
+	}
+	if source.Owner != "org" {
+		t.Errorf("Owner = %q, want 'org'", source.Owner)
+	}
+}
+
+func TestParseSSHURL_InvalidNoColon(t *testing.T) {
+	_, err := parseSSHURL("git@github.com/owner/repo")
+	if err == nil {
+		t.Error("expected error for SSH URL without colon separator")
+	}
+}
+
+func TestParseSSHURL_InvalidTooFewParts(t *testing.T) {
+	_, err := parseSSHURL("git@github.com:onlyrepo")
+	if err == nil {
+		t.Error("expected error for SSH URL with only one path component")
+	}
+}
+
+func TestParseSourceString_SSHUrl(t *testing.T) {
+	source, err := ParseSourceString("git@github.com:owner/repo.git")
+	if err != nil {
+		t.Fatalf("ParseSourceString error: %v", err)
+	}
+	if source.Type != "github" {
+		t.Errorf("Type = %q, want 'github'", source.Type)
+	}
+	if source.Owner != "owner" {
+		t.Errorf("Owner = %q, want 'owner'", source.Owner)
+	}
+}

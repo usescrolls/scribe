@@ -16,7 +16,8 @@ On first launch, Scribe runs an onboarding wizard that detects your installed ag
 - **Install Once, Use Everywhere**: Skills are automatically symlinked to all detected agents
 - **39 Agents Supported**: Claude Code, Cursor, GitHub Copilot, Cline, Windsurf, Continue, and more
 - **Workspaces**: Organize skills into named sets and switch between them
-- **Multiple Sources**: GitHub, GitLab, Bitbucket, local paths, zip URLs
+- **Private Repositories**: Automatic credential resolution via git credential helpers and SSH agent
+- **Multiple Sources**: GitHub, GitLab, Bitbucket, local paths, zip URLs, SSH URLs
 - **Desktop GUI**: Vue 3 frontend with workspace management, skill browser, and multi-step install wizard
 - **Version Tracking**: Git commit hash and date tracking for installed skills with update detection
 - **Local Cache**: Git clone cache for fast installs, checks, and updates
@@ -74,6 +75,7 @@ scribe install https://gitlab.com/owner/repo       # GitLab URL
 scribe install https://bitbucket.org/owner/repo    # Bitbucket URL
 scribe install ./local/path                        # Local directory
 scribe install https://example.com/skills.zip      # Zip URL
+scribe install git@github.com:owner/repo.git       # SSH URL (private repos)
 scribe install owner/repo --all                    # Install all skills to all agents
 
 # List installed skills
@@ -130,6 +132,24 @@ scribe workspace delete <name>
 ```
 
 For complete CLI documentation, see [CLI Specification](docs/cli-spec.md).
+
+## Private Repositories
+
+Scribe supports private repositories out of the box by leveraging your existing git credentials. No Scribe-specific configuration is needed.
+
+**HTTPS (recommended):** Scribe uses the system `git credential` helper, which automatically picks up credentials from:
+- `gh auth login` (GitHub CLI)
+- macOS Keychain
+- Windows Credential Manager
+- `git-credential-store` or any configured credential helper
+
+**SSH:** Use an SSH URL to clone via your SSH key:
+```bash
+scribe install git@github.com:owner/private-repo.git
+scribe install git@gitlab.com:org/private-repo.git
+```
+
+Scribe reads keys from your running SSH agent. If authentication fails, Scribe shows a hint with setup instructions.
 
 ## Architecture
 

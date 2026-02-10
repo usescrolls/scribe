@@ -217,6 +217,48 @@ func TestGetSkillInfo_NoMeta_VersionFieldsEmpty(t *testing.T) {
 	}
 }
 
+func TestGetSkillInfo_MapsIsPrivate(t *testing.T) {
+	skill := &Skill{
+		Name:        "private-skill",
+		Description: "Private repo skill",
+		Meta: &SkillMeta{
+			Source:     "octocat/private-skills",
+			SourceType: "github",
+			IsPrivate:  true,
+		},
+	}
+	info := GetSkillInfo(skill)
+	if !info.IsPrivate {
+		t.Error("info.IsPrivate = false, want true")
+	}
+}
+
+func TestGetSkillInfo_IsPrivateDefaultsFalse(t *testing.T) {
+	skill := &Skill{
+		Name:        "public-skill",
+		Description: "Public repo skill",
+		Meta: &SkillMeta{
+			Source:     "octocat/public-skills",
+			SourceType: "github",
+		},
+	}
+	info := GetSkillInfo(skill)
+	if info.IsPrivate {
+		t.Error("info.IsPrivate = true, want false for public source")
+	}
+}
+
+func TestGetSkillInfo_NoMeta_IsPrivateFalse(t *testing.T) {
+	skill := &Skill{
+		Name:        "no-meta-skill",
+		Description: "No metadata",
+	}
+	info := GetSkillInfo(skill)
+	if info.IsPrivate {
+		t.Error("info.IsPrivate = true, want false when no meta")
+	}
+}
+
 // ============================================================================
 // GetAgentsWithSkill (skills.go)
 // ============================================================================

@@ -607,6 +607,30 @@ func TestFormatSourcePrivate_Unknown(t *testing.T) {
 	}
 }
 
+func TestFormatSourcePrivate_Bitbucket(t *testing.T) {
+	source := &SourceInfo{Type: "bitbucket", Owner: "myteam", Repo: "myrepo"}
+	result := formatSource(source)
+	if result != "myteam/myrepo" {
+		t.Errorf("formatSource(bitbucket) = %q, want 'myteam/myrepo'", result)
+	}
+}
+
+func TestFormatSourcePrivate_BitbucketWithRef(t *testing.T) {
+	source := &SourceInfo{Type: "bitbucket", Owner: "myteam", Repo: "myrepo", Ref: "develop"}
+	result := formatSource(source)
+	if result != "myteam/myrepo#develop" {
+		t.Errorf("formatSource(bitbucket+ref) = %q, want 'myteam/myrepo#develop'", result)
+	}
+}
+
+func TestFormatSourcePrivate_BitbucketMainRef(t *testing.T) {
+	source := &SourceInfo{Type: "bitbucket", Owner: "myteam", Repo: "myrepo", Ref: "main"}
+	result := formatSource(source)
+	if result != "myteam/myrepo" {
+		t.Errorf("formatSource(bitbucket+main) = %q, want 'myteam/myrepo' (main stripped)", result)
+	}
+}
+
 func TestBoost_FormatSourcePrivate_Zip(t *testing.T) {
 	source := &SourceInfo{Type: "zip", URL: "https://example.com/archive.zip"}
 	meta := NewSkillMeta(source, "", "content", nil)
@@ -779,5 +803,76 @@ func TestReadWriteSkillMeta_CommitFields_Roundtrip(t *testing.T) {
 	}
 	if loaded.CommitDate != "2025-06-15T10:30:00Z" {
 		t.Errorf("CommitDate = %q, want '2025-06-15T10:30:00Z'", loaded.CommitDate)
+	}
+}
+
+func TestReadWriteSkillMeta_IsPrivate_Roundtrip(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	metaPath := filepath.Join(tmpDir, ".scribe-meta.json")
+	original := &SkillMeta{
+		Source:      "user/private-repo",
+		SourceType:  "github",
+		ContentHash: "sha256:abc",
+		IsPrivate:   true,
+		InstalledAt: "2025-06-01T12:00:00Z",
+		UpdatedAt:   "2025-06-01T12:00:00Z",
+	}
+
+	if err := WriteSkillMeta(metaPath, original); err != nil {
+		t.Fatalf("WriteSkillMeta() error: %v", err)
+	}
+
+	loaded, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		t.Fatalf("ReadSkillMeta() error: %v", err)
+	}
+
+	if !loaded.IsPrivate {
+		t.Error("IsPrivate = false after roundtrip, want true")
+	}
+}
+
+func TestReadWriteSkillMeta_IsPrivateFalse_OmittedFromJSON(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	metaPath := filepath.Join(tmpDir, ".scribe-meta.json")
+	original := &SkillMeta{
+		Source:      "user/public-repo",
+		SourceType:  "github",
+		ContentHash: "sha256:abc",
+		IsPrivate:   false,
+		InstalledAt: "2025-06-01T12:00:00Z",
+		UpdatedAt:   "2025-06-01T12:00:00Z",
+	}
+
+	if err := WriteSkillMeta(metaPath, original); err != nil {
+		t.Fatalf("WriteSkillMeta() error: %v", err)
+	}
+
+	// Verify the JSON doesn't contain isPrivate when false (omitempty)
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		t.Fatalf("ReadFile error: %v", err)
+	}
+	if strings.Contains(string(data), "isPrivate") {
+		t.Error("JSON contains 'isPrivate' field when false; expected omitempty to exclude it")
+	}
+
+	// Still roundtrips correctly
+	loaded, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		t.Fatalf("ReadSkillMeta() error: %v", err)
+	}
+	if loaded.IsPrivate {
+		t.Error("IsPrivate = true after roundtrip of false value")
 	}
 }

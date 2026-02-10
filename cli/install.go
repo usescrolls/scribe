@@ -68,6 +68,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	// Fetch and discover skills
 	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
+		if scribe.IsAuthError(err) {
+			fmt.Fprintf(os.Stderr, "Hint: %s\n", scribe.AuthHintMessage())
+		}
 		return fmt.Errorf("failed to fetch skills: %w", err)
 	}
 	if fetchResult != nil {
@@ -136,8 +139,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	// Install each skill
 	opts := scribe.InstallOptions{
-		Agents: targetAgents,
-		Yes:    installYes,
+		Agents:    targetAgents,
+		Yes:       installYes,
+		IsPrivate: fetchResult.IsPrivate,
 	}
 
 	successCount := 0
@@ -182,6 +186,11 @@ func parseSource(arg string) (*scribe.SourceInfo, error) {
 		source.Type = "local"
 		source.LocalPath = absPath
 		return source, nil
+	}
+
+	// Check for SSH URL (git@host:owner/repo.git)
+	if strings.HasPrefix(arg, "git@") {
+		return scribe.ParseSourceString(arg)
 	}
 
 	// Check for GitHub URL
@@ -323,9 +332,22 @@ func formatSourceInfo(source *scribe.SourceInfo) string {
 		if source.Subpath != "" {
 			s += "/" + source.Subpath
 		}
+		if strings.HasPrefix(source.URL, "git@") {
+			return "github(ssh):" + s
+		}
 		return "github:" + s
 	case "gitlab":
-		return "gitlab:" + source.Owner + "/" + source.Repo
+		s := source.Owner + "/" + source.Repo
+		if strings.HasPrefix(source.URL, "git@") {
+			return "gitlab(ssh):" + s
+		}
+		return "gitlab:" + s
+	case "bitbucket":
+		s := source.Owner + "/" + source.Repo
+		if strings.HasPrefix(source.URL, "git@") {
+			return "bitbucket(ssh):" + s
+		}
+		return "bitbucket:" + s
 	case "local":
 		return "local:" + source.LocalPath
 	case "zip":

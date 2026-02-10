@@ -190,3 +190,59 @@ func TestInfoTableNoMeta(t *testing.T) {
 		t.Error("expected '(none)' for agents")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Tests for runInfo (info.go)
+// ---------------------------------------------------------------------------
+
+func TestRunInfoJSONMode(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	jsonOutput = true
+
+	installFakeSkill(t, "info-test-skill", "A test skill for info", "github", "owner/repo")
+
+	output := captureStdout(t, func() {
+		err := runInfo(infoCmd, []string{"info-test-skill"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	var parsed skillDetailJSON
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Fatalf("failed to parse JSON: %v\nOutput: %s", err, output)
+	}
+	if parsed.Name != "info-test-skill" {
+		t.Errorf("name = %q, expected %q", parsed.Name, "info-test-skill")
+	}
+	if parsed.Source != "owner/repo" {
+		t.Errorf("source = %q, expected %q", parsed.Source, "owner/repo")
+	}
+}
+
+func TestRunInfoTableMode(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	jsonOutput = false
+
+	installFakeSkill(t, "info-table-skill", "Table info test", "github", "owner/repo")
+
+	output := captureStdout(t, func() {
+		err := runInfo(infoCmd, []string{"info-table-skill"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "info-table-skill") {
+		t.Errorf("expected skill name in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Table info test") {
+		t.Errorf("expected description in output, got: %s", output)
+	}
+}

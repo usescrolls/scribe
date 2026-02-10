@@ -315,6 +315,7 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 		info.ContentHash = skill.Meta.ContentHash
 		info.CommitHash = skill.Meta.CommitHash
 		info.CommitDate = skill.Meta.CommitDate
+		info.IsPrivate = skill.Meta.IsPrivate
 	}
 
 	return info

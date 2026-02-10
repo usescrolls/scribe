@@ -67,7 +67,7 @@ func HandleInstallURL(urlString string) *InstallResult {
 	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
 
 	// Install each skill
-	opts := InstallOptions{Yes: true} // Auto-confirm for URL scheme installs
+	opts := InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate} // Auto-confirm for URL scheme installs
 	for _, skill := range skills {
 		Logger.Info("installing skill", "name", skill.Name)
 

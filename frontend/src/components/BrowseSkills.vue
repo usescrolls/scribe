@@ -43,6 +43,10 @@
       <div v-for="group in groupedSkills" :key="group.source" class="source-group">
         <div class="group-header">
           <span class="group-badge">{{ group.sourceType }}</span>
+          <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
           <a
             v-if="group.sourceUrl"
             class="group-source group-source-link"
@@ -172,6 +176,16 @@ async function handleRemoveFromWorkspace(skillName: string, workspaceName: strin
 
 const updatingGroup = ref<string | null>(null)
 
+function isAuthError(msg: string): boolean {
+  const lower = msg.toLowerCase()
+  return ['authentication required', 'authentication failed', 'permission denied',
+    'repository not found', 'access denied', '403', '401'].some(p => lower.includes(p))
+}
+
+function isGroupPrivate(group: SourceGroup): boolean {
+  return group.skills.some(s => s.isPrivate)
+}
+
 function isGroupUpdatable(group: SourceGroup): boolean {
   return !!group.sourceType && group.sourceType !== 'local' && group.sourceType !== 'builtin'
 }
@@ -203,8 +217,12 @@ async function handleUpdateGroup(group: SourceGroup) {
       toast.value = { message: 'All skills already up to date', type: 'info' }
     }
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to update skills'
+    const hint = isAuthError(msg)
+      ? '. For private repos, ensure git credentials are configured (e.g. gh auth login)'
+      : ''
     toast.value = {
-      message: err instanceof Error ? err.message : 'Failed to update skills',
+      message: msg + hint,
       type: 'error',
     }
   } finally {
@@ -379,6 +397,11 @@ onUnmounted(() => {
   font-size: 0.5625rem;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.private-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .group-source {

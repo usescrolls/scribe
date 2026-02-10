@@ -111,6 +111,22 @@ func TestBuildCloneURL(t *testing.T) {
 	}
 }
 
+func TestBuildCloneURL_SSHWithGitSuffix(t *testing.T) {
+	source := &SourceInfo{URL: "git@github.com:user/repo.git"}
+	got := buildCloneURL(source)
+	if got != "git@github.com:user/repo.git" {
+		t.Errorf("buildCloneURL = %q, want 'git@github.com:user/repo.git'", got)
+	}
+}
+
+func TestBuildCloneURL_SSHWithoutGitSuffix(t *testing.T) {
+	source := &SourceInfo{URL: "git@github.com:user/repo"}
+	got := buildCloneURL(source)
+	if got != "git@github.com:user/repo.git" {
+		t.Errorf("buildCloneURL = %q, want 'git@github.com:user/repo.git'", got)
+	}
+}
+
 func TestBuildCloneURL_AlreadyHasGit(t *testing.T) {
 	source := &SourceInfo{URL: "https://github.com/u/r.git"}
 	got := buildCloneURL(source)
@@ -526,7 +542,8 @@ func TestFetchRepo_AlreadyUpToDate(t *testing.T) {
 	}
 
 	// Fetch again (should be already up to date = no error)
-	err = fetchRepo(repo)
+	source := &SourceInfo{Type: "local", URL: remoteDir}
+	err = fetchRepo(repo, source)
 	if err != nil {
 		t.Errorf("fetchRepo() after fresh clone should return nil, got: %v", err)
 	}

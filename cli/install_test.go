@@ -129,6 +129,45 @@ func TestFormatSourceInfoEdgeCases(t *testing.T) {
 			},
 			expected: "github:/",
 		},
+		{
+			name: "bitbucket source",
+			source: &scribe.SourceInfo{
+				Type:  "bitbucket",
+				Owner: "bbuser",
+				Repo:  "bbrepo",
+			},
+			expected: "bitbucket:bbuser/bbrepo",
+		},
+		{
+			name: "github SSH source",
+			source: &scribe.SourceInfo{
+				Type:  "github",
+				Owner: "user",
+				Repo:  "repo",
+				URL:   "git@github.com:user/repo.git",
+			},
+			expected: "github(ssh):user/repo",
+		},
+		{
+			name: "gitlab SSH source",
+			source: &scribe.SourceInfo{
+				Type:  "gitlab",
+				Owner: "gluser",
+				Repo:  "glrepo",
+				URL:   "git@gitlab.com:gluser/glrepo.git",
+			},
+			expected: "gitlab(ssh):gluser/glrepo",
+		},
+		{
+			name: "bitbucket SSH source",
+			source: &scribe.SourceInfo{
+				Type:  "bitbucket",
+				Owner: "bbuser",
+				Repo:  "bbrepo",
+				URL:   "git@bitbucket.org:bbuser/bbrepo.git",
+			},
+			expected: "bitbucket(ssh):bbuser/bbrepo",
+		},
 	}
 
 	for _, tt := range tests {

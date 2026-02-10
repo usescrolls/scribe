@@ -9,6 +9,7 @@ export interface SkillInfo {
   contentHash?: string
   commitHash?: string
   commitDate?: string
+  isPrivate?: boolean
   agents: string[]
 }
 

@@ -29,8 +29,11 @@ scribe install <source> [flags]
 | GitHub with path | `owner/repo/path/to/skills` |
 | GitLab URL | `https://gitlab.com/owner/repo` |
 | Bitbucket URL | `https://bitbucket.org/owner/repo` |
+| SSH URL | `git@github.com:owner/repo.git` |
 | Local path | `./local/path` or `/absolute/path` |
 | Zip URL | `https://example.com/skills.zip` |
+
+**Private repositories:** HTTPS sources automatically use credentials from the system git credential helper (`gh auth login`, macOS Keychain, etc.). SSH sources use your SSH agent. See [Troubleshooting](troubleshooting.md) for setup help.
 
 **Flags:**
 | Flag | Short | Description |
@@ -45,6 +48,7 @@ scribe install <source> [flags]
 ```bash
 scribe install vercel-labs/agent-skills
 scribe install https://github.com/owner/repo
+scribe install git@github.com:owner/private-repo.git    # SSH (private repos)
 scribe install ./my-local-skills
 scribe install https://example.com/skills.zip
 scribe install owner/repo --skill react-patterns --agent claude-code,cursor

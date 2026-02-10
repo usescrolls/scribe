@@ -673,7 +673,7 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 
 	// Install each discovered skill
 	result := &scribe.InstallResult{}
-	opts := scribe.InstallOptions{Yes: true}
+	opts := scribe.InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate}
 	for _, skill := range skills {
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
@@ -807,7 +807,8 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 
 	// Install each requested skill
 	result := &scribe.InstallResult{}
-	opts := scribe.InstallOptions{Yes: true}
+	isPrivate := a.pendingFetch != nil && a.pendingFetch.IsPrivate
+	opts := scribe.InstallOptions{Yes: true, IsPrivate: isPrivate}
 	for i, skill := range toInstall {
 		// Emit progress event so the frontend can show per-skill status
 		if wailsApp != nil {

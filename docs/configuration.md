@@ -104,8 +104,18 @@ Global configuration:
 | GitHub Branch | `owner/repo#branch` | Clone specific branch |
 | GitLab | `https://gitlab.com/owner/repo` | Clone repo |
 | Bitbucket | `https://bitbucket.org/owner/repo` | Clone repo |
+| SSH URL | `git@github.com:owner/repo.git` | Clone via SSH (private repos) |
 | Local Path | `./local/path` | Read directly |
 | Zip URL | `https://example.com/skills.zip` | Download, extract, discover skills |
+
+### Authentication
+
+Scribe supports private repositories through two mechanisms:
+
+- **Git credential helper (HTTPS):** Scribe calls `git credential fill` to resolve credentials from the system git credential store. This automatically picks up credentials from `gh auth login`, macOS Keychain, Windows Credential Manager, and any other configured credential helper.
+- **SSH agent:** When using SSH URLs (`git@host:owner/repo.git`), Scribe reads keys from the running SSH agent.
+
+No Scribe-specific token or credential configuration is needed. If authentication fails, Scribe displays a hint with setup instructions.
 
 ### Skill Discovery
 

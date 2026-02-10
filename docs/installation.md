@@ -182,6 +182,7 @@ scribe install owner/repo                          # GitHub shorthand
 scribe install https://github.com/owner/repo       # Full GitHub URL
 scribe install https://gitlab.com/owner/repo       # GitLab URL
 scribe install https://bitbucket.org/owner/repo    # Bitbucket URL
+scribe install git@github.com:owner/repo.git       # SSH URL (private repos)
 scribe install ./local/path                        # Local directory
 scribe install https://example.com/skills.zip      # Zip URL
 ```

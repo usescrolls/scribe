@@ -125,6 +125,9 @@ func updateSkill(skillName string, force bool) error {
 	// Fetch new content
 	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
+		if scribe.IsAuthError(err) {
+			fmt.Fprintf(os.Stderr, "Hint: %s\n", scribe.AuthHintMessage())
+		}
 		return fmt.Errorf("failed to fetch from source: %w", err)
 	}
 	if fetchResult != nil {

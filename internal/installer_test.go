@@ -146,6 +146,80 @@ func TestBoost_InstallSkill_WithSpecificAgents(t *testing.T) {
 	}
 }
 
+func TestBoost_InstallSkill_IsPrivate(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	srcDir := filepath.Join(tmpDir, "private-src")
+	_ = os.MkdirAll(srcDir, 0o755)
+	_ = os.WriteFile(filepath.Join(srcDir, "SKILL.md"), []byte("---\nname: private-skill\ndescription: Private skill\n---\n# Private\n"), 0o644)
+
+	skill := &Skill{
+		Name:        "private-skill",
+		Description: "Private skill",
+		Path:        srcDir,
+	}
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "user",
+		Repo:  "private-repo",
+		URL:   "git@github.com:user/private-repo.git",
+	}
+
+	err := InstallSkill(skill, source, InstallOptions{IsPrivate: true}, nil)
+	if err != nil {
+		t.Fatalf("InstallSkill() error: %v", err)
+	}
+
+	// Verify IsPrivate was persisted in metadata
+	metaPath := filepath.Join(tmpDir, ".scribe", "scrolls", "private-skill", ".scribe-meta.json")
+	meta, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		t.Fatalf("ReadSkillMeta error: %v", err)
+	}
+	if !meta.IsPrivate {
+		t.Error("meta.IsPrivate = false, want true")
+	}
+}
+
+func TestBoost_InstallSkill_PublicNotPrivate(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	srcDir := filepath.Join(tmpDir, "public-src")
+	_ = os.MkdirAll(srcDir, 0o755)
+	_ = os.WriteFile(filepath.Join(srcDir, "SKILL.md"), []byte("---\nname: public-skill\ndescription: Public skill\n---\n# Public\n"), 0o644)
+
+	skill := &Skill{
+		Name:        "public-skill",
+		Description: "Public skill",
+		Path:        srcDir,
+	}
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "user",
+		Repo:  "public-repo",
+		URL:   "https://github.com/user/public-repo",
+	}
+
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
+	if err != nil {
+		t.Fatalf("InstallSkill() error: %v", err)
+	}
+
+	// Verify IsPrivate defaults to false
+	metaPath := filepath.Join(tmpDir, ".scribe", "scrolls", "public-skill", ".scribe-meta.json")
+	meta, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		t.Fatalf("ReadSkillMeta error: %v", err)
+	}
+	if meta.IsPrivate {
+		t.Error("meta.IsPrivate = true, want false for public install")
+	}
+}
+
 // ============================================================================
 // SyncSkillToAgents (installer.go)
 // ============================================================================

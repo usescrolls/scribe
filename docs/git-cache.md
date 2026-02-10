@@ -77,13 +77,18 @@ Now:
 - **`scribe update`** reuses the cache populated by its internal check step — no double-cloning.
 - **`scribe install owner/repo`** populates the cache on first run, making future checks and updates near-instant for that repo.
 
-## No Git Binary Required
+## Authentication
 
-All git operations use [go-git/v5](https://github.com/go-git/go-git), a pure Go implementation. This means:
+Scribe resolves credentials automatically for private repositories:
 
-- Users don't need `git` installed on their system.
-- Behavior is identical across macOS, Linux, and Windows.
-- No shell execution (`os/exec`) for git operations.
+- **HTTPS sources:** Scribe calls the system `git credential fill` command, which queries whatever credential helper the user has configured (`gh auth login`, macOS Keychain, Windows Credential Manager, etc.). This requires the `git` binary to be installed.
+- **SSH sources** (`git@host:owner/repo.git`): Scribe connects through the user's SSH agent using go-git's SSH transport.
+
+Authentication is resolved per clone/fetch operation and is never stored by Scribe. For public repositories, no credentials are needed and the behavior is unchanged.
+
+## Git Binary
+
+All core git operations (clone, fetch, reset) use [go-git/v5](https://github.com/go-git/go-git), a pure Go implementation. The system `git` binary is only used for credential resolution (`git credential fill`) when accessing private HTTPS repositories. If `git` is not installed, public repositories still work and SSH authentication works via the SSH agent.
 
 ## Storage
 

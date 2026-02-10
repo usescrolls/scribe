@@ -62,7 +62,7 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err e
 	repo, err := git.PlainOpen(repoPath)
 	if err == nil {
 		// Cached repo exists -- fetch updates
-		if err := fetchRepo(repo); err != nil {
+		if err := fetchRepo(repo, source); err != nil {
 			Logger.Warn("fetch failed, re-cloning", "path", repoPath, "error", err)
 			_ = os.RemoveAll(repoPath)
 			return cloneToCache(repoPath, source)
@@ -88,10 +88,12 @@ func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached
 	}
 
 	cloneURL := buildCloneURL(source)
+	auth := authForSource(source)
 
 	opts := &git.CloneOptions{
 		URL:   cloneURL,
 		Depth: 1,
+		Auth:  auth,
 	}
 	if source.Ref != "" {
 		opts.SingleBranch = true
@@ -124,10 +126,12 @@ func cloneToTempDir(source *SourceInfo) (tempDir string, isCached bool, err erro
 	}
 
 	cloneURL := buildCloneURL(source)
+	auth := authForSource(source)
 
 	opts := &git.CloneOptions{
 		URL:   cloneURL,
 		Depth: 1,
+		Auth:  auth,
 	}
 	if source.Ref != "" {
 		opts.SingleBranch = true
@@ -149,10 +153,11 @@ func cloneToTempDir(source *SourceInfo) (tempDir string, isCached bool, err erro
 }
 
 // fetchRepo fetches the latest changes for a cached repo.
-func fetchRepo(repo *git.Repository) error {
+func fetchRepo(repo *git.Repository, source *SourceInfo) error {
 	err := repo.Fetch(&git.FetchOptions{
 		Depth: 1,
 		Force: true,
+		Auth:  authForSource(source),
 	})
 	if err == git.NoErrAlreadyUpToDate {
 		return nil
@@ -211,6 +216,16 @@ func resetToRemote(repo *git.Repository, ref string) error {
 // buildCloneURL constructs the clone URL from a SourceInfo.
 func buildCloneURL(source *SourceInfo) string {
 	cloneURL := source.URL
+
+	if isSSHURL(cloneURL) {
+		// SSH URLs: git@host:owner/repo.git
+		if !strings.HasSuffix(cloneURL, ".git") {
+			cloneURL += ".git"
+		}
+		return cloneURL
+	}
+
+	// HTTPS URLs
 	if !strings.HasSuffix(cloneURL, ".git") {
 		cloneURL += ".git"
 	}

@@ -26,6 +26,7 @@ type SkillMeta struct {
 	ContentHash string `json:"contentHash"`          // SHA256 hash of SKILL.md content
 	CommitHash  string `json:"commitHash,omitempty"` // Short git commit hash
 	CommitDate  string `json:"commitDate,omitempty"` // ISO 8601 commit timestamp
+	IsPrivate   bool   `json:"isPrivate,omitempty"`  // True if authentication was used to fetch
 	InstalledAt string `json:"installedAt"`          // ISO 8601 timestamp
 	UpdatedAt   string `json:"updatedAt"`            // ISO 8601 timestamp
 }
@@ -54,10 +55,11 @@ type Config struct {
 
 // InstallOptions configures skill installation behavior
 type InstallOptions struct {
-	Agents   []string // Target specific agents (empty = all detected)
-	Skills   []string // Select specific skills to install (empty = all found)
-	Yes      bool     // Skip interactive prompts
-	ListOnly bool     // List available skills without installing
+	Agents    []string // Target specific agents (empty = all detected)
+	Skills    []string // Select specific skills to install (empty = all found)
+	Yes       bool     // Skip interactive prompts
+	ListOnly  bool     // List available skills without installing
+	IsPrivate bool     // Source required authentication to fetch
 }
 
 // SourceInfo represents a parsed source reference
@@ -83,7 +85,8 @@ type SkillInfo struct {
 	ContentHash string   `json:"contentHash,omitempty"`
 	CommitHash  string   `json:"commitHash,omitempty"`
 	CommitDate  string   `json:"commitDate,omitempty"`
-	Agents      []string `json:"agents"` // List of agent IDs with this skill
+	IsPrivate   bool     `json:"isPrivate,omitempty"` // True if source required authentication
+	Agents      []string `json:"agents"`              // List of agent IDs with this skill
 }
 
 // UpdateResult contains the outcome of a skill update operation

@@ -11,6 +11,8 @@ import (
 //   - Local path: ./path, /absolute/path, ~/path
 //   - GitHub URL: https://github.com/owner/repo
 //   - GitLab URL: https://gitlab.com/owner/repo
+//   - Bitbucket URL: https://bitbucket.org/owner/repo
+//   - SSH URL: git@github.com:owner/repo, git@gitlab.com:owner/repo
 //   - GitHub shorthand: owner/repo, owner/repo#branch, owner/repo/subpath
 //   - Zip URL: https://example.com/skills.zip
 func ParseSourceString(arg string) (*SourceInfo, error) {
@@ -26,6 +28,11 @@ func ParseSourceString(arg string) (*SourceInfo, error) {
 			return nil, err
 		}
 		return &SourceInfo{Type: "local", LocalPath: absPath}, nil
+	}
+
+	// Check for SSH URL (git@host:owner/repo.git)
+	if strings.HasPrefix(arg, "git@") {
+		return parseSSHURL(arg)
 	}
 
 	// Check for GitHub URL
@@ -197,6 +204,53 @@ func ReconstructSource(meta *SkillMeta) *SourceInfo {
 	}
 
 	return source
+}
+
+// parseSSHURL parses git@host:owner/repo.git format.
+// Supported: git@github.com:owner/repo.git, git@gitlab.com:owner/repo, git@bitbucket.org:owner/repo.git
+func parseSSHURL(arg string) (*SourceInfo, error) {
+	// Format: git@host:owner/repo.git
+	// Strip "git@"
+	rest := strings.TrimPrefix(arg, "git@")
+
+	// Split on ":"
+	colonIdx := strings.IndexByte(rest, ':')
+	if colonIdx == -1 {
+		return nil, fmt.Errorf("invalid SSH URL: expected git@host:owner/repo format")
+	}
+
+	host := rest[:colonIdx]
+	path := rest[colonIdx+1:]
+	path = strings.TrimSuffix(path, ".git")
+
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid SSH URL: expected git@host:owner/repo format")
+	}
+
+	source := &SourceInfo{
+		Owner: parts[0],
+		Repo:  parts[1],
+		URL:   arg, // Keep the SSH URL as-is for cloning
+	}
+
+	// Determine source type from host
+	switch host {
+	case "github.com":
+		source.Type = "github"
+	case "gitlab.com":
+		source.Type = "gitlab"
+	case "bitbucket.org":
+		source.Type = "bitbucket"
+	default:
+		source.Type = "github" // Default to github for unknown hosts
+	}
+
+	if len(parts) > 2 {
+		source.Subpath = strings.Join(parts[2:], "/")
+	}
+
+	return source, nil
 }
 
 func parseBitbucketURL(url string) (*SourceInfo, error) {

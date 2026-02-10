@@ -105,7 +105,11 @@ func checkSkill(skillName string) CheckResult {
 	// Fetch remote content
 	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
 	if err != nil {
-		result.Error = fmt.Sprintf("failed to fetch: %v", err)
+		errMsg := fmt.Sprintf("failed to fetch: %v", err)
+		if scribe.IsAuthError(err) {
+			errMsg += " (auth issue — see 'scribe install --help')"
+		}
+		result.Error = errMsg
 		return result
 	}
 	if fetchResult != nil {
