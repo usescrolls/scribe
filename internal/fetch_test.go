@@ -214,6 +214,9 @@ func TestFetchAndDiscoverSkills_GitHub(t *testing.T) {
 	if result != nil && !result.IsCached {
 		t.Error("expected IsCached=true for github source")
 	}
+	if result != nil && result.IsPrivate {
+		t.Error("expected IsPrivate=false for public github repo")
+	}
 }
 
 func TestFetchAndDiscoverSkills_GitHubWithSubpath(t *testing.T) {

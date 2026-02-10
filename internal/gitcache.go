@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
 const (
@@ -41,10 +42,11 @@ func CacheKeyForSource(source *SourceInfo) string {
 }
 
 // CloneOrUpdateRepo ensures a repo is present and up-to-date in the cache.
-// Returns the path to the repository worktree and whether it's a cached directory.
+// Returns the path to the repository worktree, whether it's a cached directory,
+// and whether authentication was required (indicating a private repository).
 // If isCached is true, the caller must NOT delete the returned directory.
 // If isCached is false, the caller is responsible for cleanup.
-func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err error) {
+func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached, authRequired bool, err error) {
 	cacheKey := CacheKeyForSource(source)
 	if cacheKey == "" {
 		// Not cacheable -- fall back to temp dir clone
@@ -53,7 +55,7 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err e
 
 	cacheDir, err := GetCacheDir()
 	if err != nil {
-		return "", false, fmt.Errorf("failed to get cache dir: %w", err)
+		return "", false, false, fmt.Errorf("failed to get cache dir: %w", err)
 	}
 
 	repoPath := filepath.Join(cacheDir, cacheKey)
@@ -62,8 +64,9 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err e
 	repo, err := git.PlainOpen(repoPath)
 	if err == nil {
 		// Cached repo exists -- fetch updates
-		if err := fetchRepo(repo, source); err != nil {
-			Logger.Warn("fetch failed, re-cloning", "path", repoPath, "error", err)
+		authNeeded, fetchErr := fetchRepo(repo, source)
+		if fetchErr != nil {
+			Logger.Warn("fetch failed, re-cloning", "path", repoPath, "error", fetchErr)
 			_ = os.RemoveAll(repoPath)
 			return cloneToCache(repoPath, source)
 		}
@@ -73,7 +76,7 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err e
 			_ = os.RemoveAll(repoPath)
 			return cloneToCache(repoPath, source)
 		}
-		return repoPath, true, nil
+		return repoPath, true, authNeeded, nil
 	}
 
 	// Not cached or corrupted -- remove any remnants and clone fresh
@@ -82,14 +85,46 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached bool, err e
 }
 
 // cloneToCache clones into the cache directory.
-func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached bool, err error) {
+// For HTTPS URLs, it tries without auth first to detect whether the repo is public.
+func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached, authRequired bool, err error) {
 	if err = os.MkdirAll(filepath.Dir(repoPath), 0o755); err != nil {
-		return "", false, fmt.Errorf("failed to create cache dir: %w", err)
+		return "", false, false, fmt.Errorf("failed to create cache dir: %w", err)
 	}
 
 	cloneURL := buildCloneURL(source)
-	auth := authForSource(source)
+	Logger.Info("cloning repository", "url", cloneURL, "path", repoPath)
 
+	// For SSH URLs, always use auth
+	if isSSHURL(source.URL) {
+		if err := cloneWithRefFallback(repoPath, cloneURL, source, authForSource(source)); err != nil {
+			return "", false, false, fmt.Errorf("git clone failed: %w", err)
+		}
+		return repoPath, true, true, nil
+	}
+
+	// For HTTPS URLs, try without auth first to detect public repos
+	if err := cloneWithRefFallback(repoPath, cloneURL, source, nil); err == nil {
+		return repoPath, true, false, nil
+	} else if !IsAuthError(err) {
+		return "", false, false, fmt.Errorf("git clone failed: %w", err)
+	}
+
+	// Auth error -- retry with credentials
+	Logger.Info("retrying clone with authentication", "url", cloneURL)
+	_ = os.RemoveAll(repoPath)
+	auth := authForSource(source)
+	if auth == nil {
+		return "", false, false, fmt.Errorf("git clone failed: authentication required but no credentials available")
+	}
+	if err := cloneWithRefFallback(repoPath, cloneURL, source, auth); err != nil {
+		return "", false, false, fmt.Errorf("git clone failed: %w", err)
+	}
+	return repoPath, true, true, nil
+}
+
+// cloneWithRefFallback attempts a clone, falling back from branch to tag ref if needed.
+// On failure, it cleans up the repoPath directory.
+func cloneWithRefFallback(repoPath, cloneURL string, source *SourceInfo, auth transport.AuthMethod) error {
 	opts := &git.CloneOptions{
 		URL:   cloneURL,
 		Depth: 1,
@@ -100,9 +135,7 @@ func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached
 		opts.ReferenceName = plumbing.NewBranchReferenceName(source.Ref)
 	}
 
-	Logger.Info("cloning repository", "url", cloneURL, "path", repoPath)
-
-	_, err = git.PlainClone(repoPath, false, opts)
+	_, err := git.PlainClone(repoPath, false, opts)
 	if err != nil && source.Ref != "" {
 		// Branch ref failed, retry as tag
 		_ = os.RemoveAll(repoPath)
@@ -111,58 +144,94 @@ func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached
 	}
 	if err != nil {
 		_ = os.RemoveAll(repoPath)
-		return "", false, fmt.Errorf("git clone failed: %w", err)
 	}
-
-	return repoPath, true, nil
+	return err
 }
 
 // cloneToTempDir clones to a temp directory for non-cacheable sources.
 // Caller must clean up the returned directory.
-func cloneToTempDir(source *SourceInfo) (tempDir string, isCached bool, err error) {
+func cloneToTempDir(source *SourceInfo) (tempDir string, isCached, authRequired bool, err error) {
 	tempDir, err = os.MkdirTemp("", "scribe-clone-*")
 	if err != nil {
-		return "", false, err
+		return "", false, false, err
 	}
 
 	cloneURL := buildCloneURL(source)
-	auth := authForSource(source)
 
-	opts := &git.CloneOptions{
-		URL:   cloneURL,
-		Depth: 1,
-		Auth:  auth,
-	}
-	if source.Ref != "" {
-		opts.SingleBranch = true
-		opts.ReferenceName = plumbing.NewBranchReferenceName(source.Ref)
+	// For SSH URLs, always use auth
+	if isSSHURL(source.URL) {
+		if err := cloneWithRefFallback(tempDir, cloneURL, source, authForSource(source)); err != nil {
+			return "", false, false, fmt.Errorf("git clone failed: %w", err)
+		}
+		return tempDir, false, true, nil
 	}
 
-	_, err = git.PlainClone(tempDir, false, opts)
-	if err != nil && source.Ref != "" {
-		// Branch ref failed, retry as tag
-		opts.ReferenceName = plumbing.NewTagReferenceName(source.Ref)
-		_, err = git.PlainClone(tempDir, false, opts)
+	// For HTTPS URLs, try without auth first to detect public repos
+	if err := cloneWithRefFallback(tempDir, cloneURL, source, nil); err == nil {
+		return tempDir, false, false, nil
+	} else if !IsAuthError(err) {
+		return "", false, false, fmt.Errorf("git clone failed: %w", err)
 	}
+
+	// Auth error -- retry with credentials
+	// cloneWithRefFallback already cleaned up, recreate temp dir
+	tempDir, err = os.MkdirTemp("", "scribe-clone-*")
 	if err != nil {
-		_ = os.RemoveAll(tempDir)
-		return "", false, fmt.Errorf("git clone failed: %w", err)
+		return "", false, false, err
 	}
-
-	return tempDir, false, nil
+	auth := authForSource(source)
+	if auth == nil {
+		_ = os.RemoveAll(tempDir)
+		return "", false, false, fmt.Errorf("git clone failed: authentication required but no credentials available")
+	}
+	if err := cloneWithRefFallback(tempDir, cloneURL, source, auth); err != nil {
+		return "", false, false, fmt.Errorf("git clone failed: %w", err)
+	}
+	return tempDir, false, true, nil
 }
 
 // fetchRepo fetches the latest changes for a cached repo.
-func fetchRepo(repo *git.Repository, source *SourceInfo) error {
-	err := repo.Fetch(&git.FetchOptions{
+// Returns whether authentication was required.
+func fetchRepo(repo *git.Repository, source *SourceInfo) (authRequired bool, err error) {
+	// For SSH URLs, always use auth
+	if isSSHURL(source.URL) {
+		err := repo.Fetch(&git.FetchOptions{
+			Depth: 1,
+			Force: true,
+			Auth:  authForSource(source),
+		})
+		if err == git.NoErrAlreadyUpToDate {
+			return true, nil
+		}
+		return true, err
+	}
+
+	// For HTTPS URLs, try without auth first
+	err = repo.Fetch(&git.FetchOptions{
 		Depth: 1,
 		Force: true,
-		Auth:  authForSource(source),
+	})
+	if err == nil || err == git.NoErrAlreadyUpToDate {
+		return false, nil
+	}
+	if !IsAuthError(err) {
+		return false, err
+	}
+
+	// Auth error -- retry with credentials
+	auth := authForSource(source)
+	if auth == nil {
+		return false, fmt.Errorf("fetch failed: authentication required but no credentials available")
+	}
+	err = repo.Fetch(&git.FetchOptions{
+		Depth: 1,
+		Force: true,
+		Auth:  auth,
 	})
 	if err == git.NoErrAlreadyUpToDate {
-		return nil
+		return true, nil
 	}
-	return err
+	return true, err
 }
 
 // resetToRemote resets the worktree to match the fetched remote state.

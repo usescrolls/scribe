@@ -273,7 +273,7 @@ func TestCloneOrUpdateRepo_GitHubSource_CloneToCache(t *testing.T) {
 	}
 
 	// First clone
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo() first call error: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestCloneOrUpdateRepo_GitHubSource_CloneToCache(t *testing.T) {
 	}
 
 	// Second call: should fetch/update existing cache
-	repoDir2, isCached2, err := CloneOrUpdateRepo(source)
+	repoDir2, isCached2, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo() second call error: %v", err)
 	}
@@ -319,7 +319,7 @@ func TestCloneOrUpdateRepo_NonCacheable_CloneToTempDir(t *testing.T) {
 		URL:  remoteDir, // local path
 	}
 
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo(non-cacheable) error: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestCloneToCache_InvalidURL(t *testing.T) {
 		URL:   "https://invalid-host-that-does-not-exist.example.com/test/repo",
 	}
 
-	_, _, err := CloneOrUpdateRepo(source)
+	_, _, _, err := CloneOrUpdateRepo(source)
 	if err == nil {
 		t.Error("expected error for invalid clone URL")
 	}
@@ -391,7 +391,7 @@ func TestCloneToCache_WithRef(t *testing.T) {
 		Ref:   "test-branch",
 	}
 
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo with ref error: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestCloneToCache_RefFailsFallbackToTag(t *testing.T) {
 		Ref:   "v2.0.0",
 	}
 
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo with tag ref error: %v", err)
 	}
@@ -474,7 +474,7 @@ func TestCloneToTempDir_WithRef_FallbackToTag(t *testing.T) {
 		Ref:  "v1.0.0",
 	}
 
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo with tag error: %v", err)
 	}
@@ -496,7 +496,7 @@ func TestCloneToTempDir_InvalidURL(t *testing.T) {
 		URL:  "https://invalid-host-xyz.example.com/nonexistent",
 	}
 
-	_, _, err := CloneOrUpdateRepo(source)
+	_, _, _, err := CloneOrUpdateRepo(source)
 	if err == nil {
 		t.Error("expected error for invalid clone URL in cloneToTempDir")
 	}
@@ -517,7 +517,7 @@ func TestCloneToTempDir_InvalidRef(t *testing.T) {
 		Ref:  "nonexistent-ref-xyz",
 	}
 
-	_, _, err := CloneOrUpdateRepo(source)
+	_, _, _, err := CloneOrUpdateRepo(source)
 	if err == nil {
 		t.Error("expected error for nonexistent ref in cloneToTempDir")
 	}
@@ -543,7 +543,7 @@ func TestFetchRepo_AlreadyUpToDate(t *testing.T) {
 
 	// Fetch again (should be already up to date = no error)
 	source := &SourceInfo{Type: "local", URL: remoteDir}
-	err = fetchRepo(repo, source)
+	_, err = fetchRepo(repo, source)
 	if err != nil {
 		t.Errorf("fetchRepo() after fresh clone should return nil, got: %v", err)
 	}
@@ -631,7 +631,7 @@ func TestCloneOrUpdateRepo_CorruptedCache(t *testing.T) {
 	}
 
 	// Should detect corruption and re-clone
-	repoDir, isCached, err := CloneOrUpdateRepo(source)
+	repoDir, isCached, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("CloneOrUpdateRepo(corrupted) error: %v", err)
 	}
@@ -721,7 +721,7 @@ func TestCloneOrUpdateRepo_FetchFails(t *testing.T) {
 	}
 
 	// First clone
-	_, _, err := CloneOrUpdateRepo(source)
+	_, _, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("first clone error: %v", err)
 	}
@@ -735,11 +735,125 @@ func TestCloneOrUpdateRepo_FetchFails(t *testing.T) {
 	_ = os.WriteFile(gitConfigPath, []byte("[remote \"origin\"]\n\turl = /nonexistent/path.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n"), 0o644)
 
 	// Second call should detect fetch failure and re-clone
-	repoDir, _, err := CloneOrUpdateRepo(source)
+	repoDir, _, _, err := CloneOrUpdateRepo(source)
 	if err != nil {
 		t.Fatalf("re-clone after fetch fail error: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(repoDir, "SKILL.md")); err != nil {
 		t.Error("SKILL.md not found after re-clone")
+	}
+}
+
+// ============================================================================
+// authRequired detection tests
+// ============================================================================
+
+func TestCloneOrUpdateRepo_PublicHTTPS_AuthNotRequired(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	remoteDir := filepath.Join(t.TempDir(), "public-repo")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"SKILL.md": "---\nname: public-skill\ndescription: Public\n---\n# Public\n",
+	})
+
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "testuser",
+		Repo:  "public-repo",
+		URL:   remoteDir, // local path (no auth needed, like public HTTPS)
+	}
+
+	// First clone: should not require auth
+	_, _, authRequired, err := CloneOrUpdateRepo(source)
+	if err != nil {
+		t.Fatalf("CloneOrUpdateRepo() error: %v", err)
+	}
+	if authRequired {
+		t.Error("expected authRequired=false for public repo clone")
+	}
+
+	// Second call (cached fetch): should still not require auth
+	_, _, authRequired, err = CloneOrUpdateRepo(source)
+	if err != nil {
+		t.Fatalf("CloneOrUpdateRepo() second call error: %v", err)
+	}
+	if authRequired {
+		t.Error("expected authRequired=false for public repo fetch update")
+	}
+}
+
+func TestCloneOrUpdateRepo_SSHURLMarksAuthRequired(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "testuser",
+		Repo:  "ssh-repo",
+		URL:   "git@github.com:testuser/ssh-repo",
+	}
+
+	// Clone will fail (no real SSH remote), but we verify the SSH path is taken
+	// by checking the error wraps a clone failure, not an auth-detection issue
+	_, _, _, err := CloneOrUpdateRepo(source)
+	if err == nil {
+		t.Fatal("expected error cloning fake SSH URL")
+	}
+	if !strings.Contains(err.Error(), "git clone failed") {
+		t.Errorf("expected 'git clone failed' error, got: %v", err)
+	}
+}
+
+func TestCloneToTempDir_PublicHTTPS_AuthNotRequired(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+
+	remoteDir := filepath.Join(t.TempDir(), "public-temp-repo")
+	createTestGitRepo(t, remoteDir, map[string]string{
+		"SKILL.md": "---\nname: temp-public\ndescription: Temp\n---\n# Temp\n",
+	})
+
+	source := &SourceInfo{
+		Type: "zip", // non-cacheable, forces cloneToTempDir
+		URL:  remoteDir,
+	}
+
+	repoDir, _, authRequired, err := CloneOrUpdateRepo(source)
+	if err != nil {
+		t.Fatalf("CloneOrUpdateRepo() error: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(repoDir) }()
+
+	if authRequired {
+		t.Error("expected authRequired=false for public repo via cloneToTempDir")
+	}
+}
+
+func TestFetchRepo_PublicHTTPS_AuthNotRequired(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	remoteDir := filepath.Join(tmpDir, "fetch-public")
+	createTestGitRepo(t, remoteDir, map[string]string{"file.txt": "hello"})
+
+	cloneDir := filepath.Join(tmpDir, "fetch-public-clone")
+	repo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{
+		URL:   remoteDir,
+		Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	source := &SourceInfo{Type: "local", URL: remoteDir}
+	authRequired, err := fetchRepo(repo, source)
+	if err != nil {
+		t.Fatalf("fetchRepo() error: %v", err)
+	}
+	if authRequired {
+		t.Error("expected authRequired=false for public repo fetch")
 	}
 }

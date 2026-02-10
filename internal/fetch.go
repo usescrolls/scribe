@@ -43,13 +43,13 @@ func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) 
 		}
 
 	case "github", "gitlab", "bitbucket":
-		repoDir, isCached, err := CloneOrUpdateRepo(source)
+		repoDir, isCached, authRequired, err := CloneOrUpdateRepo(source)
 		if err != nil {
 			return nil, nil, err
 		}
 		result.ContentDir = repoDir
 		result.IsCached = isCached
-		result.IsPrivate = isSSHURL(source.URL) || authForSource(source) != nil
+		result.IsPrivate = authRequired
 		result.SkillsDir = repoDir
 		if source.Subpath != "" {
 			result.SkillsDir = filepath.Join(repoDir, source.Subpath)
