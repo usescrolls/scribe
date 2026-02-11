@@ -13,7 +13,7 @@ const TransitionStub = defineComponent({
 
 describe("OnboardingWizard", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     mockAppService.IsOnboardingCompleted.mockResolvedValue(false)
     mockAppService.GetAgentStatus.mockResolvedValue([
       {

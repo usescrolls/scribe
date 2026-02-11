@@ -179,8 +179,13 @@ func runGUIMode() {
 
 	// Create tray menu
 	trayMenu := wailsApp.NewMenu()
-	trayMenu.Add("Open Scribe").OnClick(func(ctx *application.Context) {
-		mainWindow.Show()
+	toggleItem := trayMenu.Add("Show Scribe")
+	toggleItem.OnClick(func(ctx *application.Context) {
+		if mainWindow.IsVisible() {
+			mainWindow.Hide()
+		} else {
+			mainWindow.Show()
+		}
 	})
 	trayMenu.AddSeparator()
 
@@ -197,21 +202,16 @@ func runGUIMode() {
 
 	systray.SetMenu(trayMenu)
 
-	// Click on tray icon toggles window
-	systray.OnClick(func() {
-		if mainWindow.IsVisible() {
-			mainWindow.Hide()
-		} else {
-			mainWindow.Show()
-			// Note: Focus() removed due to Wails v3 alpha crash on macOS 26
-		}
-	})
-
-	// Update skill count and workspace periodically
+	// Update tray menu labels periodically
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
+			if mainWindow.IsVisible() {
+				toggleItem.SetLabel("Hide Scribe")
+			} else {
+				toggleItem.SetLabel("Show Scribe")
+			}
 			skillCountItem.SetLabel(getSkillCountLabel())
 			workspaceItem.SetLabel(getWorkspaceLabel())
 		}

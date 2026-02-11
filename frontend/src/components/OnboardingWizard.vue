@@ -100,6 +100,9 @@ async function goToExistingSkills() {
   stopAgentScan()
   goToStep('existing-skills')
   await fetchExistingSkills()
+  if (existingSkills.value.length === 0) {
+    goToInstallDemo()
+  }
 }
 
 function goToInstallDemo() {

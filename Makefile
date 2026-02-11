@@ -1,4 +1,4 @@
-.PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate \
+.PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-ensure-bindings \
         docker-test docker-test-coverage docker-test-race docker-test-build docker-test-clean \
         app app-run lint lint-fix install-hooks
 
@@ -22,8 +22,8 @@ else
 	CGO_ENABLED=1 go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 endif
 
-# Build frontend only
-build-frontend:
+# Build frontend only (generates bindings if missing)
+build-frontend: wails-ensure-bindings
 	cd frontend && npm run build
 
 # Development mode with hot reload (Wails v3)
@@ -53,9 +53,16 @@ deps:
 	go mod tidy
 	cd frontend && npm install
 
-# Generate Wails v3 bindings
+# Generate Wails v3 bindings (always regenerates)
 wails-generate:
 	wails3 generate bindings
+
+# Generate Wails v3 bindings only if they don't exist
+wails-ensure-bindings:
+	@if [ ! -d frontend/bindings ]; then \
+		echo "Generating Wails v3 bindings..."; \
+		wails3 generate bindings; \
+	fi
 
 # Run tests
 test:
