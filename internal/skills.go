@@ -185,11 +185,19 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 	// any SKILL.md files in skills/ subdirectory
 
 	// First, check for SKILL.md directly in root (single-skill repo)
-	rootSkillPath := filepath.Join(root, SkillFileName)
-	if skill, err := ParseSkillMd(rootSkillPath); err == nil {
-		skills = append(skills, skill)
-	} else if !errors.Is(err, os.ErrNotExist) {
-		parseErrors = append(parseErrors, SkillParseError{Path: rootSkillPath, Err: err})
+	// Use case-insensitive matching to handle SKILL.MD, skill.md, etc.
+	if entries, err := os.ReadDir(root); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.EqualFold(entry.Name(), SkillFileName) {
+				rootSkillPath := filepath.Join(root, entry.Name())
+				if skill, err := ParseSkillMd(rootSkillPath); err == nil {
+					skills = append(skills, skill)
+				} else {
+					parseErrors = append(parseErrors, SkillParseError{Path: rootSkillPath, Err: err})
+				}
+				break
+			}
+		}
 	}
 
 	// Search common directories first
@@ -224,8 +232,8 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 			return nil
 		}
 
-		// Look for SKILL.md files
-		if d.Name() == SkillFileName {
+		// Look for SKILL.md files (case-insensitive to handle SKILL.MD, skill.md, etc.)
+		if strings.EqualFold(d.Name(), SkillFileName) {
 			skill, err := ParseSkillMd(path)
 			if err != nil {
 				parseErrors = append(parseErrors, SkillParseError{Path: path, Err: err})
@@ -280,7 +288,7 @@ func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, []SkillParseError)
 			return nil
 		}
 
-		if d.Name() == SkillFileName {
+		if strings.EqualFold(d.Name(), SkillFileName) {
 			skill, err := ParseSkillMd(path)
 			if err != nil {
 				parseErrors = append(parseErrors, SkillParseError{Path: path, Err: err})

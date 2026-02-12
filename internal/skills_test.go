@@ -542,6 +542,98 @@ func TestBoost_DiscoverSkillsWithDepth_Limit(t *testing.T) {
 	}
 }
 
+func TestDiscoverSkills_CaseInsensitiveFilename(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-case-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a skill with standard SKILL.md
+	skill1Dir := filepath.Join(tmpDir, "standard")
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("---\nname: standard\ndescription: Standard casing\n---\n# Standard\n"), 0o644)
+
+	// Create a skill with all-uppercase SKILL.MD (like better-auth/skills security/)
+	skill2Dir := filepath.Join(tmpDir, "uppercase")
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.MD"), []byte("---\nname: uppercase\ndescription: Uppercase extension\n---\n# Uppercase\n"), 0o644)
+
+	// Create a skill with lowercase skill.md
+	skill3Dir := filepath.Join(tmpDir, "lowercase")
+	_ = os.MkdirAll(skill3Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill3Dir, "skill.md"), []byte("---\nname: lowercase\ndescription: Lowercase filename\n---\n# Lowercase\n"), 0o644)
+
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+
+	nameSet := make(map[string]bool)
+	for _, s := range skills {
+		nameSet[s.Name] = true
+	}
+
+	if !nameSet["standard"] {
+		t.Error("standard SKILL.md not discovered")
+	}
+	if !nameSet["uppercase"] {
+		t.Error("uppercase SKILL.MD not discovered")
+	}
+	if !nameSet["lowercase"] {
+		t.Error("lowercase skill.md not discovered")
+	}
+	if len(skills) != 3 {
+		t.Errorf("expected 3 skills, got %d", len(skills))
+	}
+}
+
+func TestDiscoverSkills_CaseInsensitiveRoot(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-root-case-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a SKILL.MD at root with uppercase extension
+	_ = os.WriteFile(filepath.Join(tmpDir, "SKILL.MD"), []byte("---\nname: root-upper\ndescription: Root uppercase\n---\n# Root\n"), 0o644)
+
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "root-upper" {
+		t.Errorf("skill name = %q, want 'root-upper'", skills[0].Name)
+	}
+}
+
+func TestDiscoverSkills_CaseInsensitiveInCommonDir(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-discover-common-case-*")
+	if err != nil {
+		t.Fatalf("create temp: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Put a SKILL.MD (uppercase) in the "skills/" common dir
+	skillDir := filepath.Join(tmpDir, "skills", "upper-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.MD"), []byte("---\nname: upper-common\ndescription: Uppercase in common dir\n---\n# Upper\n"), 0o644)
+
+	skills, err := DiscoverSkills(tmpDir)
+	if err != nil {
+		t.Fatalf("DiscoverSkills() error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].Name != "upper-common" {
+		t.Errorf("skill name = %q, want 'upper-common'", skills[0].Name)
+	}
+}
+
 // ============================================================================
 // discoverSkillsInDir (skills.go) - private helper
 // ============================================================================
