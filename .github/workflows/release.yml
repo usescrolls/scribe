@@ -20,6 +20,9 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -45,9 +48,9 @@ jobs:
       - name: Run frontend tests with coverage
         run: |
           cd frontend
-          npm install
-          npm install @vitest/coverage-v8 --save-dev
-          npm run test:coverage || true
+          pnpm install
+          pnpm add -D @vitest/coverage-v8
+          pnpm run test:coverage || true
           # Extract coverage from vitest json-summary output
           if [ -f coverage/coverage-summary.json ]; then
             FE_COV=$(jq '.total.statements.pct' coverage/coverage-summary.json)
@@ -93,6 +96,9 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -111,7 +117,7 @@ jobs:
 
       - name: Build frontend
         run: |
-          cd frontend && npm install && npm run build
+          cd frontend && pnpm install && pnpm run build
 
       - name: Build Linux AMD64
         run: |
@@ -135,6 +141,9 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -148,7 +157,7 @@ jobs:
 
       - name: Build frontend
         run: |
-          cd frontend && npm install && npm run build
+          cd frontend && pnpm install && pnpm run build
 
       - name: Build Windows AMD64
         run: |
@@ -172,6 +181,9 @@ jobs:
         with:
           go-version: '1.25'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -188,7 +200,7 @@ jobs:
 
       - name: Build frontend
         run: |
-          cd frontend && npm install && npm run build
+          cd frontend && pnpm install && pnpm run build
 
       - name: Build macOS binary
         run: |

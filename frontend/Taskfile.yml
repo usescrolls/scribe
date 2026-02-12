@@ -3,12 +3,12 @@ version: '3'
 tasks:
   install:
     cmds:
-      - npm install
+      - pnpm install
 
   build:
     cmds:
-      - npm run build
+      - pnpm run build
 
   dev:
     cmds:
-      - npm run dev
+      - pnpm run dev

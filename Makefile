@@ -24,7 +24,7 @@ endif
 
 # Build frontend only (generates bindings if missing)
 build-frontend: wails-ensure-bindings
-	cd frontend && npm run build
+	cd frontend && pnpm run build
 
 # Development mode with hot reload (Wails v3)
 dev:
@@ -51,7 +51,7 @@ install: build
 deps:
 	go mod download
 	go mod tidy
-	cd frontend && npm install
+	cd frontend && pnpm install
 
 # Generate Wails v3 bindings (always regenerates)
 wails-generate:
