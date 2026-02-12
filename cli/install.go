@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -56,7 +55,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	sourceArg := args[0]
 
 	// Parse the source
-	source, err := parseSource(sourceArg)
+	source, err := scribe.ParseSourceString(sourceArg)
 	if err != nil {
 		return fmt.Errorf("invalid source: %w", err)
 	}
@@ -171,138 +170,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// parseSource parses a source argument into a SourceInfo
-func parseSource(arg string) (*scribe.SourceInfo, error) {
-	source := &scribe.SourceInfo{}
-
-	// Check for local path
-	if strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "/") || strings.HasPrefix(arg, "~") {
-		absPath, err := filepath.Abs(arg)
-		if err != nil {
-			return nil, err
-		}
-		source.Type = "local"
-		source.LocalPath = absPath
-		return source, nil
-	}
-
-	// Check for SSH URL (git@host:owner/repo.git)
-	if strings.HasPrefix(arg, "git@") {
-		return scribe.ParseSourceString(arg)
-	}
-
-	// Check for GitHub URL
-	if strings.HasPrefix(arg, "https://github.com/") {
-		return parseGitHubURL(arg)
-	}
-
-	// Check for GitLab URL
-	if strings.HasPrefix(arg, "https://gitlab.com/") {
-		return parseGitLabURL(arg)
-	}
-
-	// Check for generic URL
-	if strings.HasPrefix(arg, "https://") || strings.HasPrefix(arg, "http://") {
-		// Check if it's a zip URL
-		if strings.HasSuffix(arg, ".zip") {
-			source.Type = "zip"
-			source.URL = arg
-			return source, nil
-		}
-		// Treat as well-known URL
-		source.Type = "well-known"
-		source.URL = arg
-		return source, nil
-	}
-
-	// Assume GitHub shorthand: owner/repo or owner/repo#branch or owner/repo/path
-	return parseGitHubShorthand(arg)
-}
-
-// parseGitHubShorthand parses formats like:
-// owner/repo
-// owner/repo#branch
-// owner/repo/path/to/skills
-// owner/repo/path#branch
-func parseGitHubShorthand(arg string) (*scribe.SourceInfo, error) {
-	source := &scribe.SourceInfo{Type: "github"}
-
-	// Check for branch/ref
-	if idx := strings.Index(arg, "#"); idx != -1 {
-		source.Ref = arg[idx+1:]
-		arg = arg[:idx]
-	}
-
-	parts := strings.Split(arg, "/")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid GitHub shorthand: expected owner/repo")
-	}
-
-	source.Owner = parts[0]
-	source.Repo = parts[1]
-
-	// Check for subpath
-	if len(parts) > 2 {
-		source.Subpath = strings.Join(parts[2:], "/")
-	}
-
-	source.URL = fmt.Sprintf("https://github.com/%s/%s", source.Owner, source.Repo)
-
-	return source, nil
-}
-
-// parseGitHubURL parses a full GitHub URL
-func parseGitHubURL(url string) (*scribe.SourceInfo, error) {
-	source := &scribe.SourceInfo{Type: "github", URL: url}
-
-	// Remove https://github.com/ prefix
-	path := strings.TrimPrefix(url, "https://github.com/")
-
-	// Check for branch in URL (tree/branch/...)
-	if idx := strings.Index(path, "/tree/"); idx != -1 {
-		beforeTree := path[:idx]
-		afterTree := path[idx+6:] // Skip "/tree/"
-
-		parts := strings.Split(beforeTree, "/")
-		if len(parts) >= 2 {
-			source.Owner = parts[0]
-			source.Repo = parts[1]
-		}
-
-		// afterTree is branch/path or just branch
-		afterParts := strings.SplitN(afterTree, "/", 2)
-		source.Ref = afterParts[0]
-		if len(afterParts) > 1 {
-			source.Subpath = afterParts[1]
-		}
-	} else {
-		parts := strings.Split(path, "/")
-		if len(parts) >= 2 {
-			source.Owner = parts[0]
-			source.Repo = strings.TrimSuffix(parts[1], ".git")
-		}
-		if len(parts) > 2 {
-			source.Subpath = strings.Join(parts[2:], "/")
-		}
-	}
-
-	return source, nil
-}
-
-// parseGitLabURL parses a GitLab URL
-func parseGitLabURL(url string) (*scribe.SourceInfo, error) {
-	source := &scribe.SourceInfo{Type: "gitlab", URL: url}
-
-	path := strings.TrimPrefix(url, "https://gitlab.com/")
-	parts := strings.Split(path, "/")
-	if len(parts) >= 2 {
-		source.Owner = parts[0]
-		source.Repo = strings.TrimSuffix(parts[1], ".git")
-	}
-
-	return source, nil
 }
 
 // filterSkills filters skills by name
