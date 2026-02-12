@@ -30,6 +30,8 @@ describe("SkillCard", () => {
       showRemove?: boolean
       showAdd?: boolean
       showWorkspacePicker?: boolean
+      selectable?: boolean
+      selected?: boolean
       skillWorkspaces?: string[]
       allWorkspaces?: WorkspaceInfo[]
     } = {},
@@ -352,6 +354,88 @@ describe("SkillCard", () => {
 
       await wrapper.find(".ws-picker-btn").trigger("click")
       expect(wrapper.find(".ws-picker-dropdown").exists()).toBe(false)
+    })
+  })
+
+  describe("selection mode", () => {
+    it("hides checkbox by default", () => {
+      const wrapper = mountSkillCard()
+
+      expect(wrapper.find(".select-checkbox").exists()).toBe(false)
+    })
+
+    it("shows checkbox when selectable is true", () => {
+      const wrapper = mountSkillCard(mockSkill, { selectable: true })
+
+      expect(wrapper.find(".select-checkbox").exists()).toBe(true)
+    })
+
+    it("checkbox reflects selected state", () => {
+      const wrapper = mountSkillCard(mockSkill, {
+        selectable: true,
+        selected: true,
+      })
+
+      const checkbox = wrapper.find(".select-checkbox")
+        .element as HTMLInputElement
+      expect(checkbox.checked).toBe(true)
+    })
+
+    it("checkbox reflects unselected state", () => {
+      const wrapper = mountSkillCard(mockSkill, {
+        selectable: true,
+        selected: false,
+      })
+
+      const checkbox = wrapper.find(".select-checkbox")
+        .element as HTMLInputElement
+      expect(checkbox.checked).toBe(false)
+    })
+
+    it("applies selected class when selectable and selected", () => {
+      const wrapper = mountSkillCard(mockSkill, {
+        selectable: true,
+        selected: true,
+      })
+
+      expect(wrapper.find(".skill-card").classes()).toContain("selected")
+    })
+
+    it("does not apply selected class when not selectable", () => {
+      const wrapper = mountSkillCard(mockSkill, {
+        selectable: false,
+        selected: true,
+      })
+
+      expect(wrapper.find(".skill-card").classes()).not.toContain("selected")
+    })
+
+    it("emits toggle-select instead of detail on card click when selectable", async () => {
+      const wrapper = mountSkillCard(mockSkill, { selectable: true })
+
+      await wrapper.find(".skill-card").trigger("click")
+
+      expect(wrapper.emitted("toggle-select")).toBeTruthy()
+      expect(wrapper.emitted("toggle-select")![0]).toEqual(["react-patterns"])
+      expect(wrapper.emitted("detail")).toBeFalsy()
+    })
+
+    it("emits toggle-select on checkbox click", async () => {
+      const wrapper = mountSkillCard(mockSkill, { selectable: true })
+
+      await wrapper.find(".select-checkbox").trigger("click")
+
+      expect(wrapper.emitted("toggle-select")).toBeTruthy()
+      expect(wrapper.emitted("toggle-select")![0]).toEqual(["react-patterns"])
+    })
+
+    it("emits detail on card click when not selectable", async () => {
+      const wrapper = mountSkillCard(mockSkill, { selectable: false })
+
+      await wrapper.find(".skill-card").trigger("click")
+
+      expect(wrapper.emitted("detail")).toBeTruthy()
+      expect(wrapper.emitted("toggle-select")).toBeFalsy()
     })
   })
 })

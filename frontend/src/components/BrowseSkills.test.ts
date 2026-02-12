@@ -665,6 +665,381 @@ describe("BrowseSkills", () => {
     })
   })
 
+  describe("selection mode", () => {
+    it("shows Select button in header", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.exists()).toBe(true)
+      expect(selectBtn.text()).toBe("Select")
+    })
+
+    it("enters selection mode on Select click", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      // Should show Select All and Cancel buttons
+      const buttons = wrapper.findAll(".header-actions button")
+      expect(buttons.some((b) => b.text() === "Select All")).toBe(true)
+      expect(buttons.some((b) => b.text() === "Cancel")).toBe(true)
+    })
+
+    it("passes selectable prop to skill cards in selection mode", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selectable")).toBe(true)
+      })
+    })
+
+    it("hides uninstall and workspace picker in selection mode", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("showUninstall")).toBe(false)
+        expect(card.props("showWorkspacePicker")).toBe(false)
+      })
+    })
+
+    it("exits selection mode on Cancel click", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode
+      await wrapper.find(".header-actions button").trigger("click")
+
+      // Click Cancel
+      const cancelBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Cancel")
+      await cancelBtn!.trigger("click")
+
+      // Should show Select button again
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.text()).toBe("Select")
+    })
+
+    it("toggles individual skill selection via toggle-select", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode
+      await wrapper.find(".header-actions button").trigger("click")
+
+      // Toggle a skill
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("toggle-select", "react-patterns")
+      await wrapper.vm.$nextTick()
+
+      // Card should now be selected
+      const reactCard = wrapper
+        .findAllComponents({ name: "SkillCard" })
+        .find((c) => c.props("skill").name === "react-patterns")
+      expect(reactCard?.props("selected")).toBe(true)
+    })
+
+    it("deselects a skill on second toggle", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      // Select
+      await card.vm.$emit("toggle-select", "react-patterns")
+      await wrapper.vm.$nextTick()
+      // Deselect
+      await card.vm.$emit("toggle-select", "react-patterns")
+      await wrapper.vm.$nextTick()
+
+      const reactCard = wrapper
+        .findAllComponents({ name: "SkillCard" })
+        .find((c) => c.props("skill").name === "react-patterns")
+      expect(reactCard?.props("selected")).toBe(false)
+    })
+
+    it("Select All selects all skills", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode
+      await wrapper.find(".header-actions button").trigger("click")
+
+      // Click Select All
+      const selectAllBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Select All")
+      await selectAllBtn!.trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selected")).toBe(true)
+      })
+    })
+
+    it("Deselect All deselects all skills after selecting all", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode
+      await wrapper.find(".header-actions button").trigger("click")
+
+      // Click Select All
+      const selectAllBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Select All")
+      await selectAllBtn!.trigger("click")
+
+      // Now button should say "Deselect All"
+      const deselectAllBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Deselect All")
+      expect(deselectAllBtn).toBeDefined()
+      await deselectAllBtn!.trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selected")).toBe(false)
+      })
+    })
+
+    it("clears selection when exiting selection mode", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode and select a skill
+      await wrapper.find(".header-actions button").trigger("click")
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("toggle-select", "react-patterns")
+      await wrapper.vm.$nextTick()
+
+      // Exit via Cancel
+      const cancelBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Cancel")
+      await cancelBtn!.trigger("click")
+
+      // Re-enter selection mode - should have no selections
+      await wrapper.find(".header-actions button").trigger("click")
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selected")).toBe(false)
+      })
+    })
+  })
+
+  describe("bulk action bar", () => {
+    async function enterSelectionAndSelect(
+      wrapper: ReturnType<typeof mount>,
+      skillNames: string[],
+    ) {
+      await wrapper.find(".header-actions button").trigger("click")
+      for (const name of skillNames) {
+        const card = wrapper
+          .findAllComponents({ name: "SkillCard" })
+          .find((c) => c.props("skill").name === name)
+        await card!.vm.$emit("toggle-select", name)
+      }
+      await wrapper.vm.$nextTick()
+    }
+
+    it("does not show bulk action bar when no skills selected", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Enter selection mode but don't select anything
+      await wrapper.find(".header-actions button").trigger("click")
+
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+
+    it("shows bulk action bar when skills are selected", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(true)
+    })
+
+    it("shows correct selection count", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      expect(wrapper.find(".bulk-count").text()).toBe("2 skills selected")
+    })
+
+    it("shows singular count for one skill", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      expect(wrapper.find(".bulk-count").text()).toBe("1 skill selected")
+    })
+
+    it("shows workspace dropdown with all workspaces", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      expect(select.exists()).toBe(true)
+
+      const options = select.findAll("option")
+      // First option is the disabled placeholder
+      expect(options).toHaveLength(3)
+      expect(options[1].text()).toBe("my-workspace")
+      expect(options[2].text()).toBe("other")
+    })
+
+    it("disables Add button when no workspace is chosen", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      expect(addBtn.attributes("disabled")).toBeDefined()
+    })
+
+    it("calls AddSkillToWorkspace for each selected skill", async () => {
+      mockAppService.AddSkillToWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      // Select a workspace
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("other")
+
+      // Click Add to workspace
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      await addBtn.trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.AddSkillToWorkspace).toHaveBeenCalledWith(
+        "react-patterns",
+        "other",
+      )
+      expect(mockAppService.AddSkillToWorkspace).toHaveBeenCalledWith(
+        "typescript-tips",
+        "other",
+      )
+      expect(mockAppService.AddSkillToWorkspace).toHaveBeenCalledTimes(2)
+    })
+
+    it("shows success toast after bulk add", async () => {
+      mockAppService.AddSkillToWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("other")
+
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      await addBtn.trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("2 skills")
+      expect(toast.props("message")).toContain("other")
+      expect(toast.props("type")).toBe("success")
+    })
+
+    it("exits selection mode after successful bulk add", async () => {
+      mockAppService.AddSkillToWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("other")
+
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      await addBtn.trigger("click")
+      await flushPromises()
+
+      // Should be back to browse mode
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.text()).toBe("Select")
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+
+    it("shows error toast on bulk add failure", async () => {
+      mockAppService.AddSkillToWorkspace.mockRejectedValue(
+        new Error("Workspace full"),
+      )
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("other")
+
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      await addBtn.trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Workspace full")
+      expect(toast.props("type")).toBe("error")
+    })
+
+    it("refreshes data after bulk add", async () => {
+      mockAppService.AddSkillToWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      mockAppService.GetSkills.mockClear()
+      mockAppService.GetWorkspaces.mockClear()
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("other")
+
+      const addBtn = wrapper.find(".bulk-action-bar .btn-primary")
+      await addBtn.trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.GetSkills).toHaveBeenCalled()
+      expect(mockAppService.GetWorkspaces).toHaveBeenCalled()
+    })
+
+    it("hides bulk action bar on Cancel", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(true)
+
+      // Click Cancel in the bulk action bar
+      const cancelBtn = wrapper
+        .findAll(".bulk-action-bar button")
+        .find((b) => b.text() === "Cancel")
+      await cancelBtn!.trigger("click")
+
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+  })
+
   describe("source URL validation", () => {
     it("renders source as link for https URLs", async () => {
       mockAppService.GetSkills.mockResolvedValue([

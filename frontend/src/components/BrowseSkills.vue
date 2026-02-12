@@ -38,6 +38,15 @@
     <div v-else class="skills">
       <div class="skills-header">
         <span class="count">{{ allSkillsRaw.length }} skill{{ allSkillsRaw.length !== 1 ? 's' : '' }} installed</span>
+        <div class="header-actions">
+          <template v-if="selectionMode">
+            <button class="btn-secondary btn-sm" @click="toggleSelectAll">
+              {{ allSelected ? 'Deselect All' : 'Select All' }}
+            </button>
+            <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
+          </template>
+          <button v-else class="btn-secondary btn-sm" @click="enterSelectionMode">Select</button>
+        </div>
       </div>
 
       <div v-for="group in groupedSkills" :key="group.source" class="source-group">
@@ -83,16 +92,36 @@
             v-for="skill in group.skills"
             :key="skill.name"
             :skill="skill"
-            :show-uninstall="true"
-            :show-workspace-picker="true"
+            :show-uninstall="!selectionMode"
+            :show-workspace-picker="!selectionMode"
+            :selectable="selectionMode"
+            :selected="selectedSkills.has(skill.name)"
             :skill-workspaces="getSkillWorkspaces(skill.name)"
             :all-workspaces="workspaces"
             @detail="handleDetail"
+            @toggle-select="toggleSkillSelection"
             @add-to-workspace="handleAddToWorkspace"
             @remove-from-workspace="handleRemoveFromWorkspace"
             @uninstall="handleUninstall"
           />
         </div>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div v-if="selectionMode && selectedSkills.size > 0" class="bulk-action-bar">
+        <span class="bulk-count">{{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }} selected</span>
+        <select v-model="bulkWorkspace" class="bulk-workspace-select">
+          <option value="" disabled>Choose workspace...</option>
+          <option v-for="ws in workspaces" :key="ws.name" :value="ws.name">{{ ws.name }}</option>
+        </select>
+        <button
+          class="btn-primary btn-sm"
+          :disabled="!bulkWorkspace || bulkAdding"
+          @click="bulkAddToWorkspace"
+        >
+          {{ bulkAdding ? 'Adding...' : 'Add to workspace' }}
+        </button>
+        <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
       </div>
     </div>
     <SkillDetailModal
@@ -104,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
@@ -118,6 +147,10 @@ const workspaces = ref<WorkspaceInfo[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const toast = ref<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+const selectedSkills = reactive(new Set<string>())
+const selectionMode = ref(false)
+const bulkWorkspace = ref('')
+const bulkAdding = ref(false)
 let unsubscribeSkills: { (): void } | null = null
 let unsubscribeWorkspace: { (): void } | null = null
 
@@ -316,6 +349,67 @@ async function executeUninstallGroup() {
   }
 }
 
+function enterSelectionMode() {
+  selectionMode.value = true
+  selectedSkills.clear()
+}
+
+function exitSelectionMode() {
+  selectionMode.value = false
+  selectedSkills.clear()
+  bulkWorkspace.value = ''
+}
+
+function toggleSkillSelection(name: string) {
+  if (selectedSkills.has(name)) {
+    selectedSkills.delete(name)
+  } else {
+    selectedSkills.add(name)
+  }
+}
+
+const allSelected = computed(() =>
+  allSkillsRaw.value.length > 0 && selectedSkills.size === allSkillsRaw.value.length
+)
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedSkills.clear()
+  } else {
+    for (const skill of allSkillsRaw.value) {
+      selectedSkills.add(skill.name)
+    }
+  }
+}
+
+async function bulkAddToWorkspace() {
+  if (!bulkWorkspace.value || selectedSkills.size === 0) return
+  bulkAdding.value = true
+  // Temporarily unsub from workspace-changed to avoid N refetches
+  if (unsubscribeWorkspace) unsubscribeWorkspace()
+  try {
+    for (const skillName of selectedSkills) {
+      await AppService.AddSkillToWorkspace(skillName, bulkWorkspace.value)
+    }
+    await fetchAll()
+    const count = selectedSkills.size
+    toast.value = {
+      message: `Added ${count} skill${count !== 1 ? 's' : ''} to ${bulkWorkspace.value}`,
+      type: 'success',
+    }
+    exitSelectionMode()
+  } catch (e) {
+    toast.value = {
+      message: e instanceof Error ? e.message : 'Failed to add skills to workspace',
+      type: 'error',
+    }
+  } finally {
+    bulkAdding.value = false
+    // Re-subscribe
+    unsubscribeWorkspace = Events.On('workspace-changed', fetchAll)
+  }
+}
+
 onMounted(() => {
   fetchAll()
   unsubscribeSkills = Events.On('skills-updated', fetchAll)
@@ -508,5 +602,71 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+/* Header actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: var(--accent-color);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Bulk action bar */
+.bulk-action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-count {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.bulk-workspace-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 140px;
 }
 </style>

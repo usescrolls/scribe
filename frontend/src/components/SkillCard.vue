@@ -1,6 +1,13 @@
 <template>
-  <div class="skill-card" :class="{ compact: mode === 'compact' }" @click="$emit('detail', skill)">
+  <div class="skill-card" :class="{ compact: mode === 'compact', selected: selectable && selected }" @click="selectable ? $emit('toggle-select', skill.name) : $emit('detail', skill)">
     <div class="skill-main">
+      <input
+        v-if="selectable"
+        type="checkbox"
+        class="select-checkbox"
+        :checked="selected"
+        @click.stop="$emit('toggle-select', skill.name)"
+      />
       <span class="source-badge">{{ skill.sourceType }}</span>
       <span class="name">{{ skill.name }}</span>
       <span v-if="skill.description" class="description">{{ truncatedDescription }}</span>
@@ -92,6 +99,8 @@ const props = withDefaults(defineProps<{
   showRemove?: boolean
   showAdd?: boolean
   showWorkspacePicker?: boolean
+  selectable?: boolean
+  selected?: boolean
   skillWorkspaces?: string[]
   allWorkspaces?: WorkspaceInfo[]
 }>(), {
@@ -100,6 +109,8 @@ const props = withDefaults(defineProps<{
   showRemove: false,
   showAdd: false,
   showWorkspacePicker: false,
+  selectable: false,
+  selected: false,
   skillWorkspaces: () => [],
   allWorkspaces: () => []
 })
@@ -111,6 +122,7 @@ const emit = defineEmits<{
   add: [name: string]
   'add-to-workspace': [skillName: string, workspaceName: string]
   'remove-from-workspace': [skillName: string, workspaceName: string]
+  'toggle-select': [name: string]
 }>()
 
 const pickerOpen = ref(false)
@@ -162,6 +174,19 @@ const truncatedDescription = computed(() => {
 
 .skill-card:hover {
   border-color: var(--accent-color);
+}
+
+.skill-card.selected {
+  border-color: var(--accent-color);
+  background-color: rgba(0, 113, 227, 0.06);
+}
+
+.select-checkbox {
+  width: 0.875rem;
+  height: 0.875rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: var(--accent-color);
 }
 
 .skill-main {
