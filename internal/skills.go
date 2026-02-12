@@ -20,6 +20,26 @@ var (
 	ErrMissingDesc   = errors.New("skill missing required 'description' field in frontmatter")
 )
 
+// SkillParseError records a SKILL.md file that was found but failed to parse
+type SkillParseError struct {
+	Path string
+	Err  error
+}
+
+// SkillDiscoveryError is returned when SKILL.md files were found but none could be parsed
+type SkillDiscoveryError struct {
+	ParseErrors []SkillParseError
+}
+
+func (e *SkillDiscoveryError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "found %d SKILL.md file(s) but none could be parsed:", len(e.ParseErrors))
+	for _, pe := range e.ParseErrors {
+		fmt.Fprintf(&b, "\n  %s: %s", pe.Path, pe.Err)
+	}
+	return b.String()
+}
+
 // Frontmatter patterns for parsing SKILL.md
 var (
 	frontmatterPattern = regexp.MustCompile(`(?s)^---\n(.+?)\n---\n?(.*)$`)
@@ -129,6 +149,7 @@ func DiscoverSkills(root string) ([]*Skill, error) {
 // DiscoverSkillsWithDepth finds all SKILL.md files with a custom max depth
 func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 	var skills []*Skill
+	var parseErrors []SkillParseError
 
 	// Directories to skip during discovery
 	skipDirs := map[string]bool{
@@ -151,6 +172,8 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 	rootSkillPath := filepath.Join(root, SkillFileName)
 	if skill, err := ParseSkillMd(rootSkillPath); err == nil {
 		skills = append(skills, skill)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		parseErrors = append(parseErrors, SkillParseError{Path: rootSkillPath, Err: err})
 	}
 
 	// Search common directories first
@@ -158,8 +181,9 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 	for _, dir := range commonDirs {
 		dirPath := filepath.Join(root, dir)
 		if info, err := os.Stat(dirPath); err == nil && info.IsDir() {
-			found, _ := discoverSkillsInDir(dirPath, 2) // Shallow search in known dirs
+			found, errs := discoverSkillsInDir(dirPath, 2) // Shallow search in known dirs
 			skills = append(skills, found...)
+			parseErrors = append(parseErrors, errs...)
 		}
 	}
 
@@ -188,7 +212,8 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 		if d.Name() == SkillFileName {
 			skill, err := ParseSkillMd(path)
 			if err != nil {
-				return nil // Skip invalid skills
+				parseErrors = append(parseErrors, SkillParseError{Path: path, Err: err})
+				return nil
 			}
 			// Avoid duplicates from root and common dirs
 			if !skillInList(skills, skill.Name) {
@@ -204,6 +229,15 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 	}
 
 	if len(skills) == 0 {
+		if len(parseErrors) > 0 {
+			// Make paths relative to root for cleaner error messages
+			for i := range parseErrors {
+				if rel, err := filepath.Rel(root, parseErrors[i].Path); err == nil {
+					parseErrors[i].Path = rel
+				}
+			}
+			return nil, &SkillDiscoveryError{ParseErrors: parseErrors}
+		}
 		return nil, ErrNoSkillsFound
 	}
 
@@ -211,12 +245,13 @@ func DiscoverSkillsWithDepth(root string, maxDepth int) ([]*Skill, error) {
 }
 
 // discoverSkillsInDir finds skills in a specific directory with limited depth
-func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, error) {
+func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, []SkillParseError) {
 	var skills []*Skill
+	var parseErrors []SkillParseError
 
 	baseDepth := strings.Count(dir, string(os.PathSeparator))
 
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -232,6 +267,7 @@ func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, error) {
 		if d.Name() == SkillFileName {
 			skill, err := ParseSkillMd(path)
 			if err != nil {
+				parseErrors = append(parseErrors, SkillParseError{Path: path, Err: err})
 				return nil
 			}
 			skills = append(skills, skill)
@@ -240,7 +276,7 @@ func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, error) {
 		return nil
 	})
 
-	return skills, err
+	return skills, parseErrors
 }
 
 // skillInList checks if a skill with the given name is already in the list

@@ -179,7 +179,7 @@ describe("InstallSkills", () => {
       await flushPromises()
 
       expect(wrapper.find(".result-error").exists()).toBe(true)
-      expect(wrapper.text()).toContain("Failed to fetch skills")
+      expect(wrapper.text()).toContain("something broke")
     })
   })
 

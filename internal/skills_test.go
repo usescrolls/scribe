@@ -477,18 +477,18 @@ func TestBoost_DiscoverSkillsInDir(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(deepSkill, "SKILL.md"), []byte("---\nname: skill2\ndescription: S2\n---\n# S2\n"), 0o644)
 
 	// Depth 1 should only find skill1
-	skills, err := discoverSkillsInDir(tmpDir, 1)
-	if err != nil {
-		t.Fatalf("discoverSkillsInDir(depth=1) error: %v", err)
+	skills, parseErrs := discoverSkillsInDir(tmpDir, 1)
+	if len(parseErrs) > 0 {
+		t.Fatalf("discoverSkillsInDir(depth=1) parse errors: %v", parseErrs)
 	}
 	if len(skills) != 1 {
 		t.Errorf("depth 1: expected 1 skill, got %d", len(skills))
 	}
 
 	// Depth 5 should find both
-	skills, err = discoverSkillsInDir(tmpDir, 5)
-	if err != nil {
-		t.Fatalf("discoverSkillsInDir(depth=5) error: %v", err)
+	skills, parseErrs = discoverSkillsInDir(tmpDir, 5)
+	if len(parseErrs) > 0 {
+		t.Fatalf("discoverSkillsInDir(depth=5) parse errors: %v", parseErrs)
 	}
 	if len(skills) != 2 {
 		t.Errorf("depth 5: expected 2 skills, got %d", len(skills))

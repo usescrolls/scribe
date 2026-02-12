@@ -44,8 +44,11 @@
             <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
           <div>
-            <span>{{ error }}</span>
-            <span v-if="isAuthError(error)" class="auth-hint">
+            <span>{{ error.summary }}</span>
+            <ul v-if="error.details" class="error-details">
+              <li v-for="(detail, i) in error.details" :key="i">{{ detail }}</li>
+            </ul>
+            <span v-if="isAuthError(error.summary)" class="auth-hint">
               For private repos, ensure git credentials are configured (e.g. <code>gh auth login</code> for GitHub, or add your SSH key to ssh-agent).
             </span>
           </div>
@@ -223,7 +226,11 @@ type Step = 'source' | 'review' | 'workspaces' | 'installing' | 'result'
 const sourceStr = ref('')
 const step = ref<Step>('source')
 const discovering = ref(false)
-const error = ref<string | null>(null)
+interface DiscoverError {
+  summary: string
+  details?: string[]
+}
+const error = ref<DiscoverError | null>(null)
 const sourceInput = ref<HTMLInputElement | null>(null)
 
 const discoverResult = ref<DiscoverResult | null>(null)
@@ -291,7 +298,7 @@ async function handleDiscover() {
 
     step.value = 'review'
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to fetch skills'
+    error.value = parseDiscoverError(e)
   } finally {
     discovering.value = false
   }
@@ -334,7 +341,7 @@ async function handleConfirmInstall() {
     installResult.value = res as InstallResult
     step.value = 'result'
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Installation failed'
+    error.value = { summary: extractErrorMessage(e) || 'Installation failed' }
     step.value = 'source'
   }
 }
@@ -362,6 +369,45 @@ function resetToStart() {
 function fillExample(example: string) {
   sourceStr.value = example
   sourceInput.value?.focus()
+}
+
+function extractErrorMessage(e: unknown): string {
+  // Get the raw message string
+  let msg: string
+  if (e instanceof Error) msg = e.message
+  else if (typeof e === 'object' && e !== null && 'message' in e) msg = String((e as { message: unknown }).message)
+  else msg = String(e)
+
+  // Wails wraps Go errors as new Error(jsonString) — unwrap the JSON envelope
+  if (msg.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(msg)
+      if (parsed && typeof parsed.message === 'string') return parsed.message
+    } catch { /* not JSON, use as-is */ }
+  }
+  return msg
+}
+
+function parseDiscoverError(e: unknown): DiscoverError {
+  let msg = extractErrorMessage(e)
+  // Strip redundant prefix
+  msg = msg.replace(/^failed to fetch skills:\s*/i, '')
+
+  // Parse structured "found N SKILL.md file(s) but none could be parsed:" errors
+  const match = msg.match(/^(found \d+ SKILL\.md .+?parsed):?\s*(.*)$/s)
+  if (match) {
+    const details = match[2]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        // "path/SKILL.md: error message" -> "path/SKILL.md — error message"
+        return line.replace(/:\s*/, ' \u2014 ')
+      })
+    return { summary: match[1], details }
+  }
+
+  return { summary: msg }
 }
 
 function isAuthError(msg: string): boolean {
@@ -497,6 +543,18 @@ function isAuthError(msg: string): boolean {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+}
+
+.error-details {
+  margin: 0.375rem 0 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.error-details li {
+  padding: 0.125rem 0;
 }
 
 .result-title {
