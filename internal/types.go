@@ -89,6 +89,15 @@ type SkillInfo struct {
 	Agents      []string `json:"agents"`              // List of agent IDs with this skill
 }
 
+// CheckResult represents the result of checking a skill for updates
+type CheckResult struct {
+	Name        string `json:"name"`
+	NeedsUpdate bool   `json:"needsUpdate"`
+	Error       string `json:"error,omitempty"`
+	CurrentHash string `json:"currentHash,omitempty"`
+	RemoteHash  string `json:"remoteHash,omitempty"`
+}
+
 // UpdateResult contains the outcome of a skill update operation
 type UpdateResult struct {
 	SkillName  string `json:"skillName"`

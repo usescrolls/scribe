@@ -107,6 +107,92 @@ func TestBoost_SanitizeName_Empty(t *testing.T) {
 }
 
 // ============================================================================
+// FilterSkillsByName (skills.go)
+// ============================================================================
+
+func TestFilterSkillsByName_MatchesSubset(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+		{Name: "beta", Description: "B"},
+		{Name: "gamma", Description: "G"},
+	}
+	result := FilterSkillsByName(skills, []string{"alpha", "gamma"})
+	if len(result) != 2 {
+		t.Fatalf("expected 2 skills, got %d", len(result))
+	}
+	if result[0].Name != "alpha" || result[1].Name != "gamma" {
+		t.Errorf("got [%s, %s], want [alpha, gamma]", result[0].Name, result[1].Name)
+	}
+}
+
+func TestFilterSkillsByName_NoMatches(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+		{Name: "beta", Description: "B"},
+	}
+	result := FilterSkillsByName(skills, []string{"nonexistent"})
+	if len(result) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(result))
+	}
+}
+
+func TestFilterSkillsByName_EmptyNames(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+	}
+	result := FilterSkillsByName(skills, []string{})
+	if len(result) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(result))
+	}
+}
+
+func TestFilterSkillsByName_EmptySkills(t *testing.T) {
+	result := FilterSkillsByName([]*Skill{}, []string{"alpha"})
+	if len(result) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(result))
+	}
+}
+
+func TestFilterSkillsByName_NilSkills(t *testing.T) {
+	result := FilterSkillsByName(nil, []string{"alpha"})
+	if result != nil {
+		t.Errorf("expected nil, got %v", result)
+	}
+}
+
+func TestFilterSkillsByName_TrimsWhitespace(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+		{Name: "beta", Description: "B"},
+	}
+	result := FilterSkillsByName(skills, []string{" alpha ", " beta "})
+	if len(result) != 2 {
+		t.Errorf("expected 2 skills with trimmed names, got %d", len(result))
+	}
+}
+
+func TestFilterSkillsByName_AllMatch(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+		{Name: "beta", Description: "B"},
+	}
+	result := FilterSkillsByName(skills, []string{"alpha", "beta"})
+	if len(result) != 2 {
+		t.Errorf("expected 2 skills, got %d", len(result))
+	}
+}
+
+func TestFilterSkillsByName_DuplicateNamesInFilter(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+	}
+	result := FilterSkillsByName(skills, []string{"alpha", "alpha"})
+	if len(result) != 1 {
+		t.Errorf("expected 1 skill (no duplicates), got %d", len(result))
+	}
+}
+
+// ============================================================================
 // GetSkillInfo (skills.go)
 // ============================================================================
 

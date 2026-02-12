@@ -92,7 +92,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	// Filter skills if --skill flag is provided
 	if installSkills != "" {
 		skillNames := strings.Split(installSkills, ",")
-		skills = filterSkills(skills, skillNames)
+		skills = scribe.FilterSkillsByName(skills, skillNames)
 		if len(skills) == 0 {
 			return fmt.Errorf("no matching skills found for: %s", installSkills)
 		}
@@ -170,58 +170,4 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// filterSkills filters skills by name
-func filterSkills(skills []*scribe.Skill, names []string) []*scribe.Skill {
-	nameSet := make(map[string]bool, len(names))
-	for _, n := range names {
-		nameSet[strings.TrimSpace(n)] = true
-	}
-
-	var filtered []*scribe.Skill
-	for _, skill := range skills {
-		if nameSet[skill.Name] {
-			filtered = append(filtered, skill)
-		}
-	}
-	return filtered
-}
-
-// formatSourceInfo formats a SourceInfo for display
-func formatSourceInfo(source *scribe.SourceInfo) string {
-	switch source.Type {
-	case "github":
-		s := source.Owner + "/" + source.Repo
-		if source.Ref != "" {
-			s += "#" + source.Ref
-		}
-		if source.Subpath != "" {
-			s += "/" + source.Subpath
-		}
-		if strings.HasPrefix(source.URL, "git@") {
-			return "github(ssh):" + s
-		}
-		return "github:" + s
-	case "gitlab":
-		s := source.Owner + "/" + source.Repo
-		if strings.HasPrefix(source.URL, "git@") {
-			return "gitlab(ssh):" + s
-		}
-		return "gitlab:" + s
-	case "bitbucket":
-		s := source.Owner + "/" + source.Repo
-		if strings.HasPrefix(source.URL, "git@") {
-			return "bitbucket(ssh):" + s
-		}
-		return "bitbucket:" + s
-	case "local":
-		return "local:" + source.LocalPath
-	case "zip":
-		return "zip:" + source.URL
-	case "well-known":
-		return source.URL
-	default:
-		return source.URL
-	}
 }

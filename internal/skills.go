@@ -20,6 +20,22 @@ var (
 	ErrMissingDesc   = errors.New("skill missing required 'description' field in frontmatter")
 )
 
+// FilterSkillsByName returns only the skills whose name matches one of the given names.
+func FilterSkillsByName(skills []*Skill, names []string) []*Skill {
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[strings.TrimSpace(n)] = true
+	}
+
+	var filtered []*Skill
+	for _, skill := range skills {
+		if nameSet[skill.Name] {
+			filtered = append(filtered, skill)
+		}
+	}
+	return filtered
+}
+
 // SkillParseError records a SKILL.md file that was found but failed to parse
 type SkillParseError struct {
 	Path string

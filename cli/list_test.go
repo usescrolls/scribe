@@ -23,7 +23,7 @@ func TestFilterSkills(t *testing.T) {
 	}
 
 	t.Run("filter single skill", func(t *testing.T) {
-		filtered := filterSkills(skills, []string{"react-best-practices"})
+		filtered := scribe.FilterSkillsByName(skills, []string{"react-best-practices"})
 		if len(filtered) != 1 {
 			t.Errorf("expected 1 skill, got %d", len(filtered))
 		}
@@ -33,14 +33,14 @@ func TestFilterSkills(t *testing.T) {
 	})
 
 	t.Run("filter multiple skills", func(t *testing.T) {
-		filtered := filterSkills(skills, []string{"react-best-practices", "go-patterns"})
+		filtered := scribe.FilterSkillsByName(skills, []string{"react-best-practices", "go-patterns"})
 		if len(filtered) != 2 {
 			t.Errorf("expected 2 skills, got %d", len(filtered))
 		}
 	})
 
 	t.Run("filter non-existent skill", func(t *testing.T) {
-		filtered := filterSkills(skills, []string{"non-existent"})
+		filtered := scribe.FilterSkillsByName(skills, []string{"non-existent"})
 		if len(filtered) != 0 {
 			t.Errorf("expected 0 skills, got %d", len(filtered))
 		}

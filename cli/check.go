@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -29,21 +28,12 @@ Examples:
 	}
 )
 
-// CheckResult represents the result of checking a skill for updates
-type CheckResult struct {
-	Name        string `json:"name"`
-	NeedsUpdate bool   `json:"needsUpdate"`
-	Error       string `json:"error,omitempty"`
-	CurrentHash string `json:"currentHash,omitempty"`
-	RemoteHash  string `json:"remoteHash,omitempty"`
-}
-
 func runCheck(cmd *cobra.Command, args []string) error {
-	var results []CheckResult
+	var results []scribe.CheckResult
 
 	if len(args) == 1 {
 		// Check single skill
-		result := checkSkill(args[0])
+		result := scribe.CheckSkillForUpdate(args[0])
 		results = append(results, result)
 	} else {
 		// Check all skills
@@ -64,7 +54,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, name := range skillNames {
-			result := checkSkill(name)
+			result := scribe.CheckSkillForUpdate(name)
 			results = append(results, result)
 		}
 	}
@@ -76,80 +66,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	return checkOutputTable(results)
 }
 
-func checkSkill(skillName string) CheckResult {
-	result := CheckResult{Name: skillName}
-
-	// Read the skill and its metadata
-	skill, err := scribe.ReadSkill(skillName)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to read skill: %v", err)
-		return result
-	}
-
-	if skill.Meta == nil {
-		result.Error = "no metadata (manually added skill)"
-		return result
-	}
-
-	result.CurrentHash = skill.Meta.ContentHash
-
-	// Skip local sources - they can't be checked remotely
-	if skill.Meta.SourceType == "local" {
-		result.Error = "local source (cannot check for updates)"
-		return result
-	}
-
-	// Reconstruct source info
-	source := reconstructSource(skill.Meta)
-
-	// Fetch remote content
-	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to fetch: %v", err)
-		if scribe.IsAuthError(err) {
-			errMsg += " (auth issue — see 'scribe install --help')"
-		}
-		result.Error = errMsg
-		return result
-	}
-	if fetchResult != nil {
-		defer fetchResult.Cleanup()
-	}
-
-	// Find the specific skill in fetched content
-	var remoteSkill *scribe.Skill
-	for _, s := range skills {
-		if s.Name == skillName {
-			remoteSkill = s
-			break
-		}
-	}
-
-	if remoteSkill == nil {
-		result.Error = "skill not found in remote source"
-		return result
-	}
-
-	// Read remote SKILL.md content and compute hash
-	remoteSkillPath := filepath.Join(remoteSkill.Path, scribe.SkillFileName)
-	remoteContent, err := os.ReadFile(remoteSkillPath)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to read remote skill: %v", err)
-		return result
-	}
-
-	result.RemoteHash = scribe.ComputeContentHash(string(remoteContent))
-	result.NeedsUpdate = result.CurrentHash != result.RemoteHash
-
-	return result
-}
-
-// reconstructSource creates a SourceInfo from SkillMeta
-func reconstructSource(meta *scribe.SkillMeta) *scribe.SourceInfo {
-	return scribe.ReconstructSource(meta)
-}
-
-func checkOutputJSON(results []CheckResult) error {
+func checkOutputJSON(results []scribe.CheckResult) error {
 	outdated := 0
 	upToDate := 0
 	errors := 0
@@ -166,7 +83,7 @@ func checkOutputJSON(results []CheckResult) error {
 	}
 
 	output := struct {
-		Results []CheckResult `json:"results"`
+		Results []scribe.CheckResult `json:"results"`
 		Summary struct {
 			Total    int `json:"total"`
 			Outdated int `json:"outdated"`
@@ -189,7 +106,7 @@ func checkOutputJSON(results []CheckResult) error {
 	return nil
 }
 
-func checkOutputTable(results []CheckResult) error {
+func checkOutputTable(results []scribe.CheckResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 	_, _ = fmt.Fprintln(w, "NAME\tSTATUS\tCURRENT\tREMOTE")
 
@@ -229,16 +146,4 @@ func checkOutputTable(results []CheckResult) error {
 	}
 
 	return nil
-}
-
-// truncateHash truncates a hash for display
-func truncateHash(hash string) string {
-	if hash == "" {
-		return "-"
-	}
-	// Show first 20 chars of hash (sha256:abc123...)
-	if len(hash) > 20 {
-		return hash[:20] + "..."
-	}
-	return hash
 }

@@ -260,6 +260,15 @@ func GetAgent(id string) *Agent {
 	return agentsByID[id]
 }
 
+// AgentIDs extracts agent IDs from a slice of agents
+func AgentIDs(agents []Agent) []string {
+	ids := make([]string, len(agents))
+	for i, a := range agents {
+		ids[i] = a.ID
+	}
+	return ids
+}
+
 // GetAllAgents returns a copy of all agent definitions
 func GetAllAgents() []Agent {
 	agents := make([]Agent, len(AllAgents))

@@ -181,11 +181,7 @@ func ResyncCurrentWorkspace() error {
 		return err
 	}
 
-	agents := DetectInstalledAgents()
-	agentIDs := make([]string, len(agents))
-	for i, a := range agents {
-		agentIDs[i] = a.ID
-	}
+	agentIDs := AgentIDs(DetectInstalledAgents())
 
 	// Sync all skills in the workspace
 	for _, skillName := range ws.Skills {
@@ -201,11 +197,7 @@ func ResyncCurrentWorkspace() error {
 
 // SyncWorkspace updates agent symlinks to match the target workspace
 func SyncWorkspace(current, target *Workspace) error {
-	agents := DetectInstalledAgents()
-	agentIDs := make([]string, len(agents))
-	for i, a := range agents {
-		agentIDs[i] = a.ID
-	}
+	agentIDs := AgentIDs(DetectInstalledAgents())
 
 	// Find skills to remove (in current but not in target)
 	toRemove := skillDiff(current.Skills, target.Skills)
@@ -260,12 +252,7 @@ func AddSkillToWorkspace(skillName, workspaceName string) error {
 	}
 
 	if config.ActiveWorkspace == workspaceName {
-		agents := DetectInstalledAgents()
-		agentIDs := make([]string, len(agents))
-		for i, a := range agents {
-			agentIDs[i] = a.ID
-		}
-		return SyncSkillToAgents(skillName, agentIDs)
+		return SyncSkillToAgents(skillName, AgentIDs(DetectInstalledAgents()))
 	}
 
 	return nil
@@ -306,12 +293,7 @@ func RemoveSkillFromWorkspace(skillName, workspaceName string) error {
 	}
 
 	if config.ActiveWorkspace == workspaceName {
-		agents := DetectInstalledAgents()
-		agentIDs := make([]string, len(agents))
-		for i, a := range agents {
-			agentIDs[i] = a.ID
-		}
-		return RemoveSkillFromAgents(skillName, agentIDs)
+		return RemoveSkillFromAgents(skillName, AgentIDs(DetectInstalledAgents()))
 	}
 
 	return nil

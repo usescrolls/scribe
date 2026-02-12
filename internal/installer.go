@@ -51,10 +51,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 	agents := opts.Agents
 	if len(agents) == 0 {
 		// Default to all detected agents
-		detected := DetectInstalledAgents()
-		for _, a := range detected {
-			agents = append(agents, a.ID)
-		}
+		agents = AgentIDs(DetectInstalledAgents())
 	}
 
 	if err := SyncSkillToAgents(skill.Name, agents); err != nil {
@@ -67,11 +64,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 // UninstallSkill removes a skill from canonical storage and all agents
 func UninstallSkill(skillName string) error {
 	// Remove symlinks from all agents first
-	agents := DetectInstalledAgents()
-	agentIDs := make([]string, len(agents))
-	for i, a := range agents {
-		agentIDs[i] = a.ID
-	}
+	agentIDs := AgentIDs(DetectInstalledAgents())
 
 	// Log but continue - we still want to remove the canonical copy
 	_ = RemoveSkillFromAgents(skillName, agentIDs)
@@ -237,11 +230,7 @@ func SyncAllSkillsToAgents() error {
 		return err
 	}
 
-	agents := DetectInstalledAgents()
-	agentIDs := make([]string, len(agents))
-	for i, a := range agents {
-		agentIDs[i] = a.ID
-	}
+	agentIDs := AgentIDs(DetectInstalledAgents())
 
 	for _, skillName := range skills {
 		if err := SyncSkillToAgents(skillName, agentIDs); err != nil {

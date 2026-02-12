@@ -176,7 +176,7 @@ func TestReconstructSource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := reconstructSource(tt.meta)
+			result := scribe.ReconstructSource(tt.meta)
 			if result.Type != tt.expectType {
 				t.Errorf("Type = %q, expected %q", result.Type, tt.expectType)
 			}
@@ -207,7 +207,7 @@ func TestReconstructSourceUnknownType(t *testing.T) {
 		Source:     "something",
 		SourceType: "unknown",
 	}
-	result := reconstructSource(meta)
+	result := scribe.ReconstructSource(meta)
 	if result.Type != "unknown" {
 		t.Errorf("expected type 'unknown', got %s", result.Type)
 	}
@@ -219,7 +219,7 @@ func TestReconstructSourceGitLabWithURL(t *testing.T) {
 		SourceType: "gitlab",
 		SourceURL:  "https://gitlab.com/owner/repo",
 	}
-	result := reconstructSource(meta)
+	result := scribe.ReconstructSource(meta)
 	if result.URL != "https://gitlab.com/owner/repo" {
 		t.Errorf("expected existing URL to be preserved, got %s", result.URL)
 	}
@@ -230,7 +230,7 @@ func TestReconstructSourceURLType(t *testing.T) {
 		Source:     "https://example.com/skills",
 		SourceType: "url",
 	}
-	result := reconstructSource(meta)
+	result := scribe.ReconstructSource(meta)
 	if result.URL != "https://example.com/skills" {
 		t.Errorf("expected URL to be set from source, got %s", result.URL)
 	}
@@ -242,7 +242,7 @@ func TestReconstructSourceZipWithURL(t *testing.T) {
 		SourceType: "zip",
 		SourceURL:  "https://example.com/skills.zip",
 	}
-	result := reconstructSource(meta)
+	result := scribe.ReconstructSource(meta)
 	// URL should be preserved from SourceURL
 	if result.URL != "https://example.com/skills.zip" {
 		t.Errorf("expected URL from SourceURL, got %s", result.URL)
@@ -256,7 +256,7 @@ func TestReconstructSourceZipWithURL(t *testing.T) {
 func TestCheckOutputJSON(t *testing.T) {
 	tests := []struct {
 		name            string
-		results         []CheckResult
+		results         []scribe.CheckResult
 		expectOutdated  int
 		expectUpToDate  int
 		expectErrors    int
@@ -265,7 +265,7 @@ func TestCheckOutputJSON(t *testing.T) {
 	}{
 		{
 			name:           "empty results",
-			results:        []CheckResult{},
+			results:        []scribe.CheckResult{},
 			expectOutdated: 0,
 			expectUpToDate: 0,
 			expectErrors:   0,
@@ -273,7 +273,7 @@ func TestCheckOutputJSON(t *testing.T) {
 		},
 		{
 			name: "mixed results",
-			results: []CheckResult{
+			results: []scribe.CheckResult{
 				{Name: "skill-a", NeedsUpdate: true, CurrentHash: "hash1", RemoteHash: "hash2"},
 				{Name: "skill-b", NeedsUpdate: false, CurrentHash: "hash3", RemoteHash: "hash3"},
 				{Name: "skill-c", Error: "some error"},
@@ -285,7 +285,7 @@ func TestCheckOutputJSON(t *testing.T) {
 		},
 		{
 			name: "all up-to-date",
-			results: []CheckResult{
+			results: []scribe.CheckResult{
 				{Name: "skill-x", NeedsUpdate: false, CurrentHash: "aaa", RemoteHash: "aaa"},
 				{Name: "skill-y", NeedsUpdate: false, CurrentHash: "bbb", RemoteHash: "bbb"},
 			},
@@ -317,7 +317,7 @@ func TestCheckOutputJSON(t *testing.T) {
 
 			// Parse the JSON to verify structure
 			var parsed struct {
-				Results []CheckResult `json:"results"`
+				Results []scribe.CheckResult `json:"results"`
 				Summary struct {
 					Total    int `json:"total"`
 					Outdated int `json:"outdated"`
@@ -359,7 +359,7 @@ func TestCheckOutputTable(t *testing.T) {
 
 	t.Run("table with mixed results", func(t *testing.T) {
 		quiet = false
-		results := []CheckResult{
+		results := []scribe.CheckResult{
 			{Name: "skill-a", NeedsUpdate: true, CurrentHash: "oldhash", RemoteHash: "newhash"},
 			{Name: "skill-b", NeedsUpdate: false, CurrentHash: "samehash", RemoteHash: "samehash"},
 			{Name: "skill-c", Error: "failed to fetch"},
@@ -414,7 +414,7 @@ func TestCheckOutputTable(t *testing.T) {
 
 	t.Run("table in quiet mode", func(t *testing.T) {
 		quiet = true
-		results := []CheckResult{
+		results := []scribe.CheckResult{
 			{Name: "skill-a", NeedsUpdate: false, CurrentHash: "x", RemoteHash: "x"},
 		}
 
@@ -442,7 +442,7 @@ func TestCheckOutputTableWithErrors(t *testing.T) {
 	saveAndRestoreFlags(t)
 	quiet = false
 
-	results := []CheckResult{
+	results := []scribe.CheckResult{
 		{Name: "err-skill-1", Error: "fetch failed"},
 		{Name: "err-skill-2", Error: "timeout"},
 	}
@@ -464,7 +464,7 @@ func TestCheckSkillNonexistent(t *testing.T) {
 	_, cleanup := setupTempHome(t)
 	defer cleanup()
 
-	result := checkSkill("nonexistent-skill")
+	result := scribe.CheckSkillForUpdate("nonexistent-skill")
 	if result.Error == "" {
 		t.Error("expected error for nonexistent skill")
 	}
@@ -486,7 +486,7 @@ func TestCheckSkillNoMeta(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0o644)
 	// No .scribe-meta.json file
 
-	result := checkSkill("no-meta-skill")
+	result := scribe.CheckSkillForUpdate("no-meta-skill")
 	if result.Error == "" {
 		t.Error("expected error for skill without metadata")
 	}
@@ -501,7 +501,7 @@ func TestCheckSkillLocalSource(t *testing.T) {
 
 	installFakeSkill(t, "local-skill", "A local skill", "local", "/some/local/path")
 
-	result := checkSkill("local-skill")
+	result := scribe.CheckSkillForUpdate("local-skill")
 	if result.Error == "" {
 		t.Error("expected error for local source skill")
 	}
@@ -518,7 +518,7 @@ func TestCheckSkillGitHubSourceFetchFails(t *testing.T) {
 	// Install a skill with github source type pointing to invalid repo
 	installFakeSkill(t, "github-check-skill", "GitHub check test", "github", "nonexistent-owner/nonexistent-repo")
 
-	result := checkSkill("github-check-skill")
+	result := scribe.CheckSkillForUpdate("github-check-skill")
 	// Should fail at the fetch step
 	if result.Error == "" {
 		t.Error("expected error when fetching nonexistent github repo")
@@ -608,7 +608,7 @@ func TestRunCheckSingleSkillJSON(t *testing.T) {
 	})
 
 	var parsed struct {
-		Results []CheckResult `json:"results"`
+		Results []scribe.CheckResult `json:"results"`
 		Summary struct {
 			Total  int `json:"total"`
 			Errors int `json:"errors"`
@@ -670,7 +670,7 @@ func TestRunCheckAllSkillsJSON(t *testing.T) {
 	})
 
 	var parsed struct {
-		Results []CheckResult `json:"results"`
+		Results []scribe.CheckResult `json:"results"`
 		Summary struct {
 			Total int `json:"total"`
 		} `json:"summary"`
