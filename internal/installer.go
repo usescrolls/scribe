@@ -9,7 +9,7 @@ import (
 )
 
 // InstallSkill installs a skill to the canonical location and syncs to agents
-func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo) error {
+func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo, emit ...ProgressEmitter) error {
 	// Determine target directory (always global)
 	scrollsDir, err := GetScrollsDir()
 	if err != nil {
@@ -24,11 +24,13 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 	}
 
 	// Copy skill to canonical location
+	emitProgress(emit, "install", "copying", "Copying files...", "")
 	if err := CopySkillDir(skill.Path, skillDir); err != nil {
 		return fmt.Errorf("failed to copy skill: %w", err)
 	}
 
 	// Write metadata
+	emitProgress(emit, "install", "metadata", "Writing metadata...", "")
 	skillPathInSource := ""
 	if source.Subpath != "" {
 		skillPathInSource = source.Subpath
@@ -54,7 +56,7 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 		agents = AgentIDs(DetectInstalledAgents())
 	}
 
-	if err := SyncSkillToAgents(skill.Name, agents); err != nil {
+	if err := SyncSkillToAgents(skill.Name, agents, emit...); err != nil {
 		return fmt.Errorf("failed to sync to agents: %w", err)
 	}
 
@@ -79,7 +81,7 @@ func UninstallSkill(skillName string) error {
 }
 
 // SyncSkillToAgents creates symlinks for a skill in all specified agents' directories
-func SyncSkillToAgents(skillName string, agentIDs []string) error {
+func SyncSkillToAgents(skillName string, agentIDs []string, emit ...ProgressEmitter) error {
 	scrollsDir, err := GetScrollsDir()
 	if err != nil {
 		return err
@@ -92,6 +94,8 @@ func SyncSkillToAgents(skillName string, agentIDs []string) error {
 		if agent == nil {
 			continue
 		}
+
+		emitProgress(emit, "install", "syncing", fmt.Sprintf("Syncing to %s...", agent.DisplayName), agent.DisplayName)
 
 		agentSkillsDir := expandPath(agent.GlobalSkillsDir)
 

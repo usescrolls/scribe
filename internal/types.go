@@ -1,5 +1,23 @@
 package scribe
 
+// ProgressEvent represents a progress update during discovery or installation
+type ProgressEvent struct {
+	Phase   string `json:"phase"`            // "discover" or "install"
+	Step    string `json:"step"`             // e.g. "cloning", "scanning", "copying"
+	Message string `json:"message"`          // human-readable message
+	Detail  string `json:"detail,omitempty"` // e.g. agent name
+}
+
+// ProgressEmitter is a callback for emitting progress events
+type ProgressEmitter func(ProgressEvent)
+
+// emitProgress is a nil-safe helper for emitting progress events from a variadic slice
+func emitProgress(emit []ProgressEmitter, phase, step, msg, detail string) {
+	if len(emit) > 0 && emit[0] != nil {
+		emit[0](ProgressEvent{Phase: phase, Step: step, Message: msg, Detail: detail})
+	}
+}
+
 // Skill represents a skill with its SKILL.md content and metadata
 type Skill struct {
 	Name        string         `json:"name"`

@@ -535,8 +535,15 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Create progress emitter for frontend
+	emit := func(e scribe.ProgressEvent) {
+		if wailsApp != nil {
+			wailsApp.Event.Emit("progress", e)
+		}
+	}
+
 	// Fetch and discover skills
-	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source, emit)
 	if fetchResult != nil {
 		defer fetchResult.Cleanup()
 	}
@@ -557,7 +564,7 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 	for _, skill := range skills {
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
-		if err := scribe.InstallSkill(skill, source, opts, gitInfo); err != nil {
+		if err := scribe.InstallSkill(skill, source, opts, gitInfo, emit); err != nil {
 			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
 			continue
 		}
@@ -609,8 +616,15 @@ func (a *AppService) DiscoverFromSource(sourceStr string) (*scribe.DiscoverResul
 		return nil, fmt.Errorf("failed to create directories: %w", err)
 	}
 
+	// Create progress emitter for frontend
+	emit := func(e scribe.ProgressEvent) {
+		if wailsApp != nil {
+			wailsApp.Event.Emit("progress", e)
+		}
+	}
+
 	// Fetch and discover skills
-	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source, emit)
 	if err != nil {
 		if fetchResult != nil {
 			fetchResult.Cleanup()
@@ -685,6 +699,13 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 		gitInfo = scribe.GetHeadCommitInfo(a.pendingFetch.ContentDir)
 	}
 
+	// Create progress emitter for frontend
+	emit := func(e scribe.ProgressEvent) {
+		if wailsApp != nil {
+			wailsApp.Event.Emit("progress", e)
+		}
+	}
+
 	// Install each requested skill
 	result := &scribe.InstallResult{}
 	isPrivate := a.pendingFetch != nil && a.pendingFetch.IsPrivate
@@ -699,20 +720,46 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 			})
 		}
 
+		emit(scribe.ProgressEvent{
+			Phase:   "install",
+			Step:    "start",
+			Message: fmt.Sprintf("Installing %s (%d/%d)...", skill.Name, i+1, len(toInstall)),
+			Detail:  skill.Name,
+		})
+
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
-		if err := scribe.InstallSkill(skill, a.pendingSource, opts, gitInfo); err != nil {
+		if err := scribe.InstallSkill(skill, a.pendingSource, opts, gitInfo, emit); err != nil {
 			scribe.Logger.Error("failed to install skill", "name", skill.Name, "error", err)
+			emit(scribe.ProgressEvent{
+				Phase:   "install",
+				Step:    "error",
+				Message: fmt.Sprintf("Failed: %v", err),
+				Detail:  skill.Name,
+			})
 			continue
 		}
 
 		// Add to selected workspaces
 		for _, wsName := range workspaceNames {
+			emit(scribe.ProgressEvent{
+				Phase:   "install",
+				Step:    "workspace",
+				Message: fmt.Sprintf("Adding to %s...", wsName),
+				Detail:  wsName,
+			})
 			if err := scribe.AddSkillToWorkspace(skill.Name, wsName); err != nil {
 				scribe.Logger.Warn("failed to add to workspace",
 					"skill", skill.Name, "workspace", wsName, "error", err)
 			}
 		}
+
+		emit(scribe.ProgressEvent{
+			Phase:   "install",
+			Step:    "done",
+			Message: fmt.Sprintf("Installed %s", skill.Name),
+			Detail:  skill.Name,
+		})
 
 		result.SkillNames = append(result.SkillNames, skill.Name)
 	}

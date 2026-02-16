@@ -32,8 +32,10 @@ func (r *FetchResult) Cleanup() {
 
 // FetchAndDiscoverSkills fetches content from a source and discovers skills.
 // Returns the discovered skills and a FetchResult for lifecycle management.
-func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) {
+func FetchAndDiscoverSkills(source *SourceInfo, emit ...ProgressEmitter) ([]*Skill, *FetchResult, error) {
 	result := &FetchResult{}
+
+	emitProgress(emit, "discover", "parsing", "Parsing source...", "")
 
 	switch source.Type {
 	case "local":
@@ -43,7 +45,7 @@ func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) 
 		}
 
 	case "github", "gitlab", "bitbucket", "git":
-		repoDir, isCached, authRequired, err := CloneOrUpdateRepo(source)
+		repoDir, isCached, authRequired, err := CloneOrUpdateRepo(source, emit...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -56,10 +58,12 @@ func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) 
 		}
 
 	case "zip":
+		emitProgress(emit, "discover", "downloading", "Downloading zip archive...", "")
 		tempDir, err := DownloadAndExtractZip(source.URL)
 		if err != nil {
 			return nil, nil, err
 		}
+		emitProgress(emit, "discover", "extracting", "Extracting archive...", "")
 		result.ContentDir = tempDir
 		result.SkillsDir = tempDir
 
@@ -71,11 +75,14 @@ func FetchAndDiscoverSkills(source *SourceInfo) ([]*Skill, *FetchResult, error) 
 	}
 
 	// Discover skills in the directory
+	emitProgress(emit, "discover", "scanning", "Scanning for skills...", "")
 	skills, err := DiscoverSkills(result.SkillsDir)
 	if err != nil {
 		result.Cleanup()
 		return nil, nil, err
 	}
+
+	emitProgress(emit, "discover", "done", fmt.Sprintf("Found %d skill(s)", len(skills)), "")
 
 	return skills, result, nil
 }

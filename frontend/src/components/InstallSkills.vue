@@ -23,7 +23,7 @@
         >
           <template v-if="discovering">
             <div class="spinner-sm"></div>
-            Fetching...
+            {{ progressMessage || 'Fetching...' }}
           </template>
           <template v-else>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -54,6 +54,24 @@
           </div>
         </div>
         <button class="dismiss-btn" @click="error = null">&times;</button>
+      </div>
+
+      <!-- Activity log during discovery -->
+      <div v-if="discovering && activityLog.length > 0" class="activity-section">
+        <button class="activity-toggle" @click="showLog = !showLog">
+          {{ showLog ? 'Hide' : 'Show' }} activity
+        </button>
+        <div v-if="showLog" ref="activityLogEl" class="activity-log">
+          <div
+            v-for="(entry, i) in activityLog"
+            :key="i"
+            class="activity-entry"
+            :class="{ done: entry.done }"
+          >
+            <span class="activity-icon">{{ entry.done ? '\u2713' : '\u2022' }}</span>
+            <span>{{ entry.message }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Examples help -->
@@ -179,7 +197,27 @@
             <div v-else-if="installingNow === skillName" class="spinner-xs"></div>
             <div v-else class="pending-dot"></div>
           </div>
-          <span class="installing-skill-name">{{ skillName }}</span>
+          <div class="installing-skill-info">
+            <span class="installing-skill-name">{{ skillName }}</span>
+            <span v-if="installingNow === skillName && progressDetail" class="installing-substep">{{ progressDetail }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Activity log during install -->
+      <div v-if="activityLog.length > 0" class="activity-section">
+        <button class="activity-toggle" @click="showLog = !showLog">
+          {{ showLog ? 'Hide' : 'Show' }} activity
+        </button>
+        <div v-if="showLog" ref="activityLogEl" class="activity-log">
+          <div
+            v-for="(entry, i) in activityLog"
+            :key="i"
+            class="activity-entry"
+            :class="{ done: entry.done }"
+          >
+            <span class="activity-icon">{{ entry.done ? '\u2713' : '\u2022' }}</span>
+            <span>{{ entry.message }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -216,10 +254,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { AppService } from '../bindings/scribe'
 import { Events } from '@wailsio/runtime'
-import type { DiscoverResult, InstallResult, WorkspaceInfo } from '../types/skill'
+import type { DiscoverResult, InstallResult, WorkspaceInfo, ProgressEvent } from '../types/skill'
 
 type Step = 'source' | 'review' | 'workspaces' | 'installing' | 'result'
 
@@ -243,8 +281,16 @@ const installResult = ref<InstallResult | null>(null)
 const installingNow = ref<string | null>(null)
 const installedSoFar = reactive(new Set<string>())
 
+// Progress feedback
+const progressMessage = ref<string | null>(null)
+const progressDetail = ref<string | null>(null)
+const activityLog = reactive<{ message: string; done?: boolean }[]>([])
+const showLog = ref(false)
+const activityLogEl = ref<HTMLElement | null>(null)
+
 let unsubscribeWorkspace: { (): void } | null = null
 let unsubscribeProgress: { (): void } | null = null
+let unsubscribeProgressEvent: { (): void } | null = null
 
 onMounted(() => {
   sourceInput.value?.focus()
@@ -257,12 +303,41 @@ onMounted(() => {
     }
     installingNow.value = skillName
   })
+  unsubscribeProgressEvent = Events.On('progress', (event: { data: ProgressEvent }) => {
+    const e = event.data
+    progressMessage.value = e.message
+
+    // Mark previous log entry as done when a new step arrives
+    if (activityLog.length > 0) {
+      activityLog[activityLog.length - 1].done = true
+    }
+
+    // Update sub-step detail for install phase
+    if (e.phase === 'install') {
+      if (e.step === 'copying' || e.step === 'metadata' || e.step === 'syncing' || e.step === 'workspace') {
+        progressDetail.value = e.message
+      } else if (e.step === 'done' || e.step === 'error') {
+        progressDetail.value = null
+      }
+    }
+
+    // Add to activity log
+    activityLog.push({ message: e.message, done: e.step === 'done' })
+
+    // Auto-scroll log to bottom
+    nextTick(() => {
+      if (activityLogEl.value) {
+        activityLogEl.value.scrollTop = activityLogEl.value.scrollHeight
+      }
+    })
+  })
   fetchWorkspaces()
 })
 
 onUnmounted(() => {
   if (unsubscribeWorkspace) unsubscribeWorkspace()
   if (unsubscribeProgress) unsubscribeProgress()
+  if (unsubscribeProgressEvent) unsubscribeProgressEvent()
 })
 
 async function fetchWorkspaces() {
@@ -279,6 +354,9 @@ async function handleDiscover() {
 
   discovering.value = true
   error.value = null
+  progressMessage.value = null
+  progressDetail.value = null
+  activityLog.length = 0
 
   try {
     const res = await AppService.DiscoverFromSource(source)
@@ -326,6 +404,9 @@ async function handleConfirmInstall() {
   // Reset progress state and transition to installing step
   installingNow.value = null
   installedSoFar.clear()
+  progressMessage.value = null
+  progressDetail.value = null
+  activityLog.length = 0
   error.value = null
   step.value = 'installing'
 
@@ -363,6 +444,10 @@ function resetToStart() {
   selectedWorkspaces.clear()
   installResult.value = null
   error.value = null
+  progressMessage.value = null
+  progressDetail.value = null
+  activityLog.length = 0
+  showLog.value = false
   setTimeout(() => sourceInput.value?.focus(), 50)
 }
 
@@ -899,8 +984,74 @@ function isAuthError(msg: string): boolean {
   flex-shrink: 0;
 }
 
+.installing-skill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
 .installing-skill-name {
   font-weight: 500;
+}
+
+.installing-substep {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+/* Activity log */
+.activity-section {
+  margin-top: 0.75rem;
+}
+
+.activity-toggle {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.activity-toggle:hover {
+  opacity: 1;
+}
+
+.activity-log {
+  margin-top: 0.375rem;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.375rem 0.5rem;
+  background-color: var(--bg-secondary);
+  font-size: 0.6875rem;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.activity-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  padding: 0.0625rem 0;
+  color: var(--text-secondary);
+}
+
+.activity-entry.done {
+  color: var(--success-color);
+}
+
+.activity-icon {
+  flex-shrink: 0;
+  width: 0.75rem;
+  text-align: center;
 }
 
 .spinner-xs {

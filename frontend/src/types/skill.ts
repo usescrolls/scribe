@@ -56,6 +56,13 @@ export interface InstallResult {
   errorMessage: string
 }
 
+export interface ProgressEvent {
+  phase: "discover" | "install"
+  step: string
+  message: string
+  detail?: string
+}
+
 export interface DiscoverResult {
   skills: DiscoveredSkill[]
   source: string

@@ -60,12 +60,19 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid source: %w", err)
 	}
 
+	// Create CLI progress emitter
+	emit := func(e scribe.ProgressEvent) {
+		if !quiet {
+			fmt.Printf("  %s\n", e.Message)
+		}
+	}
+
 	if !quiet {
 		fmt.Printf("Fetching skills from %s...\n", formatSourceInfo(source))
 	}
 
 	// Fetch and discover skills
-	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source)
+	skills, fetchResult, err := scribe.FetchAndDiscoverSkills(source, emit)
 	if err != nil {
 		if scribe.IsAuthError(err) {
 			fmt.Fprintf(os.Stderr, "Hint: %s\n", scribe.AuthHintMessage())
@@ -144,12 +151,15 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	successCount := 0
-	for _, skill := range skills {
-		if !quiet {
-			fmt.Printf("Installing %s...\n", skill.Name)
-		}
+	for i, skill := range skills {
+		emit(scribe.ProgressEvent{
+			Phase:   "install",
+			Step:    "start",
+			Message: fmt.Sprintf("Installing %s (%d/%d)...", skill.Name, i+1, len(skills)),
+			Detail:  skill.Name,
+		})
 
-		if err := scribe.InstallSkill(skill, source, opts, gitInfo); err != nil {
+		if err := scribe.InstallSkill(skill, source, opts, gitInfo, emit); err != nil {
 			fmt.Fprintf(os.Stderr, "  x Failed to install %s: %v\n", skill.Name, err)
 			continue
 		}
@@ -159,9 +169,12 @@ func runInstall(cmd *cobra.Command, args []string) error {
 			scribe.Logger.Warn("failed to add to workspace", "skill", skill.Name, "error", err)
 		}
 
-		if !quiet {
-			fmt.Printf("  Installed %s\n", skill.Name)
-		}
+		emit(scribe.ProgressEvent{
+			Phase:   "install",
+			Step:    "done",
+			Message: fmt.Sprintf("Installed %s", skill.Name),
+			Detail:  skill.Name,
+		})
 		successCount++
 	}
 

@@ -52,11 +52,11 @@ func CacheKeyForSource(source *SourceInfo) string {
 // and whether authentication was required (indicating a private repository).
 // If isCached is true, the caller must NOT delete the returned directory.
 // If isCached is false, the caller is responsible for cleanup.
-func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached, authRequired bool, err error) {
+func CloneOrUpdateRepo(source *SourceInfo, emit ...ProgressEmitter) (repoDir string, isCached, authRequired bool, err error) {
 	cacheKey := CacheKeyForSource(source)
 	if cacheKey == "" {
 		// Not cacheable -- fall back to temp dir clone
-		return cloneToTempDir(source)
+		return cloneToTempDir(source, emit...)
 	}
 
 	cacheDir, err := GetCacheDir()
@@ -70,35 +70,37 @@ func CloneOrUpdateRepo(source *SourceInfo) (repoDir string, isCached, authRequir
 	repo, err := git.PlainOpen(repoPath)
 	if err == nil {
 		// Cached repo exists -- fetch updates
-		authNeeded, fetchErr := fetchRepo(repo, source)
+		emitProgress(emit, "discover", "fetching", "Fetching latest changes...", "")
+		authNeeded, fetchErr := fetchRepo(repo, source, emit...)
 		if fetchErr != nil {
 			Logger.Warn("fetch failed, re-cloning", "path", repoPath, "error", fetchErr)
 			_ = os.RemoveAll(repoPath)
-			return cloneToCache(repoPath, source)
+			return cloneToCache(repoPath, source, emit...)
 		}
 		// Reset worktree to match the remote
 		if err := resetToRemote(repo, source.Ref); err != nil {
 			Logger.Warn("reset failed, re-cloning", "path", repoPath, "error", err)
 			_ = os.RemoveAll(repoPath)
-			return cloneToCache(repoPath, source)
+			return cloneToCache(repoPath, source, emit...)
 		}
 		return repoPath, true, authNeeded, nil
 	}
 
 	// Not cached or corrupted -- remove any remnants and clone fresh
 	_ = os.RemoveAll(repoPath)
-	return cloneToCache(repoPath, source)
+	return cloneToCache(repoPath, source, emit...)
 }
 
 // cloneToCache clones into the cache directory.
 // For HTTPS URLs, it tries without auth first to detect whether the repo is public.
-func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached, authRequired bool, err error) {
+func cloneToCache(repoPath string, source *SourceInfo, emit ...ProgressEmitter) (repoDir string, isCached, authRequired bool, err error) {
 	if err = os.MkdirAll(filepath.Dir(repoPath), 0o755); err != nil {
 		return "", false, false, fmt.Errorf("failed to create cache dir: %w", err)
 	}
 
 	cloneURL := buildCloneURL(source)
 	Logger.Info("cloning repository", "url", cloneURL, "path", repoPath)
+	emitProgress(emit, "discover", "cloning", "Cloning repository...", "")
 
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
@@ -116,6 +118,7 @@ func cloneToCache(repoPath string, source *SourceInfo) (repoDir string, isCached
 	}
 
 	// Auth error -- retry with credentials
+	emitProgress(emit, "discover", "auth-retry", "Authenticating...", "")
 	Logger.Info("retrying clone with authentication", "url", cloneURL)
 	_ = os.RemoveAll(repoPath)
 	auth := authForSource(source)
@@ -156,13 +159,14 @@ func cloneWithRefFallback(repoPath, cloneURL string, source *SourceInfo, auth tr
 
 // cloneToTempDir clones to a temp directory for non-cacheable sources.
 // Caller must clean up the returned directory.
-func cloneToTempDir(source *SourceInfo) (tempDir string, isCached, authRequired bool, err error) {
+func cloneToTempDir(source *SourceInfo, emit ...ProgressEmitter) (tempDir string, isCached, authRequired bool, err error) {
 	tempDir, err = os.MkdirTemp("", "scribe-clone-*")
 	if err != nil {
 		return "", false, false, err
 	}
 
 	cloneURL := buildCloneURL(source)
+	emitProgress(emit, "discover", "cloning", "Cloning repository...", "")
 
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
@@ -180,6 +184,7 @@ func cloneToTempDir(source *SourceInfo) (tempDir string, isCached, authRequired 
 	}
 
 	// Auth error -- retry with credentials
+	emitProgress(emit, "discover", "auth-retry", "Authenticating...", "")
 	// cloneWithRefFallback already cleaned up, recreate temp dir
 	tempDir, err = os.MkdirTemp("", "scribe-clone-*")
 	if err != nil {
@@ -198,7 +203,7 @@ func cloneToTempDir(source *SourceInfo) (tempDir string, isCached, authRequired 
 
 // fetchRepo fetches the latest changes for a cached repo.
 // Returns whether authentication was required.
-func fetchRepo(repo *git.Repository, source *SourceInfo) (authRequired bool, err error) {
+func fetchRepo(repo *git.Repository, source *SourceInfo, emit ...ProgressEmitter) (authRequired bool, err error) {
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
 		err := repo.Fetch(&git.FetchOptions{
@@ -225,6 +230,7 @@ func fetchRepo(repo *git.Repository, source *SourceInfo) (authRequired bool, err
 	}
 
 	// Auth error -- retry with credentials
+	emitProgress(emit, "discover", "auth-retry", "Authenticating...", "")
 	auth := authForSource(source)
 	if auth == nil {
 		return false, fmt.Errorf("fetch failed: authentication required but no credentials available")
