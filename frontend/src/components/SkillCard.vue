@@ -1,14 +1,18 @@
 <template>
-  <div class="skill-card" :class="{ compact: mode === 'compact', selected: selectable && selected }" @click="selectable ? $emit('toggle-select', skill.name) : $emit('detail', skill)">
+  <div class="skill-card" :class="{ compact: mode === 'compact', selected: selectable && selected, system: skill.isSystem }" @click="selectable ? $emit('toggle-select', skill.name) : $emit('detail', skill)">
     <div class="skill-main">
       <input
-        v-if="selectable"
+        v-if="selectable && !skill.isSystem"
         type="checkbox"
         class="select-checkbox"
         :checked="selected"
         @click.stop="$emit('toggle-select', skill.name)"
       />
-      <span class="source-badge">{{ skill.sourceType }}</span>
+      <span class="source-badge" :class="{ 'system-badge': skill.isSystem }">{{ skill.isSystem ? 'system' : skill.sourceType }}</span>
+      <svg v-if="skill.isSystem" class="lock-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="System skill">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
       <span class="name">{{ skill.name }}</span>
       <span v-if="skill.description" class="description">{{ truncatedDescription }}</span>
     </div>
@@ -21,7 +25,7 @@
     </div>
     <div class="skill-right">
       <!-- Workspace picker dropdown -->
-      <div v-if="showWorkspacePicker" class="ws-picker-wrapper">
+      <div v-if="showWorkspacePicker && !skill.isSystem" class="ws-picker-wrapper">
         <button
           class="action-btn ws-picker-btn"
           @click.stop="togglePicker"
@@ -50,7 +54,7 @@
         </div>
       </div>
       <button
-        v-if="showAdd"
+        v-if="showAdd && !skill.isSystem"
         class="action-btn add-btn"
         @click.stop="$emit('add', skill.name)"
         title="Add to workspace"
@@ -62,7 +66,7 @@
         <span class="btn-label">Add</span>
       </button>
       <button
-        v-if="showRemove"
+        v-if="showRemove && !skill.isSystem"
         class="action-btn remove-btn"
         @click.stop="$emit('remove', skill.name)"
         title="Remove from workspace"
@@ -73,7 +77,7 @@
         <span class="btn-label">Remove</span>
       </button>
       <button
-        v-if="showUninstall"
+        v-if="showUninstall && !skill.isSystem"
         class="action-btn uninstall-btn"
         @click.stop="$emit('uninstall', skill.name)"
         title="Uninstall skill"
@@ -181,6 +185,11 @@ const truncatedDescription = computed(() => {
   background-color: rgba(0, 113, 227, 0.06);
 }
 
+.skill-card.system {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
 .select-checkbox {
   width: 0.875rem;
   height: 0.875rem;
@@ -207,6 +216,15 @@ const truncatedDescription = computed(() => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+.source-badge.system-badge {
+  background-color: var(--text-secondary);
+}
+
+.lock-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .name {

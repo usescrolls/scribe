@@ -46,7 +46,7 @@
             v-for="skill in group.skills"
             :key="skill.name"
             :skill="skill"
-            :show-remove="true"
+            :show-remove="!skill.isSystem"
             @detail="handleDetail"
             @remove="handleRemove"
           />

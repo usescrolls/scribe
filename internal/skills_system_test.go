@@ -500,8 +500,9 @@ func TestWorkspaceCRUD(t *testing.T) {
 	if readWs.Description != ws.Description {
 		t.Errorf("Description = %q, want %q", readWs.Description, ws.Description)
 	}
-	if len(readWs.Skills) != 2 {
-		t.Errorf("Skills count = %d, want 2", len(readWs.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(readWs.Skills) != 3 {
+		t.Errorf("Skills count = %d, want 3 (2 test + 1 system)", len(readWs.Skills))
 	}
 
 	// Update workspace
@@ -512,8 +513,9 @@ func TestWorkspaceCRUD(t *testing.T) {
 	}
 
 	readWs, _ = GetWorkspace("test-workspace")
-	if len(readWs.Skills) != 3 {
-		t.Errorf("Skills count after update = %d, want 3", len(readWs.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(readWs.Skills) != 4 {
+		t.Errorf("Skills count after update = %d, want 4 (3 test + 1 system)", len(readWs.Skills))
 	}
 
 	// Delete workspace
@@ -561,13 +563,19 @@ func TestAddSkillToWorkspace(t *testing.T) {
 		t.Fatalf("AddSkillToWorkspace() error: %v", err)
 	}
 
-	// Verify
+	// Verify (+1 for injected system skill)
 	readWs, _ := GetWorkspace("test-ws")
-	if len(readWs.Skills) != 1 {
-		t.Errorf("Skills count = %d, want 1", len(readWs.Skills))
+	if len(readWs.Skills) != 2 {
+		t.Errorf("Skills count = %d, want 2 (1 test + 1 system)", len(readWs.Skills))
 	}
-	if readWs.Skills[0] != "new-skill" {
-		t.Errorf("Skill = %q, want 'new-skill'", readWs.Skills[0])
+	hasNewSkill := false
+	for _, s := range readWs.Skills {
+		if s == "new-skill" {
+			hasNewSkill = true
+		}
+	}
+	if !hasNewSkill {
+		t.Errorf("workspace should contain 'new-skill', got %v", readWs.Skills)
 	}
 
 	// Adding same skill again should be idempotent
@@ -576,8 +584,8 @@ func TestAddSkillToWorkspace(t *testing.T) {
 		t.Fatalf("AddSkillToWorkspace() second call error: %v", err)
 	}
 	readWs, _ = GetWorkspace("test-ws")
-	if len(readWs.Skills) != 1 {
-		t.Errorf("Skills count after duplicate add = %d, want 1", len(readWs.Skills))
+	if len(readWs.Skills) != 2 {
+		t.Errorf("Skills count after duplicate add = %d, want 2 (1 test + 1 system)", len(readWs.Skills))
 	}
 }
 
@@ -607,10 +615,10 @@ func TestRemoveSkillFromWorkspace(t *testing.T) {
 		t.Fatalf("RemoveSkillFromWorkspace() error: %v", err)
 	}
 
-	// Verify
+	// Verify (+1 for injected system skill)
 	readWs, _ := GetWorkspace("test-ws")
-	if len(readWs.Skills) != 2 {
-		t.Errorf("Skills count = %d, want 2", len(readWs.Skills))
+	if len(readWs.Skills) != 3 {
+		t.Errorf("Skills count = %d, want 3 (2 test + 1 system)", len(readWs.Skills))
 	}
 	for _, s := range readWs.Skills {
 		if s == "skill-2" {
@@ -1410,8 +1418,9 @@ func TestGetWorkspaceInfo(t *testing.T) {
 	if found.Description != ws.Description {
 		t.Errorf("info.Description = %q, want %q", found.Description, ws.Description)
 	}
-	if len(found.Skills) != 2 {
-		t.Errorf("info.Skills count = %d, want 2", len(found.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(found.Skills) != 3 {
+		t.Errorf("info.Skills count = %d, want 3 (2 test + 1 system)", len(found.Skills))
 	}
 }
 
@@ -2017,8 +2026,9 @@ func TestRebuildDefaultWorkspace(t *testing.T) {
 		t.Fatalf("GetWorkspace('default') error: %v", err)
 	}
 
-	if len(ws.Skills) != 2 {
-		t.Errorf("default workspace skills = %d, want 2", len(ws.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(ws.Skills) != 3 {
+		t.Errorf("default workspace skills = %d, want 3 (2 test + 1 system)", len(ws.Skills))
 	}
 }
 
@@ -2054,13 +2064,19 @@ func TestCleanWorkspaces(t *testing.T) {
 		t.Fatalf("CleanWorkspaces() error: %v", err)
 	}
 
-	// Workspace should only have existing-skill
+	// Workspace should have existing-skill + injected system skill (scribe-cli)
 	ws, _ = GetWorkspace("test-ws")
-	if len(ws.Skills) != 1 {
-		t.Errorf("workspace skills = %d, want 1", len(ws.Skills))
+	if len(ws.Skills) != 2 {
+		t.Errorf("workspace skills = %d, want 2 (1 test + 1 system)", len(ws.Skills))
 	}
-	if ws.Skills[0] != "existing-skill" {
-		t.Errorf("workspace skill = %q, want 'existing-skill'", ws.Skills[0])
+	hasExisting := false
+	for _, s := range ws.Skills {
+		if s == "existing-skill" {
+			hasExisting = true
+		}
+	}
+	if !hasExisting {
+		t.Errorf("workspace should contain 'existing-skill', got %v", ws.Skills)
 	}
 }
 
@@ -2453,10 +2469,10 @@ func TestIntegration_WorkspaceSwitching(t *testing.T) {
 		Skills:      []string{"backend-skill", "devops-skill", "testing-skill"},
 	})
 
-	// Verify default workspace has all skills
+	// Verify default workspace has all skills (+1 for system skill)
 	defaultWs, _ := GetWorkspace("default")
-	if len(defaultWs.Skills) != 4 {
-		t.Errorf("Default workspace should have 4 skills, got %d", len(defaultWs.Skills))
+	if len(defaultWs.Skills) != 5 {
+		t.Errorf("Default workspace should have 5 skills (4 test + 1 system), got %d", len(defaultWs.Skills))
 	}
 
 	// Switch to frontend workspace
@@ -2835,10 +2851,13 @@ func TestIntegration_CleanupOrphanedWorkspaces(t *testing.T) {
 	// Run cleanup
 	_ = CleanWorkspaces()
 
-	// Verify orphaned skills are removed
+	// Verify orphaned skills are removed (only system skill remains via injection)
 	orphanedWs, _ := GetWorkspace("orphaned")
-	if len(orphanedWs.Skills) != 0 {
-		t.Errorf("Orphaned workspace should have 0 skills after cleanup, got %d", len(orphanedWs.Skills))
+	if len(orphanedWs.Skills) != 1 {
+		t.Errorf("Orphaned workspace should have 1 skill (system) after cleanup, got %d", len(orphanedWs.Skills))
+	}
+	if len(orphanedWs.Skills) > 0 && orphanedWs.Skills[0] != SystemSkillName {
+		t.Errorf("Only remaining skill should be system skill, got %q", orphanedWs.Skills[0])
 	}
 
 	defaultWs, _ = GetWorkspace("default")

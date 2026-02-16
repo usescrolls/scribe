@@ -363,8 +363,9 @@ func TestBoost_EnsureDefaultWorkspace_WithInstalledSkills(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetWorkspace error: %v", err)
 	}
-	if len(ws.Skills) != 2 {
-		t.Errorf("default workspace has %d skills, want 2", len(ws.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(ws.Skills) != 3 {
+		t.Errorf("default workspace has %d skills, want 3 (2 test + 1 system)", len(ws.Skills))
 	}
 }
 
@@ -586,8 +587,9 @@ func TestBoost_UpdateWorkspace(t *testing.T) {
 	if loaded.Description != "Updated" {
 		t.Errorf("description = %q, want 'Updated'", loaded.Description)
 	}
-	if len(loaded.Skills) != 2 {
-		t.Errorf("skills count = %d, want 2", len(loaded.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(loaded.Skills) != 3 {
+		t.Errorf("skills count = %d, want 3 (2 test + 1 system)", len(loaded.Skills))
 	}
 }
 
@@ -790,8 +792,9 @@ func TestBoost_RebuildDefaultWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetWorkspace error: %v", err)
 	}
-	if len(ws.Skills) != 2 {
-		t.Errorf("rebuilt workspace has %d skills, want 2", len(ws.Skills))
+	// +1 for injected system skill (scribe-cli)
+	if len(ws.Skills) != 3 {
+		t.Errorf("rebuilt workspace has %d skills, want 3 (2 test + 1 system)", len(ws.Skills))
 	}
 }
 

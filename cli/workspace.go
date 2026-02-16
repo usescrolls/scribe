@@ -217,6 +217,10 @@ func runWorkspaceAdd(cmd *cobra.Command, args []string) error {
 func runWorkspaceRemove(cmd *cobra.Command, args []string) error {
 	skillName := args[0]
 
+	if scribe.IsSystemSkill(skillName) {
+		return fmt.Errorf("cannot remove system skill '%s' from workspace", skillName)
+	}
+
 	// Get current workspace
 	config, err := scribe.LoadConfig()
 	if err != nil {

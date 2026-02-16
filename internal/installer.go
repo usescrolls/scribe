@@ -65,6 +65,10 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 
 // UninstallSkill removes a skill from canonical storage and all agents
 func UninstallSkill(skillName string) error {
+	if IsSystemSkill(skillName) {
+		return fmt.Errorf("cannot uninstall system skill '%s'", skillName)
+	}
+
 	// Remove symlinks from all agents first
 	agentIDs := AgentIDs(DetectInstalledAgents())
 

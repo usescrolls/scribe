@@ -99,6 +99,11 @@ func runGUIMode() {
 		os.Exit(1)
 	}
 
+	// Ensure system skill is installed and up to date
+	if err := scribe.EnsureSystemSkill(); err != nil {
+		scribe.Logger.Warn("failed to ensure system skill", "error", err)
+	}
+
 	// Ensure current workspace skills are synced to agents
 	if err := scribe.ResyncCurrentWorkspace(); err != nil {
 		scribe.Logger.Warn("failed to resync workspace on startup", "error", err)
@@ -279,6 +284,10 @@ func (a *AppService) GetSkillCount() int {
 
 // RemoveSkill removes a skill by name from all agents and workspaces
 func (a *AppService) RemoveSkill(name string) error {
+	if scribe.IsSystemSkill(name) {
+		return fmt.Errorf("cannot uninstall system skill '%s'", name)
+	}
+
 	scribe.Logger.Info("AppService.RemoveSkill called", "name", name)
 
 	// Remove from all workspaces first
@@ -406,6 +415,10 @@ func (a *AppService) AddSkillToWorkspace(skillName, workspaceName string) error 
 
 // RemoveSkillFromWorkspace removes a skill from a specific workspace
 func (a *AppService) RemoveSkillFromWorkspace(skillName, workspaceName string) error {
+	if scribe.IsSystemSkill(skillName) {
+		return fmt.Errorf("cannot remove system skill '%s' from workspace", skillName)
+	}
+
 	err := scribe.RemoveSkillFromWorkspace(skillName, workspaceName)
 	if err == nil && wailsApp != nil {
 		wailsApp.Event.Emit("workspace-changed", workspaceName)

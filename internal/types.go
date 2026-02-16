@@ -104,6 +104,7 @@ type SkillInfo struct {
 	CommitHash  string   `json:"commitHash,omitempty"`
 	CommitDate  string   `json:"commitDate,omitempty"`
 	IsPrivate   bool     `json:"isPrivate,omitempty"` // True if source required authentication
+	IsSystem    bool     `json:"isSystem,omitempty"`  // True for non-removable system skills
 	Agents      []string `json:"agents"`              // List of agent IDs with this skill
 }
 

@@ -51,6 +51,11 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("skill '%s' not found", skillName)
 	}
 
+	// Check if it's a system skill
+	if scribe.IsSystemSkill(skillName) {
+		return fmt.Errorf("cannot uninstall system skill '%s'", skillName)
+	}
+
 	if !quiet {
 		fmt.Printf("Removing skill '%s'...\n", skillName)
 	}
@@ -90,6 +95,14 @@ func runUninstallAll() error {
 	}
 
 	for _, skillName := range skills {
+		// Skip system skills
+		if scribe.IsSystemSkill(skillName) {
+			if !quiet {
+				fmt.Printf("  Skipping system skill %s\n", skillName)
+			}
+			continue
+		}
+
 		// Remove from all workspaces
 		_ = scribe.RemoveSkillFromAllWorkspaces(skillName)
 

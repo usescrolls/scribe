@@ -73,6 +73,9 @@ func GetWorkspace(name string) (*Workspace, error) {
 		return nil, err
 	}
 
+	// Inject system skills (always present in every workspace)
+	ws.Skills = injectSystemSkills(ws.Skills)
+
 	return &ws, nil
 }
 
@@ -260,6 +263,10 @@ func AddSkillToWorkspace(skillName, workspaceName string) error {
 
 // RemoveSkillFromWorkspace removes a skill from a workspace
 func RemoveSkillFromWorkspace(skillName, workspaceName string) error {
+	if IsSystemSkill(skillName) {
+		return fmt.Errorf("cannot remove system skill '%s' from workspace", skillName)
+	}
+
 	ws, err := GetWorkspace(workspaceName)
 	if err != nil {
 		return err
@@ -366,7 +373,20 @@ func saveWorkspace(ws *Workspace) error {
 		return err
 	}
 
-	data, err := json.MarshalIndent(ws, "", "  ")
+	// Strip system skills before persisting (they are injected at read time)
+	filtered := make([]string, 0, len(ws.Skills))
+	for _, s := range ws.Skills {
+		if !IsSystemSkill(s) {
+			filtered = append(filtered, s)
+		}
+	}
+	toSave := &Workspace{
+		Name:        ws.Name,
+		Description: ws.Description,
+		Skills:      filtered,
+	}
+
+	data, err := json.MarshalIndent(toSave, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -380,8 +400,19 @@ func createDefaultWorkspace() *Workspace {
 	return &Workspace{
 		Name:        DefaultWorkspaceName,
 		Description: "All installed skills",
-		Skills:      skills,
+		Skills:      injectSystemSkills(skills),
 	}
+}
+
+// injectSystemSkills ensures system skills are always present in a skill list.
+// System skills are prepended so they appear first.
+func injectSystemSkills(skills []string) []string {
+	for _, s := range skills {
+		if s == SystemSkillName {
+			return skills // Already present
+		}
+	}
+	return append([]string{SystemSkillName}, skills...)
 }
 
 // skillDiff returns skills in a that are not in b
@@ -426,6 +457,10 @@ func AddSkillToActiveAndDefaultWorkspace(skillName string) error {
 // RemoveSkillFromAllWorkspaces removes a skill from all workspaces
 // This is called when uninstalling a skill
 func RemoveSkillFromAllWorkspaces(skillName string) error {
+	if IsSystemSkill(skillName) {
+		return nil // Silently ignore -- system skills are virtual in workspaces
+	}
+
 	workspaces, err := ListWorkspaces()
 	if err != nil {
 		return err

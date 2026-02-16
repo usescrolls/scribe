@@ -10,6 +10,7 @@ export interface SkillInfo {
   commitHash?: string
   commitDate?: string
   isPrivate?: boolean
+  isSystem?: boolean
   agents: string[]
 }
 

@@ -10,6 +10,11 @@ import (
 func CheckSkillForUpdate(skillName string) CheckResult {
 	result := CheckResult{Name: skillName}
 
+	if IsSystemSkill(skillName) {
+		result.Error = "system skill (managed internally)"
+		return result
+	}
+
 	skill, err := ReadSkill(skillName)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to read skill: %v", err)
@@ -71,6 +76,10 @@ func CheckSkillForUpdate(skillName string) CheckResult {
 // UpdateSkill updates a skill to its latest version from its source.
 // If force is true, the update proceeds even when the content hash hasn't changed.
 func UpdateSkill(skillName string, force bool) (*UpdateResult, error) {
+	if IsSystemSkill(skillName) {
+		return nil, fmt.Errorf("cannot update system skill '%s' (managed internally)", skillName)
+	}
+
 	skill, err := ReadSkill(skillName)
 	if err != nil {
 		return nil, fmt.Errorf("skill not found: %w", err)

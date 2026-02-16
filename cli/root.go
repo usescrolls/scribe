@@ -38,6 +38,11 @@ Examples:
 				return err
 			}
 
+			// Ensure system skill is installed and up to date
+			if err := scribe.EnsureSystemSkill(); err != nil {
+				scribe.Logger.Warn("failed to ensure system skill", "error", err)
+			}
+
 			// Skip onboarding check for certain commands
 			cmdName := cmd.Name()
 			skipOnboarding := cmdName == "setup" || cmdName == "version" || cmdName == "help" || cmdName == "scribe"

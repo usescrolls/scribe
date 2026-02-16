@@ -92,9 +92,9 @@
             v-for="skill in group.skills"
             :key="skill.name"
             :skill="skill"
-            :show-uninstall="!selectionMode"
-            :show-workspace-picker="!selectionMode"
-            :selectable="selectionMode"
+            :show-uninstall="!selectionMode && !skill.isSystem"
+            :show-workspace-picker="!selectionMode && !skill.isSystem"
+            :selectable="selectionMode && !skill.isSystem"
             :selected="selectedSkills.has(skill.name)"
             :skill-workspaces="getSkillWorkspaces(skill.name)"
             :all-workspaces="workspaces"
@@ -227,7 +227,7 @@ function isGroupPrivate(group: SourceGroup): boolean {
 }
 
 function isGroupUpdatable(group: SourceGroup): boolean {
-  return !!group.sourceType && group.sourceType !== 'local' && group.sourceType !== 'builtin'
+  return !!group.sourceType && group.sourceType !== 'local' && group.sourceType !== 'builtin' && group.sourceType !== 'system'
 }
 
 async function handleUpdateGroup(group: SourceGroup) {
@@ -323,6 +323,9 @@ async function executeUninstall() {
   const name = confirmUninstallName.value
   confirmUninstallName.value = null
   if (!name) return
+  // Defensive check: skip system skills
+  const skill = allSkillsRaw.value.find(s => s.name === name)
+  if (skill?.isSystem) return
   try {
     await AppService.RemoveSkill(name)
     await fetchAll()
@@ -361,6 +364,10 @@ function exitSelectionMode() {
 }
 
 function toggleSkillSelection(name: string) {
+  // Cannot select system skills for bulk operations
+  const skill = allSkillsRaw.value.find(s => s.name === name)
+  if (skill?.isSystem) return
+
   if (selectedSkills.has(name)) {
     selectedSkills.delete(name)
   } else {
@@ -368,15 +375,19 @@ function toggleSkillSelection(name: string) {
   }
 }
 
+const selectableSkills = computed(() =>
+  allSkillsRaw.value.filter(s => !s.isSystem)
+)
+
 const allSelected = computed(() =>
-  allSkillsRaw.value.length > 0 && selectedSkills.size === allSkillsRaw.value.length
+  selectableSkills.value.length > 0 && selectedSkills.size === selectableSkills.value.length
 )
 
 function toggleSelectAll() {
   if (allSelected.value) {
     selectedSkills.clear()
   } else {
-    for (const skill of allSkillsRaw.value) {
+    for (const skill of selectableSkills.value) {
       selectedSkills.add(skill.name)
     }
   }

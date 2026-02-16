@@ -378,6 +378,8 @@ func GetSkillInfo(skill *Skill) SkillInfo {
 		info.IsPrivate = skill.Meta.IsPrivate
 	}
 
+	info.IsSystem = IsSystemSkill(skill.Name)
+
 	return info
 }
 
