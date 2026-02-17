@@ -29,7 +29,6 @@ Sources can be:
   owner/repo                    GitHub shorthand
   https://github.com/owner/repo Full GitHub URL
   ./local/path                  Local directory
-  https://example.com           Well-known endpoint
 
 Examples:
   scribe install vercel-labs/agent-skills

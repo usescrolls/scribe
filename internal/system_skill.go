@@ -27,7 +27,6 @@ Install skills from a source. Sources can be:
 - GitHub shorthand: ` + "`scribe install owner/repo`" + `
 - Full URL: ` + "`scribe install https://github.com/owner/repo`" + `
 - Local directory: ` + "`scribe install ./my-skills`" + `
-- Well-known endpoint: ` + "`scribe install https://example.com`" + `
 
 **Flags:**
 - ` + "`-s, --skill <names>`" + ` - Select specific skills to install (comma-separated)
