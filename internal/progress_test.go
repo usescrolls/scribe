@@ -336,7 +336,7 @@ func TestInstallSkill_SyncEmitsAgentName(t *testing.T) {
 	source := &SourceInfo{Type: "local", LocalPath: srcDir}
 
 	var rec progressRecorder
-	err := InstallSkill(skill, source, InstallOptions{Agents: []string{"claude-code"}}, nil, rec.emit)
+	err := InstallSkill(skill, source, InstallOptions{}, nil, rec.emit)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}

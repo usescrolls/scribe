@@ -38,7 +38,6 @@ scribe install <source> [flags]
 **Flags:**
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--agent` | `-a` | Target specific agents (comma-separated) |
 | `--skill` | `-s` | Select specific skills to install |
 | `--list` | `-l` | List available skills without installing |
 | `--yes` | `-y` | Skip interactive prompts |
@@ -51,7 +50,7 @@ scribe install https://github.com/owner/repo
 scribe install git@github.com:owner/private-repo.git    # SSH (private repos)
 scribe install ./my-local-skills
 scribe install https://example.com/skills.zip
-scribe install owner/repo --skill react-patterns --agent claude-code,cursor
+scribe install owner/repo --skill react-patterns
 scribe install owner/repo --list
 ```
 

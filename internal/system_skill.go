@@ -30,7 +30,6 @@ Install skills from a source. Sources can be:
 - Well-known endpoint: ` + "`scribe install https://example.com`" + `
 
 **Flags:**
-- ` + "`-a, --agent <agents>`" + ` - Target specific agents (comma-separated)
 - ` + "`-s, --skill <names>`" + ` - Select specific skills to install (comma-separated)
 - ` + "`-l, --list`" + ` - List available skills without installing
 - ` + "`-y, --yes`" + ` - Skip interactive prompts

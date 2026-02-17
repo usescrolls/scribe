@@ -132,9 +132,7 @@ func TestBoost_InstallSkill_WithSpecificAgents(t *testing.T) {
 	}
 	source := &SourceInfo{Type: "local", LocalPath: srcDir}
 
-	err := InstallSkill(skill, source, InstallOptions{
-		Agents: []string{"claude-code"},
-	}, nil)
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}

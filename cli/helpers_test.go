@@ -93,7 +93,6 @@ func saveAndRestoreFlags(t *testing.T) {
 	origQuiet := quiet
 	origJSON := jsonOutput
 	origNamesOnly := namesOnly
-	origInstallAgents := installAgents
 	origInstallSkills := installSkills
 	origInstallListOnly := installListOnly
 	origInstallYes := installYes
@@ -107,7 +106,6 @@ func saveAndRestoreFlags(t *testing.T) {
 		quiet = origQuiet
 		jsonOutput = origJSON
 		namesOnly = origNamesOnly
-		installAgents = origInstallAgents
 		installSkills = origInstallSkills
 		installListOnly = origInstallListOnly
 		installYes = origInstallYes

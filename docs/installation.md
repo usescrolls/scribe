@@ -190,7 +190,6 @@ scribe install https://example.com/skills.zip      # Zip URL
 **Flags:**
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--agent` | `-a` | Target specific agents (comma-separated) |
 | `--skill` | `-s` | Select specific skills to install |
 | `--list` | `-l` | List available skills without installing |
 | `--yes` | `-y` | Skip interactive prompts |

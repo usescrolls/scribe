@@ -73,7 +73,6 @@ type Config struct {
 
 // InstallOptions configures skill installation behavior
 type InstallOptions struct {
-	Agents    []string // Target specific agents (empty = all detected)
 	Skills    []string // Select specific skills to install (empty = all found)
 	Yes       bool     // Skip interactive prompts
 	ListOnly  bool     // List available skills without installing

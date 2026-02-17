@@ -666,9 +666,7 @@ description: Test skill for installation
 		LocalPath: sourceDir,
 	}
 
-	opts := InstallOptions{
-		Agents: []string{}, // Empty means no agents to sync to
-	}
+	opts := InstallOptions{}
 
 	// Install
 	err = InstallSkill(skill, source, opts, nil)
@@ -862,14 +860,7 @@ This skill does cool things.
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
 
-	// Install to all detected agents
-	detected := DetectInstalledAgents()
-	agentIDs := make([]string, len(detected))
-	for i, a := range detected {
-		agentIDs[i] = a.ID
-	}
-
-	err = InstallSkill(skill, source, InstallOptions{Agents: agentIDs}, nil)
+	err = InstallSkill(skill, source, InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}

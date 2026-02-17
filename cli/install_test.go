@@ -192,7 +192,6 @@ func TestRunInstallFromLocalDir(t *testing.T) {
 	installYes = true
 	installAll = false
 	installListOnly = false
-	installAgents = ""
 	installSkills = ""
 
 	// Create a local skill source directory
@@ -233,7 +232,6 @@ func TestRunInstallListOnly(t *testing.T) {
 	installYes = false
 	installAll = false
 	installListOnly = true
-	installAgents = ""
 	installSkills = ""
 
 	// Create a local skill source directory
@@ -314,7 +312,6 @@ func TestRunInstallFilterSkills(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = "nonexistent-skill"
-	installAgents = ""
 	installAll = false
 
 	// Create a local skill source directory with a skill
@@ -336,7 +333,7 @@ func TestRunInstallFilterSkills(t *testing.T) {
 	}
 }
 
-func TestRunInstallWithAgentFilter(t *testing.T) {
+func TestRunInstallSyncsToDetectedAgents(t *testing.T) {
 	homeDir, cleanup := setupTempHome(t)
 	defer cleanup()
 	saveAndRestoreFlags(t)
@@ -344,7 +341,6 @@ func TestRunInstallWithAgentFilter(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = ""
-	installAgents = "claude-code"
 	installAll = false
 
 	// Create agent config dir so agent is "detected"
@@ -357,7 +353,7 @@ func TestRunInstallWithAgentFilter(t *testing.T) {
 	}
 	defer func() { _ = os.RemoveAll(tmpSrc) }()
 
-	skillContent := "---\nname: agent-filter-skill\ndescription: Skill with agent filter\n---\n\n# Test\n"
+	skillContent := "---\nname: agent-sync-skill\ndescription: Skill synced to all agents\n---\n\n# Test\n"
 	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte(skillContent), 0o644)
 
 	captureStdout(t, func() {
@@ -368,7 +364,7 @@ func TestRunInstallWithAgentFilter(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	exists, _ := scribe.SkillExists("agent-filter-skill")
+	exists, _ := scribe.SkillExists("agent-sync-skill")
 	if !exists {
 		t.Error("expected skill to be installed")
 	}
@@ -382,7 +378,7 @@ func TestRunInstallLocalWithMultipleSkills(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = ""
-	installAgents = ""
+
 	installAll = false
 
 	// Create agent config dir
@@ -427,7 +423,7 @@ func TestRunInstallFilterBySpecificSkill(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = "pick-me"
-	installAgents = ""
+
 	installAll = false
 
 	// Create agent config dir
@@ -473,7 +469,7 @@ func TestRunInstallDuplicateSkill(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = ""
-	installAgents = ""
+
 	installAll = false
 
 	// Create agent config dir
@@ -527,7 +523,7 @@ func TestRunInstallVerboseOutput(t *testing.T) {
 	installYes = true
 	installListOnly = false
 	installSkills = ""
-	installAgents = ""
+
 	installAll = false
 
 	// Create agent config dir

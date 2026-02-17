@@ -12,7 +12,6 @@ import (
 
 var (
 	// Install flags
-	installAgents   string
 	installSkills   string
 	installListOnly bool
 	installYes      bool
@@ -36,7 +35,6 @@ Examples:
   scribe install vercel-labs/agent-skills
   scribe install https://github.com/owner/repo
   scribe install ./my-skills
-  scribe install owner/repo --agent claude-code,cursor
   scribe install owner/repo --list`,
 		Args: cobra.ExactArgs(1),
 		RunE: runInstall,
@@ -44,7 +42,6 @@ Examples:
 )
 
 func init() {
-	installCmd.Flags().StringVarP(&installAgents, "agent", "a", "", "Target specific agents (comma-separated)")
 	installCmd.Flags().StringVarP(&installSkills, "skill", "s", "", "Select specific skills to install (comma-separated)")
 	installCmd.Flags().BoolVarP(&installListOnly, "list", "l", false, "List available skills without installing")
 	installCmd.Flags().BoolVarP(&installYes, "yes", "y", false, "Skip interactive prompts")
@@ -105,12 +102,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Parse agent filter
-	var targetAgents []string
-	if installAgents != "" {
-		targetAgents = strings.Split(installAgents, ",")
-	}
-
 	// Detect installed agents
 	installedAgents := scribe.DetectInstalledAgents()
 	if len(installedAgents) == 0 {
@@ -145,7 +136,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	// Install each skill
 	opts := scribe.InstallOptions{
-		Agents:    targetAgents,
 		Yes:       installYes,
 		IsPrivate: fetchResult.IsPrivate,
 	}

@@ -49,13 +49,8 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 		return fmt.Errorf("failed to write metadata: %w", err)
 	}
 
-	// Sync to agents
-	agents := opts.Agents
-	if len(agents) == 0 {
-		// Default to all detected agents
-		agents = AgentIDs(DetectInstalledAgents())
-	}
-
+	// Sync to all detected agents
+	agents := AgentIDs(DetectInstalledAgents())
 	if err := SyncSkillToAgents(skill.Name, agents, emit...); err != nil {
 		return fmt.Errorf("failed to sync to agents: %w", err)
 	}
