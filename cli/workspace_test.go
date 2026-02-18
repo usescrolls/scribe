@@ -126,8 +126,8 @@ func TestRunWorkspaceListDescriptionFormat(t *testing.T) {
 	})
 
 	// "no-desc-ws" line should not have " - " since no description
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "no-desc-ws") {
 			if strings.Contains(line, " - ") {
 				t.Errorf("workspace without description should not have ' - ' separator: %s", line)

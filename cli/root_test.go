@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,13 +16,7 @@ func TestCLICommands(t *testing.T) {
 	expected := []string{"install", "uninstall", "remove", "rm", "list", "ls", "info", "version", "help", "workspace", "check", "update", "cache"}
 
 	for _, exp := range expected {
-		found := false
-		for _, cmd := range commands {
-			if cmd == exp {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(commands, exp)
 		if !found {
 			t.Errorf("expected command %q not found in CLICommands()", exp)
 		}

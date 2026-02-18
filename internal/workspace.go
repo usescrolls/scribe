@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -236,10 +237,8 @@ func AddSkillToWorkspace(skillName, workspaceName string) error {
 	}
 
 	// Check if already in workspace
-	for _, s := range ws.Skills {
-		if s == skillName {
-			return nil // Already present
-		}
+	if slices.Contains(ws.Skills, skillName) {
+		return nil // Already present
 	}
 
 	ws.Skills = append(ws.Skills, skillName)
@@ -407,10 +406,8 @@ func createDefaultWorkspace() *Workspace {
 // injectSystemSkills ensures system skills are always present in a skill list.
 // System skills are prepended so they appear first.
 func injectSystemSkills(skills []string) []string {
-	for _, s := range skills {
-		if s == SystemSkillName {
-			return skills // Already present
-		}
+	if slices.Contains(skills, SystemSkillName) {
+		return skills // Already present
 	}
 	return append([]string{SystemSkillName}, skills...)
 }

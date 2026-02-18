@@ -3,6 +3,7 @@ package scribe
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -572,13 +573,7 @@ func TestInstallFromLocalSource_MultipleSkills(t *testing.T) {
 		t.Fatalf("GetWorkspace error: %v", err)
 	}
 	for _, name := range installed {
-		found := false
-		for _, s := range ws.Skills {
-			if s == name {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(ws.Skills, name)
 		if !found {
 			t.Errorf("skill %q not in default workspace", name)
 		}

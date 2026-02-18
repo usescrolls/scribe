@@ -88,10 +88,10 @@ func parseCredentialOutput(output string) (username, password string) {
 func extractHost(rawURL string) string {
 	// Handle https://host/... format
 	for _, prefix := range []string{"https://", "http://"} {
-		if strings.HasPrefix(rawURL, prefix) {
-			rest := strings.TrimPrefix(rawURL, prefix)
-			if idx := strings.IndexByte(rest, '/'); idx != -1 {
-				return rest[:idx]
+		if after, ok := strings.CutPrefix(rawURL, prefix); ok {
+			rest := after
+			if before, _, ok := strings.Cut(rest, "/"); ok {
+				return before
 			}
 			return rest
 		}

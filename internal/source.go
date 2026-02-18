@@ -97,9 +97,9 @@ func parseGitHubURL(url string) (*SourceInfo, error) {
 	path := strings.TrimPrefix(url, "https://github.com/")
 
 	// Check for branch in URL (tree/branch/...)
-	if idx := strings.Index(path, "/tree/"); idx != -1 {
-		beforeTree := path[:idx]
-		afterTree := path[idx+6:] // Skip "/tree/"
+	if before, after, ok := strings.Cut(path, "/tree/"); ok {
+		beforeTree := before
+		afterTree := after // Skip "/tree/"
 
 		parts := strings.Split(beforeTree, "/")
 		if len(parts) >= 2 {
@@ -229,13 +229,13 @@ func parseSSHURL(arg string) (*SourceInfo, error) {
 	rest := strings.TrimPrefix(arg, "git@")
 
 	// Split on ":"
-	colonIdx := strings.IndexByte(rest, ':')
-	if colonIdx == -1 {
+	before, after, ok := strings.Cut(rest, ":")
+	if !ok {
 		return nil, fmt.Errorf("invalid SSH URL: expected git@host:owner/repo format")
 	}
 
-	host := rest[:colonIdx]
-	path := rest[colonIdx+1:]
+	host := before
+	path := after
 	path = strings.TrimSuffix(path, ".git")
 
 	parts := strings.Split(path, "/")
@@ -301,11 +301,11 @@ func parseGenericGitURL(url string) (*SourceInfo, error) {
 	path = strings.TrimPrefix(path, "http://")
 
 	// Split into host and rest
-	slashIdx := strings.IndexByte(path, '/')
-	if slashIdx == -1 {
+	_, after, ok := strings.Cut(path, "/")
+	if !ok {
 		return nil, fmt.Errorf("invalid git URL: no path after host")
 	}
-	ownerRepo := path[slashIdx+1:]
+	ownerRepo := after
 
 	parts := strings.Split(ownerRepo, "/")
 	if len(parts) < 2 {

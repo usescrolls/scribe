@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -59,12 +60,7 @@ func isCLICommand(arg string) bool {
 		return false
 	}
 	commands := cli.CLICommands()
-	for _, cmd := range commands {
-		if arg == cmd {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(commands, arg)
 }
 
 func handleURLScheme(urlArg string) {
@@ -726,7 +722,7 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 	for i, skill := range toInstall {
 		// Emit progress event so the frontend can show per-skill status
 		if wailsApp != nil {
-			wailsApp.Event.Emit("install-progress", map[string]interface{}{
+			wailsApp.Event.Emit("install-progress", map[string]any{
 				"skillName": skill.Name,
 				"current":   i + 1,
 				"total":     len(toInstall),

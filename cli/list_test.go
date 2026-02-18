@@ -281,8 +281,8 @@ func TestListSkillsJSONEmpty(t *testing.T) {
 	}
 
 	var parsed struct {
-		Skills []interface{} `json:"skills"`
-		Count  int           `json:"count"`
+		Skills []any `json:"skills"`
+		Count  int   `json:"count"`
 	}
 	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)

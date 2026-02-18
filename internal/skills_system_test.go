@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -883,13 +884,7 @@ This skill does cool things.
 
 	// Verify in default workspace
 	ws, _ := GetWorkspace("default")
-	found := false
-	for _, s := range ws.Skills {
-		if s == "my-skill" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(ws.Skills, "my-skill")
 	if !found {
 		t.Error("Skill should be in default workspace")
 	}
@@ -2364,13 +2359,7 @@ func TestIntegration_MultiSkillInstallAndRemove(t *testing.T) {
 	// Verify all skills are in default workspace
 	ws, _ := GetWorkspace("default")
 	for _, s := range skills {
-		found := false
-		for _, wsSkill := range ws.Skills {
-			if wsSkill == s.name {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(ws.Skills, s.name)
 		if !found {
 			t.Errorf("Skill %s should be in default workspace", s.name)
 		}
@@ -2775,13 +2764,7 @@ func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
 
 	// Verify skill is in custom workspace
 	customWs, _ := GetWorkspace("custom")
-	found := false
-	for _, s := range customWs.Skills {
-		if s == "workspace-test-skill" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(customWs.Skills, "workspace-test-skill")
 	if !found {
 		t.Error("Skill should be in custom workspace after AddSkillToWorkspace")
 	}
@@ -2799,13 +2782,7 @@ func TestIntegration_WorkspaceSkillAddRemove(t *testing.T) {
 
 	// Verify skill still exists in default workspace
 	defaultWs, _ := GetWorkspace("default")
-	found = false
-	for _, s := range defaultWs.Skills {
-		if s == "workspace-test-skill" {
-			found = true
-			break
-		}
-	}
+	found = slices.Contains(defaultWs.Skills, "workspace-test-skill")
 	if !found {
 		t.Error("Skill should still be in default workspace")
 	}
@@ -2904,13 +2881,7 @@ func TestIntegration_RebuildDefaultWorkspace(t *testing.T) {
 	}
 
 	for _, name := range skillNames {
-		found := false
-		for _, s := range defaultWs.Skills {
-			if s == name {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(defaultWs.Skills, name)
 		if !found {
 			t.Errorf("Skill %s should be in default workspace after rebuild", name)
 		}

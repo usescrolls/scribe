@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -288,13 +289,7 @@ func TestGetWorkspace_InjectsSystemSkill(t *testing.T) {
 		t.Fatalf("GetWorkspace error: %v", err)
 	}
 
-	hasSystem := false
-	for _, s := range loaded.Skills {
-		if s == SystemSkillName {
-			hasSystem = true
-			break
-		}
-	}
+	hasSystem := slices.Contains(loaded.Skills, SystemSkillName)
 	if !hasSystem {
 		t.Errorf("workspace should contain system skill, got %v", loaded.Skills)
 	}
@@ -319,13 +314,7 @@ func TestCreateDefaultWorkspace_InjectsSystemSkill(t *testing.T) {
 	_ = EnsureScribeDirs()
 
 	ws := createDefaultWorkspace()
-	hasSystem := false
-	for _, s := range ws.Skills {
-		if s == SystemSkillName {
-			hasSystem = true
-			break
-		}
-	}
+	hasSystem := slices.Contains(ws.Skills, SystemSkillName)
 	if !hasSystem {
 		t.Errorf("default workspace should contain system skill, got %v", ws.Skills)
 	}
