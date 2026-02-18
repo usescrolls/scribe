@@ -18,7 +18,7 @@ On first launch, Scribe runs an onboarding wizard that detects your installed ag
 - **Workspaces**: Organize skills into named sets and switch between them
 - **Private Repositories**: Automatic credential resolution via git credential helpers and SSH agent
 - **Multiple Sources**: GitHub, GitLab, Bitbucket, local paths, zip URLs, SSH URLs
-- **Desktop GUI**: Vue 3 frontend with workspace management, skill browser, and multi-step install wizard
+- **Desktop GUI**: Vue 3 frontend with workspace management, skill browser, and multi-step install wizard (you can paste CLI commands like `npx skills add owner/repo` directly into the Install tab)
 - **Version Tracking**: Git commit hash and date tracking for installed skills with update detection
 - **Local Cache**: Git clone cache for fast installs, checks, and updates
 

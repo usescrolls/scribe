@@ -388,6 +388,8 @@ scribe              # Launch GUI with system tray
 scribe --no-gui     # Run in headless mode
 ```
 
+The GUI's **Install** tab accepts all the same source formats listed above. You can also paste a full CLI command (e.g. `npx skills add owner/repo`) and Scribe will automatically extract the source.
+
 ## Detection Order
 
 When scribe is invoked:

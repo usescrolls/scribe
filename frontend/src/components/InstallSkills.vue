@@ -12,7 +12,7 @@
           ref="sourceInput"
           v-model="sourceStr"
           type="text"
-          placeholder="owner/repo, Git URL, or zip URL"
+          placeholder="owner/repo, Git URL, zip URL, or paste a CLI command"
           :disabled="discovering"
           @keyup.enter="handleDiscover"
         />
@@ -97,6 +97,10 @@
           <button class="example" @click="fillExample('https://example.com/skills.zip')">
             <code>https://example.com/skills.zip</code>
             <span>Zip archive URL</span>
+          </button>
+          <button class="example" @click="fillExample('npx skills add owner/repo')">
+            <code>npx skills add owner/repo</code>
+            <span>Paste from CLI</span>
           </button>
         </div>
       </div>
@@ -353,8 +357,9 @@ async function fetchWorkspaces() {
 }
 
 async function handleDiscover() {
-  const source = sourceStr.value.trim()
+  const source = parseSourceInput(sourceStr.value.trim())
   if (!source || discovering.value) return
+  sourceStr.value = source
 
   discovering.value = true
   error.value = null
@@ -458,6 +463,11 @@ function resetToStart() {
 function fillExample(example: string) {
   sourceStr.value = example
   sourceInput.value?.focus()
+}
+
+function parseSourceInput(input: string): string {
+  const match = input.match(/^\s*(?:npx\s+)?skills\s+add\s+(.+)$/i)
+  return match ? match[1].trim() : input
 }
 
 function extractErrorMessage(e: unknown): string {

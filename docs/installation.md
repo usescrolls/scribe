@@ -283,3 +283,5 @@ Options:
   --no-gui       Run without system tray icon (headless mode)
   --debug        Enable debug logging
 ```
+
+The GUI's **Install** tab accepts the same source formats as the CLI. You can also paste a full CLI command (e.g. `npx skills add owner/repo`) and Scribe will automatically extract the source.

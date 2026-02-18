@@ -51,7 +51,7 @@ describe("InstallSkills", () => {
       const wrapper = mountInstallSkills()
 
       expect(wrapper.find(".examples").exists()).toBe(true)
-      expect(wrapper.findAll(".example")).toHaveLength(5)
+      expect(wrapper.findAll(".example")).toHaveLength(6)
     })
   })
 
@@ -105,6 +105,16 @@ describe("InstallSkills", () => {
         "https://example.com/skills.zip",
       )
     })
+
+    it("fills with CLI command example", async () => {
+      const wrapper = mountInstallSkills()
+
+      await wrapper.findAll(".example")[5].trigger("click")
+
+      expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
+        "npx skills add owner/repo",
+      )
+    })
   })
 
   describe("discover flow", () => {
@@ -117,6 +127,59 @@ describe("InstallSkills", () => {
 
       const wrapper = mountInstallSkills()
       await wrapper.find("input").setValue("  owner/repo  ")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "owner/repo",
+      )
+    })
+
+    it("strips 'npx skills add' prefix from CLI command input", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "db-skill", description: "desc" }],
+        source: "planetscale/database-skills",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper
+        .find("input")
+        .setValue("npx skills add planetscale/database-skills")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "planetscale/database-skills",
+      )
+    })
+
+    it("strips 'skills add' prefix without npx", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "my-skill", description: "desc" }],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("skills add owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "owner/repo",
+      )
+    })
+
+    it("passes through plain owner/repo without modification", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "my-skill", description: "desc" }],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("owner/repo")
       await wrapper.find(".install-btn").trigger("click")
       await flushPromises()
 
