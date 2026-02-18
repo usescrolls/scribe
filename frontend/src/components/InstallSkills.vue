@@ -2,7 +2,7 @@
   <div class="install-skills">
     <div class="install-header">
       <h2>Install Skills</h2>
-      <p class="subtitle">Add skills from GitHub, GitLab, or a zip URL</p>
+      <p class="subtitle">Add skills from GitHub, GitLab, Bitbucket, or a zip URL</p>
     </div>
 
     <!-- Step 1: Source Input -->
@@ -12,7 +12,7 @@
           ref="sourceInput"
           v-model="sourceStr"
           type="text"
-          placeholder="owner/repo, GitHub URL, or zip URL"
+          placeholder="owner/repo, Git URL, or zip URL"
           :disabled="discovering"
           @keyup.enter="handleDiscover"
         />
@@ -89,6 +89,10 @@
           <button class="example" @click="fillExample('https://github.com/owner/repo')">
             <code>https://github.com/owner/repo</code>
             <span>Full GitHub URL</span>
+          </button>
+          <button class="example" @click="fillExample('https://bitbucket.org/owner/repo')">
+            <code>https://bitbucket.org/owner/repo</code>
+            <span>Bitbucket URL</span>
           </button>
           <button class="example" @click="fillExample('https://example.com/skills.zip')">
             <code>https://example.com/skills.zip</code>
@@ -505,6 +509,7 @@ function isAuthError(msg: string): boolean {
 <style scoped>
 .install-skills {
   max-width: 560px;
+  margin: 0 auto;
 }
 
 .install-header {

@@ -51,7 +51,7 @@ describe("InstallSkills", () => {
       const wrapper = mountInstallSkills()
 
       expect(wrapper.find(".examples").exists()).toBe(true)
-      expect(wrapper.findAll(".example")).toHaveLength(4)
+      expect(wrapper.findAll(".example")).toHaveLength(5)
     })
   })
 
@@ -86,10 +86,20 @@ describe("InstallSkills", () => {
       )
     })
 
-    it("fills with zip URL example", async () => {
+    it("fills with bitbucket URL example", async () => {
       const wrapper = mountInstallSkills()
 
       await wrapper.findAll(".example")[3].trigger("click")
+
+      expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
+        "https://bitbucket.org/owner/repo",
+      )
+    })
+
+    it("fills with zip URL example", async () => {
+      const wrapper = mountInstallSkills()
+
+      await wrapper.findAll(".example")[4].trigger("click")
 
       expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
         "https://example.com/skills.zip",
