@@ -68,25 +68,6 @@
           </div>
           <div class="repo-actions">
             <button
-              v-if="installedRepos.has(repo.fullName)"
-              class="btn-installed"
-              disabled
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              Installed
-            </button>
-            <button
-              v-else-if="installingRepo === repo.fullName"
-              class="btn-installing"
-              disabled
-            >
-              <div class="spinner-sm"></div>
-              Installing...
-            </button>
-            <button
-              v-else
               class="btn-primary"
               @click="handleInstall(repo)"
             >
@@ -107,19 +88,17 @@
       <p class="initial-hint">Search GitHub for repositories containing agent skills</p>
     </div>
 
-    <!-- Toast -->
-    <Transition name="toast">
-      <div v-if="toast" class="toast" :class="toast.type">
-        {{ toast.message }}
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { AppService } from '../bindings/scribe'
 import type { MarketplaceResult, MarketplaceRepo } from '../types/skill'
+
+const emit = defineEmits<{
+  'install-from-source': [source: string]
+}>()
 
 const query = ref('')
 const lastQuery = ref('')
@@ -128,11 +107,6 @@ const error = ref<string | null>(null)
 const results = ref<MarketplaceResult | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 
-const installingRepo = ref<string | null>(null)
-const installedRepos = reactive(new Set<string>())
-
-const toast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
-let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => {
   searchInput.value?.focus()
@@ -157,31 +131,8 @@ async function handleSearch() {
   }
 }
 
-async function handleInstall(repo: MarketplaceRepo) {
-  if (installingRepo.value) return
-
-  installingRepo.value = repo.fullName
-  try {
-    const res = await AppService.InstallFromSource(repo.fullName)
-    if (!res) {
-      showToast('Installation failed', 'error')
-    } else if (res.success) {
-      installedRepos.add(repo.fullName)
-      showToast(`Installed ${res.skillsCount} skill${res.skillsCount !== 1 ? 's' : ''} from ${repo.fullName}`, 'success')
-    } else {
-      showToast(res.errorMessage || 'Installation failed', 'error')
-    }
-  } catch (e) {
-    showToast(extractError(e), 'error')
-  } finally {
-    installingRepo.value = null
-  }
-}
-
-function showToast(message: string, type: 'success' | 'error') {
-  if (toastTimer) clearTimeout(toastTimer)
-  toast.value = { message, type }
-  toastTimer = setTimeout(() => { toast.value = null }, 4000)
+function handleInstall(repo: MarketplaceRepo) {
+  emit('install-from-source', repo.fullName)
 }
 
 function formatStars(n: number): string {
@@ -455,33 +406,6 @@ function extractError(e: unknown): string {
   opacity: 0.9;
 }
 
-.btn-installing {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-}
-
-.btn-installed {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  background-color: rgba(52, 199, 89, 0.1);
-  color: var(--success-color);
-  cursor: default;
-}
 
 /* Empty & initial states */
 .empty-state,
@@ -496,38 +420,4 @@ function extractError(e: unknown): string {
   color: var(--text-secondary);
 }
 
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  z-index: 1000;
-  pointer-events: none;
-}
-
-.toast.success {
-  background-color: var(--success-color);
-  color: white;
-}
-
-.toast.error {
-  background-color: var(--danger-color);
-  color: white;
-}
-
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.3s ease;
-}
-
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(0.5rem);
-}
 </style>

@@ -267,6 +267,14 @@ import { AppService } from '../bindings/scribe'
 import { Events } from '@wailsio/runtime'
 import type { DiscoverResult, InstallResult, WorkspaceInfo, ProgressEvent } from '../types/skill'
 
+const props = defineProps<{
+  initialSource?: string | null
+}>()
+
+const emit = defineEmits<{
+  consumed: []
+}>()
+
 type Step = 'source' | 'review' | 'workspaces' | 'installing' | 'result'
 
 const sourceStr = ref('')
@@ -340,6 +348,13 @@ onMounted(() => {
     })
   })
   fetchWorkspaces()
+
+  // If mounted with an initial source (e.g. from Marketplace), auto-trigger
+  if (props.initialSource) {
+    sourceStr.value = props.initialSource
+    emit('consumed')
+    handleDiscover()
+  }
 })
 
 onUnmounted(() => {

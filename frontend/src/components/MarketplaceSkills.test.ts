@@ -262,119 +262,29 @@ describe("MarketplaceSkills", () => {
       return wrapper
     }
 
-    it("calls InstallFromSource with repo fullName on install click", async () => {
-      mockAppService.InstallFromSource.mockResolvedValue({
-        success: true,
-        skillsCount: 3,
-        skillNames: ["skill-a", "skill-b", "skill-c"],
-        errorMessage: "",
-      })
+    it("emits install-from-source with repo fullName on install click", async () => {
+      const wrapper = await mountWithResults()
+      const installBtns = wrapper.findAll(".btn-primary")
+      await installBtns[0].trigger("click")
 
+      expect(wrapper.emitted("install-from-source")).toEqual([["alice/skills"]])
+    })
+
+    it("emits correct fullName for different repos", async () => {
+      const wrapper = await mountWithResults()
+      const installBtns = wrapper.findAll(".btn-primary")
+      await installBtns[1].trigger("click")
+
+      expect(wrapper.emitted("install-from-source")).toEqual([["bob/tools"]])
+    })
+
+    it("does not call InstallFromSource directly", async () => {
       const wrapper = await mountWithResults()
       const installBtns = wrapper.findAll(".btn-primary")
       await installBtns[0].trigger("click")
       await flushPromises()
 
-      expect(mockAppService.InstallFromSource).toHaveBeenCalledWith(
-        "alice/skills",
-      )
-    })
-
-    it("shows installing state on the clicked card", async () => {
-      mockAppService.InstallFromSource.mockReturnValue(new Promise(() => {}))
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-
-      expect(wrapper.find(".btn-installing").exists()).toBe(true)
-      expect(wrapper.find(".btn-installing").text()).toContain("Installing")
-    })
-
-    it("shows installed state after successful install", async () => {
-      mockAppService.InstallFromSource.mockResolvedValue({
-        success: true,
-        skillsCount: 3,
-        skillNames: ["skill-a", "skill-b", "skill-c"],
-        errorMessage: "",
-      })
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-      await flushPromises()
-
-      expect(wrapper.find(".btn-installed").exists()).toBe(true)
-      expect(wrapper.find(".btn-installed").text()).toContain("Installed")
-    })
-
-    it("shows success toast after install", async () => {
-      mockAppService.InstallFromSource.mockResolvedValue({
-        success: true,
-        skillsCount: 2,
-        skillNames: ["skill-a", "skill-b"],
-        errorMessage: "",
-      })
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-      await flushPromises()
-
-      expect(wrapper.find(".toast.success").exists()).toBe(true)
-      expect(wrapper.find(".toast.success").text()).toContain("2 skills")
-    })
-
-    it("shows error toast on install failure", async () => {
-      mockAppService.InstallFromSource.mockResolvedValue({
-        success: false,
-        skillsCount: 0,
-        skillNames: [],
-        errorMessage: "Failed to clone repository",
-      })
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-      await flushPromises()
-
-      expect(wrapper.find(".toast.error").exists()).toBe(true)
-      expect(wrapper.find(".toast.error").text()).toContain(
-        "Failed to clone repository",
-      )
-    })
-
-    it("shows error toast on install exception", async () => {
-      mockAppService.InstallFromSource.mockRejectedValue(
-        new Error("Network timeout"),
-      )
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-      await flushPromises()
-
-      expect(wrapper.find(".toast.error").exists()).toBe(true)
-      expect(wrapper.find(".toast.error").text()).toContain("Network timeout")
-    })
-
-    it("keeps installed state after install (does not revert)", async () => {
-      mockAppService.InstallFromSource.mockResolvedValue({
-        success: true,
-        skillsCount: 1,
-        skillNames: ["skill-a"],
-        errorMessage: "",
-      })
-
-      const wrapper = await mountWithResults()
-      const installBtns = wrapper.findAll(".btn-primary")
-      await installBtns[0].trigger("click")
-      await flushPromises()
-
-      // The first card should show "Installed", second still shows "Install"
-      expect(wrapper.find(".btn-installed").exists()).toBe(true)
-      const remainingInstallBtns = wrapper.findAll(".btn-primary")
-      expect(remainingInstallBtns).toHaveLength(1)
+      expect(mockAppService.InstallFromSource).not.toHaveBeenCalled()
     })
   })
 

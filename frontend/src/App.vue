@@ -53,8 +53,8 @@
       <Transition name="fade" mode="out-in">
         <SkillList v-if="activeTab === 'workspace'" key="workspace" />
         <BrowseSkills v-else-if="activeTab === 'browse'" key="browse" />
-        <InstallSkills v-else-if="activeTab === 'install'" key="install" />
-        <MarketplaceSkills v-else-if="activeTab === 'marketplace'" key="marketplace" />
+        <InstallSkills v-else-if="activeTab === 'install'" key="install" :initial-source="pendingInstallSource" @consumed="pendingInstallSource = null" />
+        <MarketplaceSkills v-else-if="activeTab === 'marketplace'" key="marketplace" @install-from-source="handleMarketplaceInstall" />
       </Transition>
     </main>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
@@ -77,6 +77,7 @@ const showOnboarding = ref(false)
 const onboardingChecked = ref(false)
 const showSettings = ref(false)
 const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
+const pendingInstallSource = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -96,6 +97,11 @@ onMounted(async () => {
 
 function onOnboardingComplete() {
   showOnboarding.value = false
+}
+
+function handleMarketplaceInstall(source: string) {
+  pendingInstallSource.value = source
+  activeTab.value = 'install'
 }
 </script>
 
