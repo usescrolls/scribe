@@ -74,3 +74,24 @@ export interface DiscoveredSkill {
   name: string
   description: string
 }
+
+export interface MarketplaceRepo {
+  owner: string
+  name: string
+  fullName: string
+  description: string
+  url: string
+  stars: number
+  skillCount: number
+  provider: string
+}
+
+export interface MarketplaceResult {
+  repos: MarketplaceRepo[]
+  totalCount: number
+}
+
+export interface MarketplaceProviderInfo {
+  id: string
+  displayName: string
+}

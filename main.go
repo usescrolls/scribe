@@ -816,6 +816,21 @@ func (a *AppService) InstallDemoSkill() error {
 	return err
 }
 
+// ======================================================================
+// Marketplace API
+// ======================================================================
+
+// SearchMarketplace searches for skill repos using the specified provider
+func (a *AppService) SearchMarketplace(providerID, query string, page int) (*scribe.MarketplaceResult, error) {
+	scribe.Logger.Info("AppService.SearchMarketplace called", "provider", providerID, "query", query, "page", page)
+	return scribe.SearchMarketplace(providerID, query, page)
+}
+
+// GetMarketplaceProviders returns available marketplace provider IDs and display names
+func (a *AppService) GetMarketplaceProviders() []scribe.MarketplaceProviderInfo {
+	return scribe.GetMarketplaceProviders()
+}
+
 // Helper functions for system tray labels
 
 func getSkillCountLabel() string {

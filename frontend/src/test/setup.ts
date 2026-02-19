@@ -32,6 +32,8 @@ export const mockAppService = {
   DiscoverFromSource: vi.fn(),
   ConfirmInstall: vi.fn(),
   CancelDiscover: vi.fn(),
+  SearchMarketplace: vi.fn(),
+  GetMarketplaceProviders: vi.fn(),
 }
 
 // Mock the scribe bindings module

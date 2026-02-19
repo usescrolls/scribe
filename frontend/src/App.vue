@@ -40,6 +40,12 @@
         >
           Install
         </button>
+        <button
+          :class="['tab', { active: activeTab === 'marketplace' }]"
+          @click="activeTab = 'marketplace'"
+        >
+          Marketplace
+        </button>
       </div>
       <WorkspaceDropdown />
     </nav>
@@ -48,6 +54,7 @@
         <SkillList v-if="activeTab === 'workspace'" key="workspace" />
         <BrowseSkills v-else-if="activeTab === 'browse'" key="browse" />
         <InstallSkills v-else-if="activeTab === 'install'" key="install" />
+        <MarketplaceSkills v-else-if="activeTab === 'marketplace'" key="marketplace" />
       </Transition>
     </main>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
@@ -59,6 +66,7 @@ import { ref, onMounted } from 'vue'
 import SkillList from './components/SkillList.vue'
 import BrowseSkills from './components/BrowseSkills.vue'
 import InstallSkills from './components/InstallSkills.vue'
+import MarketplaceSkills from './components/MarketplaceSkills.vue'
 import WorkspaceDropdown from './components/WorkspaceDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
@@ -68,7 +76,7 @@ const version = ref('1.0.0')
 const showOnboarding = ref(false)
 const onboardingChecked = ref(false)
 const showSettings = ref(false)
-const activeTab = ref<'workspace' | 'browse' | 'install'>('workspace')
+const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
 
 onMounted(async () => {
   try {
