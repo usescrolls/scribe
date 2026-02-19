@@ -17,7 +17,7 @@
       />
       <button
         class="search-btn"
-        :disabled="!query.trim() || searching"
+        :disabled="searching"
         @click="handleSearch"
       >
         <template v-if="searching">
@@ -55,12 +55,19 @@
           v-for="repo in results.repos"
           :key="repo.fullName"
           class="repo-card"
+          @click="handleCardClick($event, repo)"
         >
+          <img v-if="repo.avatarUrl" :src="repo.avatarUrl" class="repo-avatar" alt="" />
           <div class="repo-info">
             <div class="repo-name-row">
               <span class="repo-name">{{ repo.fullName }}</span>
               <div class="repo-badges">
-                <span class="badge badge-stars" title="Stars">{{ formatStars(repo.stars) }}</span>
+                <span class="badge badge-stars" title="Stars">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                  {{ formatStars(repo.stars) }}
+                </span>
                 <span v-if="repo.skillCount > 0" class="badge badge-skills" title="Skills found">{{ repo.skillCount }} skill{{ repo.skillCount !== 1 ? 's' : '' }}</span>
               </div>
             </div>
@@ -68,8 +75,19 @@
           </div>
           <div class="repo-actions">
             <button
+              class="btn-icon"
+              title="Open in browser"
+              @click.stop="handleOpenLink(repo)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </button>
+            <button
               class="btn-primary"
-              @click="handleInstall(repo)"
+              @click.stop="handleInstall(repo)"
             >
               Install
             </button>
@@ -80,21 +98,24 @@
 
     <!-- No results -->
     <div v-else-if="results && results.repos.length === 0 && !searching" class="empty-state">
-      <p>No skill repositories found for "<strong>{{ lastQuery }}</strong>"</p>
+      <p>No skill repositories found{{ lastQuery ? ' for "' : '' }}<strong v-if="lastQuery">{{ lastQuery }}</strong>{{ lastQuery ? '"' : '' }}</p>
     </div>
 
-    <!-- Initial state -->
-    <div v-else-if="!searching && !error" class="initial-state">
-      <p class="initial-hint">Search GitHub for repositories containing agent skills</p>
-    </div>
-
+    <!-- Detail modal -->
+    <RepoReadmeModal
+      v-if="detailRepo"
+      :repo="detailRepo"
+      @close="detailRepo = null"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Browser } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import type { MarketplaceResult, MarketplaceRepo } from '../types/skill'
+import RepoReadmeModal from './RepoReadmeModal.vue'
 
 const emit = defineEmits<{
   'install-from-source': [source: string]
@@ -106,22 +127,35 @@ const searching = ref(false)
 const error = ref<string | null>(null)
 const results = ref<MarketplaceResult | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
-
+const detailRepo = ref<MarketplaceRepo | null>(null)
 
 onMounted(() => {
   searchInput.value?.focus()
+  loadInitial()
 })
 
+async function loadInitial() {
+  searching.value = true
+  error.value = null
+  try {
+    const res = await AppService.SearchMarketplace('github', '', 1)
+    results.value = res as MarketplaceResult
+  } catch (e) {
+    error.value = extractError(e)
+  } finally {
+    searching.value = false
+  }
+}
+
 async function handleSearch() {
-  const q = query.value.trim()
-  if (!q || searching.value) return
+  if (searching.value) return
 
   searching.value = true
   error.value = null
-  lastQuery.value = q
+  lastQuery.value = query.value.trim()
 
   try {
-    const res = await AppService.SearchMarketplace('github', q, 1)
+    const res = await AppService.SearchMarketplace('github', lastQuery.value, 1)
     results.value = res as MarketplaceResult
   } catch (e) {
     error.value = extractError(e)
@@ -133,6 +167,14 @@ async function handleSearch() {
 
 function handleInstall(repo: MarketplaceRepo) {
   emit('install-from-source', repo.fullName)
+}
+
+function handleOpenLink(repo: MarketplaceRepo) {
+  Browser.OpenURL(repo.url)
+}
+
+function handleCardClick(_event: MouseEvent, repo: MarketplaceRepo) {
+  detailRepo.value = repo
 }
 
 function formatStars(n: number): string {
@@ -312,16 +354,23 @@ function extractError(e: unknown): string {
 .repo-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   transition: border-color 0.15s;
+  cursor: pointer;
 }
 
 .repo-card:hover {
   border-color: var(--accent-color);
+}
+
+.repo-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .repo-info {
@@ -349,6 +398,9 @@ function extractError(e: unknown): string {
 }
 
 .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
   font-size: 0.625rem;
   font-weight: 600;
   padding: 0.0625rem 0.3125rem;
@@ -385,6 +437,29 @@ function extractError(e: unknown): string {
 /* Actions */
 .repo-actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.btn-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.btn-icon:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
 }
 
 .btn-primary {
@@ -407,15 +482,13 @@ function extractError(e: unknown): string {
 }
 
 
-/* Empty & initial states */
-.empty-state,
-.initial-state {
+/* Empty state */
+.empty-state {
   margin-top: 2rem;
   text-align: center;
 }
 
-.empty-state p,
-.initial-hint {
+.empty-state p {
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }

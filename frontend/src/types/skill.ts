@@ -81,6 +81,7 @@ export interface MarketplaceRepo {
   fullName: string
   description: string
   url: string
+  avatarUrl: string
   stars: number
   skillCount: number
   provider: string

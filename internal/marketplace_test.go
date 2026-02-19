@@ -2,6 +2,7 @@ package scribe
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -36,12 +37,22 @@ func TestSearchMarketplace_UnknownProvider(t *testing.T) {
 }
 
 func TestSearchMarketplace_DelegatesToProvider(t *testing.T) {
+	// Empty query now hits the API (returns popular skill repos).
+	// We just verify it delegates without error using a test server.
+	g, cleanup := newTestGitHub(t, githubRepoSearchResponse{TotalCount: 0, Items: []githubRepoItem{}})
+	defer cleanup()
+
+	// Override the registered provider temporarily
+	old := marketplaceProviders["github"]
+	marketplaceProviders["github"] = g
+	defer func() { marketplaceProviders["github"] = old }()
+
 	result, err := SearchMarketplace("github", "", 1)
 	if err != nil {
 		t.Fatalf("SearchMarketplace with empty query returned error: %v", err)
 	}
-	if len(result.Repos) != 0 {
-		t.Errorf("expected 0 repos for empty query, got %d", len(result.Repos))
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -59,25 +70,38 @@ func TestGitHubMarketplace_IDAndDisplayName(t *testing.T) {
 	}
 }
 
-func TestGitHubMarketplace_EmptyQuery(t *testing.T) {
-	g := &GitHubMarketplace{}
+func TestGitHubMarketplace_EmptyQueryHitsAPI(t *testing.T) {
+	g, cleanup := newTestGitHub(t, githubRepoSearchResponse{
+		TotalCount: 1,
+		Items:      []githubRepoItem{makeRepoItem("alice/skills", "alice", "skills", "Popular skills", 100)},
+	})
+	defer cleanup()
+
 	result, err := g.Search("", 1)
 	if err != nil {
 		t.Fatalf("empty query should not error: %v", err)
 	}
-	if result == nil || len(result.Repos) != 0 {
-		t.Error("empty query should return empty result")
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if len(result.Repos) != 1 {
+		t.Errorf("expected 1 repo for empty query, got %d", len(result.Repos))
 	}
 }
 
-func TestGitHubMarketplace_WhitespaceQuery(t *testing.T) {
-	g := &GitHubMarketplace{}
+func TestGitHubMarketplace_WhitespaceQueryHitsAPI(t *testing.T) {
+	g, cleanup := newTestGitHub(t, githubRepoSearchResponse{
+		TotalCount: 0,
+		Items:      []githubRepoItem{},
+	})
+	defer cleanup()
+
 	result, err := g.Search("   ", 1)
 	if err != nil {
 		t.Fatalf("whitespace query should not error: %v", err)
 	}
-	if result == nil || len(result.Repos) != 0 {
-		t.Error("whitespace query should return empty result")
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -92,7 +116,7 @@ func makeRepoItem(fullName, owner, name, desc string, stars int) githubRepoItem 
 		Description: desc,
 		HTMLURL:     "https://github.com/" + fullName,
 		Stars:       stars,
-		Owner:       githubOwnerInfo{Login: owner},
+		Owner:       githubOwnerInfo{Login: owner, AvatarURL: fmt.Sprintf("https://avatars.githubusercontent.com/u/%s", owner)},
 	}
 }
 
@@ -144,6 +168,9 @@ func TestGitHubMarketplace_ParsesSingleRepo(t *testing.T) {
 	}
 	if repo.Provider != "github" {
 		t.Errorf("Provider = %q, want 'github'", repo.Provider)
+	}
+	if repo.AvatarURL != "https://avatars.githubusercontent.com/u/alice" {
+		t.Errorf("AvatarURL = %q, want avatar URL", repo.AvatarURL)
 	}
 }
 
@@ -292,5 +319,58 @@ func TestGitHubMarketplace_PageClampedToOne(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+}
+
+// ============================================================================
+// GetRepoReadme
+// ============================================================================
+
+func TestGetRepoReadme_Success(t *testing.T) {
+	expected := "# My Skill\n\nThis is a skill repository."
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/alice/skills/readme" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Accept") != "application/vnd.github.raw+json" {
+			t.Errorf("unexpected Accept header: %s", r.Header.Get("Accept"))
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = fmt.Fprint(w, expected)
+	}))
+	defer server.Close()
+
+	// GetRepoReadme uses hardcoded api.github.com, so we need to test via the function directly.
+	// For unit testing, we use a helper that accepts baseURL.
+	content, err := getRepoReadmeFrom(server.URL, "alice", "skills")
+	if err != nil {
+		t.Fatalf("GetRepoReadme returned error: %v", err)
+	}
+	if content != expected {
+		t.Errorf("content = %q, want %q", content, expected)
+	}
+}
+
+func TestGetRepoReadme_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	_, err := getRepoReadmeFrom(server.URL, "alice", "no-readme")
+	if err == nil {
+		t.Fatal("expected error for 404 response")
+	}
+}
+
+func TestGetRepoReadme_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	_, err := getRepoReadmeFrom(server.URL, "alice", "skills")
+	if err == nil {
+		t.Fatal("expected error for 500 response")
 	}
 }

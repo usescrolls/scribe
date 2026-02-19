@@ -17,6 +17,7 @@ type MarketplaceRepo struct {
 	FullName    string `json:"fullName"`
 	Description string `json:"description"`
 	URL         string `json:"url"`
+	AvatarURL   string `json:"avatarUrl"`
 	Stars       int    `json:"stars"`
 	SkillCount  int    `json:"skillCount"`
 	Provider    string `json:"provider"`

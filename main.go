@@ -831,6 +831,12 @@ func (a *AppService) GetMarketplaceProviders() []scribe.MarketplaceProviderInfo 
 	return scribe.GetMarketplaceProviders()
 }
 
+// GetRepoReadme fetches the README.md content for a GitHub repository
+func (a *AppService) GetRepoReadme(owner, repo string) (string, error) {
+	scribe.Logger.Info("AppService.GetRepoReadme called", "owner", owner, "repo", repo)
+	return scribe.GetRepoReadme(owner, repo)
+}
+
 // Helper functions for system tray labels
 
 func getSkillCountLabel() string {

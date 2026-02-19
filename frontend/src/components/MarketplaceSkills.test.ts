@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import MarketplaceSkills from "./MarketplaceSkills.vue"
-import { mockAppService } from "../test/setup"
+import { mockAppService, mockBrowser } from "../test/setup"
 import type { MarketplaceResult } from "../types/skill"
 
 const mockResults: MarketplaceResult = {
@@ -12,6 +12,7 @@ const mockResults: MarketplaceResult = {
       fullName: "alice/skills",
       description: "A collection of useful skills",
       url: "https://github.com/alice/skills",
+      avatarUrl: "https://avatars.githubusercontent.com/u/alice",
       stars: 42,
       skillCount: 3,
       provider: "github",
@@ -22,6 +23,7 @@ const mockResults: MarketplaceResult = {
       fullName: "bob/tools",
       description: "Handy tools",
       url: "https://github.com/bob/tools",
+      avatarUrl: "https://avatars.githubusercontent.com/u/bob",
       stars: 1500,
       skillCount: 1,
       provider: "github",
@@ -30,9 +32,13 @@ const mockResults: MarketplaceResult = {
   totalCount: 2,
 }
 
+const emptyResults: MarketplaceResult = { repos: [], totalCount: 0 }
+
 describe("MarketplaceSkills", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: auto-search on mount returns empty
+    mockAppService.SearchMarketplace.mockResolvedValue(emptyResults)
   })
 
   function mountMarketplace() {
@@ -40,41 +46,51 @@ describe("MarketplaceSkills", () => {
   }
 
   describe("initial state", () => {
-    it("shows header and subtitle", () => {
+    it("shows header and subtitle", async () => {
       const wrapper = mountMarketplace()
+      await flushPromises()
 
       expect(wrapper.find(".marketplace-header h2").text()).toBe("Marketplace")
       expect(wrapper.find(".subtitle").text()).toContain("GitHub")
     })
 
-    it("shows search input and button", () => {
+    it("shows search input and button", async () => {
       const wrapper = mountMarketplace()
+      await flushPromises()
 
       expect(wrapper.find("input").exists()).toBe(true)
       expect(wrapper.find(".search-btn").exists()).toBe(true)
       expect(wrapper.find(".search-btn").text()).toContain("Search")
     })
 
-    it("disables search button when input is empty", () => {
-      const wrapper = mountMarketplace()
+    it("auto-searches on mount with empty query", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
+      mountMarketplace()
+      await flushPromises()
 
-      const btn = wrapper.find(".search-btn")
-      expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+      expect(mockAppService.SearchMarketplace).toHaveBeenCalledWith(
+        "github",
+        "",
+        1,
+      )
     })
 
-    it("shows initial hint when no search has been done", () => {
+    it("shows results from auto-search", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
       const wrapper = mountMarketplace()
+      await flushPromises()
 
-      expect(wrapper.find(".initial-state").exists()).toBe(true)
-      expect(wrapper.find(".initial-hint").text()).toContain("Search GitHub")
+      expect(wrapper.findAll(".repo-card")).toHaveLength(2)
     })
   })
 
   describe("search flow", () => {
     it("calls SearchMarketplace with provider, query, and page on click", async () => {
-      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
-
       const wrapper = mountMarketplace()
+      await flushPromises()
+      mockAppService.SearchMarketplace.mockClear()
+
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
       await wrapper.find("input").setValue("commit")
       await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
@@ -87,9 +103,11 @@ describe("MarketplaceSkills", () => {
     })
 
     it("calls SearchMarketplace on Enter key", async () => {
-      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
-
       const wrapper = mountMarketplace()
+      await flushPromises()
+      mockAppService.SearchMarketplace.mockClear()
+
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
       await wrapper.find("input").setValue("review")
       await wrapper.find("input").trigger("keyup.enter")
       await flushPromises()
@@ -101,19 +119,11 @@ describe("MarketplaceSkills", () => {
       )
     })
 
-    it("does not call SearchMarketplace with empty input", async () => {
+    it("shows loading state while searching", async () => {
       const wrapper = mountMarketplace()
-      await wrapper.find("input").setValue("   ")
-      await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
 
-      expect(mockAppService.SearchMarketplace).not.toHaveBeenCalled()
-    })
-
-    it("shows loading state while searching", async () => {
       mockAppService.SearchMarketplace.mockReturnValue(new Promise(() => {}))
-
-      const wrapper = mountMarketplace()
       await wrapper.find("input").setValue("test")
       await wrapper.find(".search-btn").trigger("click")
 
@@ -125,11 +135,12 @@ describe("MarketplaceSkills", () => {
     })
 
     it("shows error on search failure", async () => {
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
       mockAppService.SearchMarketplace.mockRejectedValue(
         new Error("GitHub API rate limit exceeded"),
       )
-
-      const wrapper = mountMarketplace()
       await wrapper.find("input").setValue("test")
       await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
@@ -139,11 +150,12 @@ describe("MarketplaceSkills", () => {
     })
 
     it("dismisses error on close button click", async () => {
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
       mockAppService.SearchMarketplace.mockRejectedValue(
         new Error("Network error"),
       )
-
-      const wrapper = mountMarketplace()
       await wrapper.find("input").setValue("test")
       await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
@@ -157,10 +169,7 @@ describe("MarketplaceSkills", () => {
   describe("results display", () => {
     async function mountWithResults() {
       mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
-
       const wrapper = mountMarketplace()
-      await wrapper.find("input").setValue("skills")
-      await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
       return wrapper
     }
@@ -194,12 +203,24 @@ describe("MarketplaceSkills", () => {
       expect(descs[1].text()).toBe("Handy tools")
     })
 
-    it("shows stars badge with formatting", async () => {
+    it("shows avatar image", async () => {
+      const wrapper = await mountWithResults()
+
+      const avatars = wrapper.findAll(".repo-avatar")
+      expect(avatars).toHaveLength(2)
+      expect(avatars[0].attributes("src")).toBe(
+        "https://avatars.githubusercontent.com/u/alice",
+      )
+    })
+
+    it("shows stars badge with star icon and formatting", async () => {
       const wrapper = await mountWithResults()
 
       const badges = wrapper.findAll(".badge-stars")
       expect(badges[0].text()).toBe("42")
       expect(badges[1].text()).toBe("1.5k")
+      // Star icon SVG should be present
+      expect(badges[0].find("svg").exists()).toBe(true)
     })
 
     it("shows skill count badge", async () => {
@@ -218,6 +239,13 @@ describe("MarketplaceSkills", () => {
       expect(buttons[0].text()).toBe("Install")
     })
 
+    it("shows link button on each card", async () => {
+      const wrapper = await mountWithResults()
+
+      const linkBtns = wrapper.findAll(".btn-icon")
+      expect(linkBtns).toHaveLength(2)
+    })
+
     it("shows singular 'result' for count of 1", async () => {
       mockAppService.SearchMarketplace.mockResolvedValue({
         repos: [mockResults.repos[0]],
@@ -225,8 +253,6 @@ describe("MarketplaceSkills", () => {
       })
 
       const wrapper = mountMarketplace()
-      await wrapper.find("input").setValue("test")
-      await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
 
       expect(wrapper.find(".results-count").text()).toContain("1 result")
@@ -236,12 +262,11 @@ describe("MarketplaceSkills", () => {
 
   describe("no results", () => {
     it("shows no results message when search returns empty", async () => {
-      mockAppService.SearchMarketplace.mockResolvedValue({
-        repos: [],
-        totalCount: 0,
-      })
-
       const wrapper = mountMarketplace()
+      await flushPromises()
+      mockAppService.SearchMarketplace.mockClear()
+
+      mockAppService.SearchMarketplace.mockResolvedValue(emptyResults)
       await wrapper.find("input").setValue("nonexistent-xyz")
       await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
@@ -254,10 +279,7 @@ describe("MarketplaceSkills", () => {
   describe("install flow", () => {
     async function mountWithResults() {
       mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
-
       const wrapper = mountMarketplace()
-      await wrapper.find("input").setValue("skills")
-      await wrapper.find(".search-btn").trigger("click")
       await flushPromises()
       return wrapper
     }
@@ -288,9 +310,43 @@ describe("MarketplaceSkills", () => {
     })
   })
 
-  describe("cleanup on unmount", () => {
-    it("does not throw when unmounting", () => {
+  describe("link button", () => {
+    it("opens repo URL in browser on link button click", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
       const wrapper = mountMarketplace()
+      await flushPromises()
+
+      const linkBtns = wrapper.findAll(".btn-icon")
+      await linkBtns[0].trigger("click")
+
+      expect(mockBrowser.OpenURL).toHaveBeenCalledWith(
+        "https://github.com/alice/skills",
+      )
+    })
+  })
+
+  describe("card click opens detail", () => {
+    it("shows RepoReadmeModal on card click", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults)
+      mockAppService.GetRepoReadme.mockResolvedValue("# README content")
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      const cards = wrapper.findAll(".repo-card")
+      await cards[0].trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.GetRepoReadme).toHaveBeenCalledWith(
+        "alice",
+        "skills",
+      )
+    })
+  })
+
+  describe("cleanup on unmount", () => {
+    it("does not throw when unmounting", async () => {
+      const wrapper = mountMarketplace()
+      await flushPromises()
       expect(() => wrapper.unmount()).not.toThrow()
     })
   })
