@@ -140,9 +140,8 @@ func IsSystemSkill(name string) bool {
 	return name == SystemSkillName
 }
 
-// EnsureSystemSkill installs or updates the system skill on disk.
-// It is idempotent: if the file already exists with matching content, it does nothing.
-// Call this during CLI and GUI startup.
+// EnsureSystemSkill installs or updates the system skill on disk and ensures
+// symlinks exist in all detected agents. Call this during CLI and GUI startup.
 func EnsureSystemSkill() error {
 	skillDir, err := GetSkillDir(SystemSkillName)
 	if err != nil {
@@ -153,39 +152,37 @@ func EnsureSystemSkill() error {
 
 	// Check if content needs updating
 	existingContent, err := os.ReadFile(skillPath)
-	if err == nil && string(existingContent) == SystemSkillContent {
-		return nil // Already up to date
+	if err != nil || string(existingContent) != SystemSkillContent {
+		// Create or update the skill
+		if err := EnsureDir(skillDir); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(skillPath, []byte(SystemSkillContent), 0o644); err != nil {
+			return err
+		}
+
+		// Write/update metadata
+		metaPath := filepath.Join(skillDir, MetaFileName)
+		now := time.Now().Format(time.RFC3339)
+		meta := &SkillMeta{
+			Source:      "scribe",
+			SourceType:  "system",
+			ContentHash: ComputeContentHash(SystemSkillContent),
+			InstalledAt: now,
+			UpdatedAt:   now,
+		}
+
+		// Preserve original installedAt if metadata already exists
+		if existingMeta, err := ReadSkillMeta(metaPath); err == nil {
+			meta.InstalledAt = existingMeta.InstalledAt
+		}
+
+		if err := WriteSkillMeta(metaPath, meta); err != nil {
+			Logger.Warn("failed to write system skill meta", "error", err)
+		}
 	}
 
-	// Create or update the skill
-	if err := EnsureDir(skillDir); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(skillPath, []byte(SystemSkillContent), 0o644); err != nil {
-		return err
-	}
-
-	// Write/update metadata
-	metaPath := filepath.Join(skillDir, MetaFileName)
-	now := time.Now().Format(time.RFC3339)
-	meta := &SkillMeta{
-		Source:      "scribe",
-		SourceType:  "system",
-		ContentHash: ComputeContentHash(SystemSkillContent),
-		InstalledAt: now,
-		UpdatedAt:   now,
-	}
-
-	// Preserve original installedAt if metadata already exists
-	if existingMeta, err := ReadSkillMeta(metaPath); err == nil {
-		meta.InstalledAt = existingMeta.InstalledAt
-	}
-
-	if err := WriteSkillMeta(metaPath, meta); err != nil {
-		Logger.Warn("failed to write system skill meta", "error", err)
-	}
-
-	// Sync to all agents
+	// Always sync to agents — symlinks may be missing even if content is current
 	return SyncSkillToAgents(SystemSkillName, AgentIDs(DetectInstalledAgents()))
 }

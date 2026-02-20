@@ -53,7 +53,7 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
 
     # Format with oxfmt
     echo "Running oxfmt on frontend files..."
-    cd frontend && pnpm exec oxfmt --write $FRONTEND_FILES
+    cd frontend && pnpm oxfmt --write $FRONTEND_FILES
     cd ..
 
     # Re-add formatted files
@@ -65,7 +65,7 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
 
     # Lint with oxlint
     echo "Running oxlint --fix on frontend files..."
-    cd frontend && pnpm exec oxlint --fix $FRONTEND_FILES
+    cd frontend && pnpm oxlint --fix $FRONTEND_FILES
     OXLINT_EXIT=$?
     cd ..
 
@@ -87,7 +87,7 @@ if [ -n "$STAGED_FRONTEND_FILES" ]; then
 
     # Run TypeScript type check
     echo "Running TypeScript check..."
-    cd frontend && pnpm exec vue-tsc --noEmit
+    cd frontend && pnpm vue-tsc --noEmit
     TSC_EXIT=$?
     cd ..
 

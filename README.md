@@ -194,6 +194,28 @@ agenthub://install?source=github&repo=owner/repo
 - [Development](docs/development.md) - Building, testing, and architecture reference
 - [Upcoming Features](docs/upcoming-features.md) - Planned features and improvements
 
+## Created By
+
+**Nuno L Mendes** — creator and maintainer of Scribe.
+
+- GitHub: [@nunomen](https://github.com/nunomen)
+
+## Sponsors
+
+Scribe is free and open source. If you or your organization find it useful, consider sponsoring the project to support ongoing development.
+
+<a href="https://github.com/sponsors/nunomen">
+  <img src="https://img.shields.io/badge/Sponsor-Scribe-EA4AAA?logo=github-sponsors&logoColor=white&style=for-the-badge" alt="Sponsor Scribe" />
+</a>
+
+Sponsors help fund new features, agent integrations, and long-term maintenance. Thank you to all our supporters!
+
 ## License
 
 MIT
+
+---
+
+<p align="center">
+  <sub>🇨🇭 Made with precision in Switzerland</sub>
+</p>

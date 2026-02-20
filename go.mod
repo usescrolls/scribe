@@ -6,7 +6,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/goccy/go-yaml v1.19.2
 	github.com/spf13/cobra v1.10.2
-	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.72
 )
 
 require (
