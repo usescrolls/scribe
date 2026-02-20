@@ -1,11 +1,14 @@
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import { AppService } from "../bindings/scribe"
 import { Events } from "@wailsio/runtime"
+import { useLogger } from "./useLogger"
 import type {
   AgentStatus,
   ExistingSkillInfo,
   SkillConflict,
 } from "../types/skill"
+
+const log = useLogger("Onboarding")
 
 export type OnboardingStep = "welcome" | "agents" | "existing-skills" | "install-demo" | "complete"
 
@@ -57,7 +60,7 @@ export function useOnboarding() {
       agentsLoading.value = true
       agents.value = await AppService.GetAgentStatus()
     } catch (e) {
-      console.error("Failed to fetch agents:", e)
+      log.error(`failed to fetch agents: ${e instanceof Error ? e.message : e}`)
     } finally {
       agentsLoading.value = false
     }
@@ -84,7 +87,11 @@ export function useOnboarding() {
       existingSkills.value = await AppService.DetectExistingSkills()
       skillConflicts.value = await AppService.DetectSkillConflicts()
     } catch (e) {
-      console.error("Failed to detect existing skills:", e)
+      log.error(
+        `failed to detect existing skills: ${
+          e instanceof Error ? e.message : e
+        }`,
+      )
     } finally {
       existingSkillsLoading.value = false
     }
@@ -92,6 +99,7 @@ export function useOnboarding() {
 
   // Import all existing skills
   async function importAllSkills(): Promise<boolean> {
+    log.info("importing all existing skills")
     try {
       existingSkillsLoading.value = true
       await AppService.ImportAllExistingSkills()
@@ -151,6 +159,7 @@ export function useOnboarding() {
 
   // Complete onboarding
   async function completeOnboarding(): Promise<boolean> {
+    log.info("completing onboarding")
     try {
       await AppService.CompleteOnboarding()
       isCompleted.value = true

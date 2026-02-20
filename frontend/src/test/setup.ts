@@ -35,6 +35,7 @@ export const mockAppService = {
   SearchMarketplace: vi.fn(),
   GetMarketplaceProviders: vi.fn(),
   GetRepoReadme: vi.fn(),
+  Log: vi.fn().mockResolvedValue(undefined),
 }
 
 // Mock the scribe bindings module
@@ -63,4 +64,6 @@ vi.mock("@wailsio/runtime", () => ({
 // Reset all mocks before each test
 beforeEach(() => {
   vi.clearAllMocks()
+  // Log must always return a promise since useLogger calls .catch() on it
+  mockAppService.Log.mockResolvedValue(undefined)
 })

@@ -73,7 +73,9 @@ import SettingsModal from './components/SettingsModal.vue'
 import WorkspaceSwitchInfoModal from './components/WorkspaceSwitchInfoModal.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
 import { AppService } from './bindings/scribe'
+import { useLogger } from './composables/useLogger'
 
+const log = useLogger('App')
 const version = ref('1.0.0')
 const showOnboarding = ref(false)
 const onboardingChecked = ref(false)
@@ -83,6 +85,7 @@ const pendingInstallSource = ref<string | null>(null)
 
 onMounted(async () => {
   try {
+    log.info('initializing app')
     // Check onboarding status first
     const completed = await AppService.IsOnboardingCompleted()
     showOnboarding.value = !completed
@@ -90,8 +93,9 @@ onMounted(async () => {
 
     // Load version
     version.value = await AppService.GetVersion()
+    log.info(`app initialized, version=${version.value}, onboarding=${completed ? 'done' : 'pending'}`)
   } catch (e) {
-    console.error('Failed to initialize app:', e)
+    log.error(`failed to initialize app: ${e instanceof Error ? e.message : e}`)
     // If we can't check onboarding, show the main app
     onboardingChecked.value = true
   }

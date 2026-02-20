@@ -1,7 +1,10 @@
 import { ref, computed, onMounted, onUnmounted } from "vue"
 import { AppService } from "../bindings/scribe"
 import { Events } from "@wailsio/runtime"
+import { useLogger } from "./useLogger"
 import type { AgentStatus } from "../types/skill"
+
+const log = useLogger("Agents")
 
 export function useAgents() {
   const agents = ref<AgentStatus[]>([])
@@ -17,6 +20,7 @@ export function useAgents() {
       error.value = null
       agents.value = await AppService.GetAgentStatus()
     } catch (e) {
+      log.error(`failed to fetch agents: ${e instanceof Error ? e.message : e}`)
       error.value = e instanceof Error ? e.message : "Failed to load agents"
     } finally {
       loading.value = false

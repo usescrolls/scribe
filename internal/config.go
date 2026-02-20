@@ -1,6 +1,7 @@
 package scribe
 
 import (
+	"io"
 	"log/slog"
 	"os"
 )
@@ -23,7 +24,11 @@ const (
 // Logger is the global structured logger instance
 var Logger *slog.Logger
 
-// InitLogger initializes the structured logger
+// LogWriter is the global rotating log writer (for cleanup on shutdown)
+var LogWriter *RotatingLogWriter
+
+// InitLogger initializes the structured logger for GUI mode.
+// Writes to both stderr and ~/.scribe/scribe.log.
 func InitLogger(debug bool) {
 	level := slog.LevelInfo
 	if debug {
@@ -34,24 +39,49 @@ func InitLogger(debug bool) {
 		Level: level,
 	}
 
-	handler := slog.NewTextHandler(os.Stderr, opts)
-	Logger = slog.New(handler)
+	var output io.Writer = os.Stderr
+	lw, err := NewRotatingLogWriter()
+	if err == nil {
+		LogWriter = lw
+		output = io.MultiWriter(os.Stderr, lw)
+	}
+
+	handler := slog.NewTextHandler(output, opts)
+	Logger = slog.New(handler).With("source", "internal")
 	slog.SetDefault(Logger)
 }
 
-// InitLoggerCLI initializes a quiet logger for CLI mode
-// Only shows logs when debug=true, otherwise suppresses all output
+// InitLoggerCLI initializes a quiet logger for CLI mode.
+// Always writes to ~/.scribe/scribe.log at Info level.
+// Writes to stderr only when debug=true.
 func InitLoggerCLI(debug bool) {
-	level := slog.LevelError + 1 // Suppress all logs
-	if debug {
-		level = slog.LevelDebug
-	}
-
+	var output io.Writer = os.Stderr
 	opts := &slog.HandlerOptions{
-		Level: level,
+		Level: slog.LevelError + 1, // Suppress all by default
 	}
 
-	handler := slog.NewTextHandler(os.Stderr, opts)
-	Logger = slog.New(handler)
+	lw, err := NewRotatingLogWriter()
+	if err == nil {
+		LogWriter = lw
+		if debug {
+			opts.Level = slog.LevelDebug
+			output = io.MultiWriter(os.Stderr, lw)
+		} else {
+			opts.Level = slog.LevelInfo
+			output = lw
+		}
+	} else if debug {
+		opts.Level = slog.LevelDebug
+	}
+
+	handler := slog.NewTextHandler(output, opts)
+	Logger = slog.New(handler).With("source", "internal")
 	slog.SetDefault(Logger)
+}
+
+// CloseLogger closes the log file writer. Call on application shutdown.
+func CloseLogger() {
+	if LogWriter != nil {
+		_ = LogWriter.Close()
+	}
 }

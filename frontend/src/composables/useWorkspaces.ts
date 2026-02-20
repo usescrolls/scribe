@@ -1,7 +1,10 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { AppService } from "../bindings/scribe"
 import { Events } from "@wailsio/runtime"
+import { useLogger } from "./useLogger"
 import type { WorkspaceInfo } from "../types/skill"
+
+const log = useLogger("Workspaces")
 
 const SKIP_SWITCH_INFO_KEY = "scribe-skip-workspace-switch-info"
 
@@ -46,6 +49,9 @@ export function useWorkspaces() {
         activeWorkspace.value = active.name
       }
     } catch (e) {
+      log.error(
+        `failed to fetch workspaces: ${e instanceof Error ? e.message : e}`,
+      )
       error.value = e instanceof Error ? e.message : "Failed to load workspaces"
     } finally {
       loading.value = false
@@ -53,7 +59,7 @@ export function useWorkspaces() {
   }
 
   async function switchWorkspace(name: string): Promise<boolean> {
-    console.log("[useWorkspaces] switching to:", name)
+    log.info(`switching workspace to: ${name}`)
     try {
       await AppService.SetActiveWorkspace(name)
       activeWorkspace.value = name
@@ -64,7 +70,11 @@ export function useWorkspaces() {
       }
       return true
     } catch (e) {
-      console.error("[useWorkspaces] switchWorkspace failed:", e)
+      log.error(
+        `failed to switch workspace to ${name}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      )
       error.value =
         e instanceof Error ? e.message : "Failed to switch workspace"
       return false
@@ -75,11 +85,17 @@ export function useWorkspaces() {
     name: string,
     description: string = "",
   ): Promise<boolean> {
+    log.info(`creating workspace: ${name}`)
     try {
       await AppService.CreateWorkspace(name, description)
       await fetchWorkspaces()
       return true
     } catch (e) {
+      log.error(
+        `failed to create workspace ${name}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      )
       error.value =
         e instanceof Error ? e.message : "Failed to create workspace"
       return false
@@ -87,11 +103,17 @@ export function useWorkspaces() {
   }
 
   async function deleteWorkspace(name: string): Promise<boolean> {
+    log.info(`deleting workspace: ${name}`)
     try {
       await AppService.DeleteWorkspace(name)
       await fetchWorkspaces()
       return true
     } catch (e) {
+      log.error(
+        `failed to delete workspace ${name}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      )
       error.value =
         e instanceof Error ? e.message : "Failed to delete workspace"
       return false

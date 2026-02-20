@@ -92,6 +92,7 @@ func runGUIMode() {
 	// Initialize skills system directories
 	if err := scribe.EnsureScribeDirs(); err != nil {
 		scribe.Logger.Error("failed to initialize scribe directories", "error", err)
+		scribe.CloseLogger()
 		os.Exit(1)
 	}
 
@@ -221,6 +222,7 @@ func runGUIMode() {
 	if err := wailsApp.Run(); err != nil {
 		scribe.Logger.Error("application error", "error", err)
 	}
+	scribe.CloseLogger()
 }
 
 // AppService provides bindings for the frontend
@@ -249,6 +251,25 @@ func (a *AppService) clearPending() {
 // GetVersion returns the application version
 func (a *AppService) GetVersion() string {
 	return scribe.Version
+}
+
+// Log writes a log message from the frontend to the unified log file.
+// Valid levels: "debug", "info", "warn", "error".
+func (a *AppService) Log(level, message string) {
+	frontendLogger := scribe.Logger.With("source", "frontend")
+
+	switch level {
+	case "debug":
+		frontendLogger.Debug(message)
+	case "info":
+		frontendLogger.Info(message)
+	case "warn":
+		frontendLogger.Warn(message)
+	case "error":
+		frontendLogger.Error(message)
+	default:
+		frontendLogger.Info(message)
+	}
 }
 
 // ======================================================================

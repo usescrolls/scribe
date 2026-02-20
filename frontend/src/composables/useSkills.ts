@@ -1,7 +1,10 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { AppService } from "../bindings/scribe"
 import { Events } from "@wailsio/runtime"
+import { useLogger } from "./useLogger"
 import type { SkillInfo } from "../types/skill"
+
+const log = useLogger("Skills")
 
 export function useSkills() {
   const skills = ref<SkillInfo[]>([])
@@ -16,6 +19,7 @@ export function useSkills() {
       error.value = null
       skills.value = await AppService.GetSkills()
     } catch (e) {
+      log.error(`failed to fetch skills: ${e instanceof Error ? e.message : e}`)
       error.value = e instanceof Error ? e.message : "Failed to load skills"
     } finally {
       loading.value = false
@@ -23,15 +27,18 @@ export function useSkills() {
   }
 
   async function uninstall(name: string): Promise<boolean> {
-    console.log("[useSkills] uninstall called with:", name)
+    log.info(`uninstalling skill: ${name}`)
     try {
-      console.log("[useSkills] Calling AppService.RemoveSkill...")
       await AppService.RemoveSkill(name)
-      console.log("[useSkills] RemoveSkill succeeded, refreshing skills...")
+      log.info(`skill uninstalled: ${name}`)
       await fetchSkills()
       return true
     } catch (e) {
-      console.error("[useSkills] RemoveSkill failed:", e)
+      log.error(
+        `failed to uninstall skill ${name}: ${
+          e instanceof Error ? e.message : e
+        }`,
+      )
       error.value = e instanceof Error ? e.message : "Failed to uninstall skill"
       return false
     }
