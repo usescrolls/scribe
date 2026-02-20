@@ -3,6 +3,31 @@ import { AppService } from "../bindings/scribe"
 import { Events } from "@wailsio/runtime"
 import type { WorkspaceInfo } from "../types/skill"
 
+const SKIP_SWITCH_INFO_KEY = "scribe-skip-workspace-switch-info"
+
+// Shared across all composable instances
+export const showSwitchInfoModal = ref(false)
+export const switchInfoWorkspaceName = ref("")
+
+export function dismissSwitchInfo(dontShowAgain: boolean) {
+  showSwitchInfoModal.value = false
+  if (dontShowAgain) {
+    try {
+      localStorage.setItem(SKIP_SWITCH_INFO_KEY, "true")
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+}
+
+function shouldShowSwitchInfo(): boolean {
+  try {
+    return localStorage.getItem(SKIP_SWITCH_INFO_KEY) !== "true"
+  } catch {
+    return false
+  }
+}
+
 export function useWorkspaces() {
   const workspaces = ref<WorkspaceInfo[]>([])
   const activeWorkspace = ref<string>("default")
@@ -33,6 +58,10 @@ export function useWorkspaces() {
       await AppService.SetActiveWorkspace(name)
       activeWorkspace.value = name
       await fetchWorkspaces()
+      if (shouldShowSwitchInfo()) {
+        switchInfoWorkspaceName.value = name
+        showSwitchInfoModal.value = true
+      }
       return true
     } catch (e) {
       console.error("[useWorkspaces] switchWorkspace failed:", e)

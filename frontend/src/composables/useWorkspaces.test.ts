@@ -1,8 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { flushPromises } from "@vue/test-utils"
-import { useWorkspaces } from "./useWorkspaces"
+import {
+  useWorkspaces,
+  showSwitchInfoModal,
+  switchInfoWorkspaceName,
+  dismissSwitchInfo,
+} from "./useWorkspaces"
 import { mockAppService } from "../test/setup"
 import type { WorkspaceInfo } from "../types/skill"
+
+const SKIP_SWITCH_INFO_KEY = "scribe-skip-workspace-switch-info"
+
+// Mock localStorage
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key]
+    }),
+    clear: vi.fn(() => {
+      store = {}
+    }),
+  }
+})()
+
+Object.defineProperty(globalThis, "localStorage", { value: localStorageMock })
 
 describe("useWorkspaces", () => {
   const mockWorkspaces: WorkspaceInfo[] = [
@@ -28,6 +54,9 @@ describe("useWorkspaces", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorageMock.clear()
+    showSwitchInfoModal.value = false
+    switchInfoWorkspaceName.value = ""
     mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
   })
 
@@ -165,6 +194,73 @@ describe("useWorkspaces", () => {
 
       expect(result).toBe(false)
       expect(error.value).toBe("Cannot delete default workspace")
+    })
+  })
+
+  describe("switch info modal", () => {
+    it("shows info modal after successful switch", async () => {
+      mockAppService.SetActiveWorkspace.mockResolvedValue(undefined)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      const { switchWorkspace, fetchWorkspaces } = useWorkspaces()
+      await fetchWorkspaces()
+
+      await switchWorkspace("web-dev")
+
+      expect(showSwitchInfoModal.value).toBe(true)
+      expect(switchInfoWorkspaceName.value).toBe("web-dev")
+    })
+
+    it("does not show info modal when localStorage preference is set", async () => {
+      localStorageMock.getItem.mockReturnValue("true")
+      mockAppService.SetActiveWorkspace.mockResolvedValue(undefined)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      const { switchWorkspace, fetchWorkspaces } = useWorkspaces()
+      await fetchWorkspaces()
+
+      await switchWorkspace("web-dev")
+
+      expect(showSwitchInfoModal.value).toBe(false)
+    })
+
+    it("does not show info modal when switch fails", async () => {
+      mockAppService.SetActiveWorkspace.mockRejectedValue(new Error("Failed"))
+
+      const { switchWorkspace, fetchWorkspaces } = useWorkspaces()
+      await fetchWorkspaces()
+
+      await switchWorkspace("web-dev")
+
+      expect(showSwitchInfoModal.value).toBe(false)
+    })
+
+    it("dismissSwitchInfo hides modal", () => {
+      showSwitchInfoModal.value = true
+
+      dismissSwitchInfo(false)
+
+      expect(showSwitchInfoModal.value).toBe(false)
+    })
+
+    it("dismissSwitchInfo saves preference when dontShowAgain is true", () => {
+      showSwitchInfoModal.value = true
+
+      dismissSwitchInfo(true)
+
+      expect(showSwitchInfoModal.value).toBe(false)
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        SKIP_SWITCH_INFO_KEY,
+        "true",
+      )
+    })
+
+    it("dismissSwitchInfo does not save preference when dontShowAgain is false", () => {
+      showSwitchInfoModal.value = true
+
+      dismissSwitchInfo(false)
+
+      expect(localStorageMock.setItem).not.toHaveBeenCalled()
     })
   })
 

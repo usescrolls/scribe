@@ -58,6 +58,7 @@
       </Transition>
     </main>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
+    <WorkspaceSwitchInfoModal />
   </div>
 </template>
 
@@ -69,6 +70,7 @@ import InstallSkills from './components/InstallSkills.vue'
 import MarketplaceSkills from './components/MarketplaceSkills.vue'
 import WorkspaceDropdown from './components/WorkspaceDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import WorkspaceSwitchInfoModal from './components/WorkspaceSwitchInfoModal.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
 import { AppService } from './bindings/scribe'
 
