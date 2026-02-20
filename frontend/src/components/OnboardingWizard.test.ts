@@ -286,6 +286,19 @@ describe("OnboardingWizard", () => {
         true,
       )
     })
+
+    it("skips demo and advances to complete step without installing", async () => {
+      const wrapper = await mountWizard()
+      await navigateToInstallDemo(wrapper)
+
+      wrapper.findComponent({ name: "InstallDemoStep" }).vm.$emit("skip")
+      await flushPromises()
+
+      expect(mockAppService.InstallDemoSkill).not.toHaveBeenCalled()
+      expect(wrapper.findComponent({ name: "CompleteStep" }).exists()).toBe(
+        true,
+      )
+    })
   })
 
   describe("finish onboarding", () => {

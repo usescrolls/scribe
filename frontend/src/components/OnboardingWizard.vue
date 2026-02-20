@@ -28,6 +28,7 @@
           :installing="demoSkillInstalling"
           :installed-agents="installedAgents"
           @install="handleInstallDemo"
+          @skip="handleSkipDemo"
         />
         <CompleteStep
           v-else-if="currentStep === 'complete'"
@@ -132,6 +133,10 @@ async function handleInstallDemo() {
   if (success) {
     goToStep('complete')
   }
+}
+
+function handleSkipDemo() {
+  goToStep('complete')
 }
 
 async function handleFinish() {

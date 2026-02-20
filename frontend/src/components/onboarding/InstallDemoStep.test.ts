@@ -78,4 +78,25 @@ describe("InstallDemoStep", () => {
 
     expect(wrapper.emitted("install")).toBeTruthy()
   })
+
+  it("shows skip button", () => {
+    const wrapper = mountStep()
+
+    expect(wrapper.find(".skip-button").exists()).toBe(true)
+    expect(wrapper.find(".skip-button").text()).toBe("Skip")
+  })
+
+  it("emits skip on skip button click", async () => {
+    const wrapper = mountStep()
+
+    await wrapper.find(".skip-button").trigger("click")
+
+    expect(wrapper.emitted("skip")).toBeTruthy()
+  })
+
+  it("disables skip button while installing", () => {
+    const wrapper = mountStep({ installing: true })
+
+    expect(wrapper.find(".skip-button").attributes("disabled")).toBeDefined()
+  })
 })

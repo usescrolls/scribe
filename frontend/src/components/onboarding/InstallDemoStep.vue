@@ -32,17 +32,26 @@
       </div>
     </div>
 
-    <button
-      class="primary-button"
-      :disabled="installing"
-      @click="$emit('install')"
-    >
-      <span v-if="installing" class="button-content">
-        <span class="spinner-small" />
-        Installing...
-      </span>
-      <span v-else>Install Demo Skill</span>
-    </button>
+    <div class="button-group">
+      <button
+        class="primary-button"
+        :disabled="installing"
+        @click="$emit('install')"
+      >
+        <span v-if="installing" class="button-content">
+          <span class="spinner-small" />
+          Installing...
+        </span>
+        <span v-else>Install Demo Skill</span>
+      </button>
+      <button
+        class="skip-button"
+        :disabled="installing"
+        @click="$emit('skip')"
+      >
+        Skip
+      </button>
+    </div>
   </div>
 </template>
 
@@ -56,6 +65,7 @@ defineProps<{
 
 defineEmits<{
   install: []
+  skip: []
 }>()
 </script>
 
@@ -151,6 +161,13 @@ h1 {
   line-height: 1.5;
 }
 
+.button-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .primary-button {
   padding: 0.75rem 2rem;
   font-size: 1rem;
@@ -162,6 +179,26 @@ h1 {
   cursor: pointer;
   transition: opacity 0.2s ease;
   min-width: 200px;
+}
+
+.skip-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.skip-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.skip-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .primary-button:hover:not(:disabled) {

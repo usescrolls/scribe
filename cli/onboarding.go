@@ -121,14 +121,22 @@ func runOnboarding() error {
 	}
 
 	// Step 4: Install demo skill
-	fmt.Println("Installing demo skill...")
-	if err := scribe.InstallDemoSkill(); err != nil {
-		return fmt.Errorf("failed to install demo skill: %w", err)
-	}
+	fmt.Print("Would you like to install the demo skill? [Y/n] ")
+	input, _ := reader.ReadString('\n')
+	input = strings.ToLower(strings.TrimSpace(input))
 
-	scrollsDir, _ := scribe.GetScrollsDir()
-	fmt.Printf("Installed scribe-welcome to %s/scribe-welcome\n", scrollsDir)
-	fmt.Printf("Synced to %d agent(s)\n", len(agents))
+	if input == "" || input == "y" || input == "yes" {
+		fmt.Println("Installing demo skill...")
+		if err := scribe.InstallDemoSkill(); err != nil {
+			return fmt.Errorf("failed to install demo skill: %w", err)
+		}
+
+		scrollsDir, _ := scribe.GetScrollsDir()
+		fmt.Printf("Installed scribe-welcome to %s/scribe-welcome\n", scrollsDir)
+		fmt.Printf("Synced to %d agent(s)\n", len(agents))
+	} else {
+		fmt.Println("Skipping demo skill installation.")
+	}
 	fmt.Println()
 
 	// Step 5: Complete
