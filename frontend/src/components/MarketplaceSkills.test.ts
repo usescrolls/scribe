@@ -343,6 +343,101 @@ describe("MarketplaceSkills", () => {
     })
   })
 
+  describe("pagination", () => {
+    const manyResults: MarketplaceResult = {
+      repos: mockResults.repos,
+      totalCount: 90, // 3 pages at 30 per page
+    }
+
+    it("shows pagination controls when totalCount exceeds page size", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      expect(wrapper.find(".pagination").exists()).toBe(true)
+      expect(wrapper.find(".page-info").text()).toBe("1 / 3")
+    })
+
+    it("hides pagination controls when results fit one page", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(mockResults) // totalCount: 2
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      expect(wrapper.find(".pagination").exists()).toBe(false)
+    })
+
+    it("disables prev button on first page", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      const prevBtn = wrapper.find(".pagination .page-btn")
+      expect((prevBtn.element as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it("navigates to next page on next button click", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const wrapper = mountMarketplace()
+      await flushPromises()
+      mockAppService.SearchMarketplace.mockClear()
+
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const nextBtn = wrapper.findAll(".pagination .page-btn")[1]
+      await nextBtn.trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.SearchMarketplace).toHaveBeenCalledWith(
+        "github",
+        "",
+        2,
+      )
+      expect(wrapper.find(".page-info").text()).toBe("2 / 3")
+    })
+
+    it("disables next button on last page", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      // Navigate to page 3
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const nextBtn = wrapper.findAll(".pagination .page-btn")[1]
+      await nextBtn.trigger("click")
+      await flushPromises()
+      await nextBtn.trigger("click")
+      await flushPromises()
+
+      expect(wrapper.find(".page-info").text()).toBe("3 / 3")
+      expect((nextBtn.element as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    it("resets to page 1 on new search", async () => {
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      const wrapper = mountMarketplace()
+      await flushPromises()
+
+      // Go to page 2
+      const nextBtn = wrapper.findAll(".pagination .page-btn")[1]
+      await nextBtn.trigger("click")
+      await flushPromises()
+      expect(wrapper.find(".page-info").text()).toBe("2 / 3")
+
+      // New search
+      mockAppService.SearchMarketplace.mockClear()
+      mockAppService.SearchMarketplace.mockResolvedValue(manyResults)
+      await wrapper.find("input").setValue("test")
+      await wrapper.find(".search-btn").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.find(".page-info").text()).toBe("1 / 3")
+      expect(mockAppService.SearchMarketplace).toHaveBeenCalledWith(
+        "github",
+        "test",
+        1,
+      )
+    })
+  })
+
   describe("cleanup on unmount", () => {
     it("does not throw when unmounting", async () => {
       const wrapper = mountMarketplace()

@@ -39,6 +39,7 @@ clean:
 	rm -rf $(BUILD_DIR)
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
+	rm -rf frontend/bindings
 
 # Install to ~/.local/bin
 install: build
