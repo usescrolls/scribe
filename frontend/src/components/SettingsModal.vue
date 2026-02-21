@@ -214,6 +214,7 @@ onUnmounted(() => {
 
 .settings-modal {
   width: 640px;
+  height: 420px;
   max-width: calc(100vw - 2rem);
   max-height: calc(100vh - 4rem);
   background-color: var(--bg-primary);

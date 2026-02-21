@@ -91,7 +91,7 @@ const onboardingChecked = ref(false)
 const showSettings = ref(false)
 const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
 const pendingInstallSource = ref<string | null>(null)
-const { updateInfo, showToast: showUpdateToast, dismissToast } = useUpdateChecker()
+const { updateInfo, showToast: showUpdateToast, dismissToast, startPolling } = useUpdateChecker()
 
 onMounted(async () => {
   try {
@@ -104,6 +104,9 @@ onMounted(async () => {
     // Load version
     version.value = await AppService.GetVersion()
     log.info(`app initialized, version=${version.value}, onboarding=${completed ? 'done' : 'pending'}`)
+
+    // Start update polling (shared state — only runs once)
+    startPolling()
   } catch (e) {
     log.error(`failed to initialize app: ${e instanceof Error ? e.message : e}`)
     // If we can't check onboarding, show the main app

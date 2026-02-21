@@ -35,6 +35,9 @@ export const mockAppService = {
   SearchMarketplace: vi.fn(),
   GetMarketplaceProviders: vi.fn(),
   GetRepoReadme: vi.fn(),
+  CheckForAppUpdate: vi.fn(),
+  IsUpdateNotificationsDisabled: vi.fn(),
+  SetUpdateNotificationsDisabled: vi.fn(),
   Log: vi.fn().mockResolvedValue(undefined),
 }
 
