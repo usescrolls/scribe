@@ -3,6 +3,8 @@
 
 BINARY_NAME=scribe
 BUILD_DIR=build
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")-dev
+LDFLAGS=-s -w -X github.com/usescrolls/scribe/internal.Version=$(VERSION)
 
 # macOS deployment target (set to current OS version to avoid linker warnings)
 MACOS_VERSION := $(shell sw_vers -productVersion 2>/dev/null || echo "")
@@ -15,9 +17,9 @@ ifeq ($(shell uname),Darwin)
 	MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION) \
 	CGO_CFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
 	CGO_LDFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
-	go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 else
-	CGO_ENABLED=1 go build -ldflags="-s -w" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 endif
 
 # Build frontend only (generates bindings if missing)
@@ -105,7 +107,7 @@ install-hooks:
 
 # Create macOS .app bundle (requires build first)
 app: build
-	./packaging/macos/create-app.sh
+	VERSION=$(VERSION) ./packaging/macos/create-app.sh
 	@echo ""
 	@echo "To run the app with the proper icon:"
 	@echo "  make app-run"

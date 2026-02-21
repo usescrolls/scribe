@@ -4,7 +4,7 @@ set -e
 # Configuration
 APP_NAME="Scribe"
 BUNDLE_ID="dev.scribe"
-VERSION="1.0.0"
+VERSION="${VERSION:-dev}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
@@ -50,8 +50,9 @@ mkdir -p "$APP_DIR/Contents/Resources"
 cp "$BINARY_PATH" "$APP_DIR/Contents/MacOS/scribe"
 chmod +x "$APP_DIR/Contents/MacOS/scribe"
 
-# Copy Info.plist
+# Copy Info.plist and inject version
 cp "$SCRIPT_DIR/Info.plist" "$APP_DIR/Contents/"
+sed -i '' "s/__VERSION__/$VERSION/g" "$APP_DIR/Contents/Info.plist"
 
 # Copy icon - prefer pre-generated icns from icons directory
 if [ -f "$REPO_DIR/icons/AppIcon.icns" ]; then

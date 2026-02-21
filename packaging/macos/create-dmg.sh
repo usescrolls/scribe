@@ -4,7 +4,7 @@ set -e
 # Configuration
 APP_NAME="Scribe"
 DMG_NAME="Scribe-Installer"
-VERSION="1.0.0"
+VERSION="${VERSION:-dev}"
 VOLUME_NAME="Scribe"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

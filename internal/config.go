@@ -6,10 +6,12 @@ import (
 	"os"
 )
 
+// Version is overridden at build time via ldflags
+var Version = "dev"
+
 const (
 	MarketplaceName  = "scribe"
 	MarketplaceOwner = "Scribe"
-	Version          = "1.0.0"
 
 	// Directory structure constants
 	HubDirName         = ".scribe"

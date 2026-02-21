@@ -123,7 +123,8 @@ jobs:
 
       - name: Build Linux AMD64
         run: |
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o scribe-linux-amd64 .
+          VERSION=${GITHUB_REF_NAME#v}
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/usescrolls/scribe/internal.Version=$VERSION" -o scribe-linux-amd64 .
 
       - name: Upload Linux binary
         uses: actions/upload-artifact@v4
@@ -163,7 +164,8 @@ jobs:
 
       - name: Build Windows AMD64
         run: |
-          go build -ldflags="-s -w -H windowsgui" -o scribe-windows-amd64.exe .
+          $VERSION = "${{ github.ref_name }}".TrimStart("v")
+          go build -ldflags="-s -w -H windowsgui -X github.com/usescrolls/scribe/internal.Version=$VERSION" -o scribe-windows-amd64.exe .
 
       - name: Upload Windows binary
         uses: actions/upload-artifact@v4
@@ -206,17 +208,18 @@ jobs:
 
       - name: Build macOS binary
         run: |
+          VERSION=${GITHUB_REF_NAME#v}
           mkdir -p build
           # Build for native architecture (arm64 on macos-latest)
           # Wails v3 requires CGO for darwin platform code
-          CGO_ENABLED=1 go build -ldflags="-s -w" -o build/scribe-darwin-arm64 .
+          CGO_ENABLED=1 go build -ldflags="-s -w -X github.com/usescrolls/scribe/internal.Version=$VERSION" -o build/scribe-darwin-arm64 .
 
       - name: Create app bundle
-        run: ./packaging/macos/create-app.sh
+        run: VERSION=${GITHUB_REF_NAME#v} ./packaging/macos/create-app.sh
 
       - name: Create DMG
         run: |
-          ./packaging/macos/create-dmg.sh
+          VERSION=${GITHUB_REF_NAME#v} ./packaging/macos/create-dmg.sh
           # Rename to expected name
           mv build/Scribe-Installer.dmg build/scribe-Installer.dmg
 
