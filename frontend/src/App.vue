@@ -59,6 +59,13 @@
     </main>
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
     <WorkspaceSwitchInfoModal />
+    <ToastNotification
+      v-if="showUpdateToast && updateInfo"
+      :message="`New version available: ${updateInfo.latestVersion} (current: ${updateInfo.currentVersion})`"
+      type="info"
+      :duration="15000"
+      @close="dismissToast"
+    />
   </div>
 </template>
 
@@ -72,8 +79,10 @@ import WorkspaceDropdown from './components/WorkspaceDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import WorkspaceSwitchInfoModal from './components/WorkspaceSwitchInfoModal.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
+import ToastNotification from './components/ToastNotification.vue'
 import { AppService } from './bindings/scribe'
 import { useLogger } from './composables/useLogger'
+import { useUpdateChecker } from './composables/useUpdateChecker'
 
 const log = useLogger('App')
 const version = ref('1.0.0')
@@ -82,6 +91,7 @@ const onboardingChecked = ref(false)
 const showSettings = ref(false)
 const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
 const pendingInstallSource = ref<string | null>(null)
+const { updateInfo, showToast: showUpdateToast, dismissToast } = useUpdateChecker()
 
 onMounted(async () => {
   try {

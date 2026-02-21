@@ -858,6 +858,40 @@ func (a *AppService) GetRepoReadme(owner, repo string) (string, error) {
 	return scribe.GetRepoReadme(owner, repo)
 }
 
+// ======================================================================
+// Updates API
+// ======================================================================
+
+// CheckForAppUpdate queries GitHub for the latest release and returns update info
+func (a *AppService) CheckForAppUpdate() (*scribe.UpdateInfo, error) {
+	scribe.Logger.Info("AppService.CheckForAppUpdate called")
+	info, err := scribe.CheckForUpdate("")
+	if err != nil {
+		scribe.Logger.Warn("update check failed", "error", err)
+		return nil, err
+	}
+	scribe.Logger.Info("update check completed",
+		"current", info.CurrentVersion,
+		"latest", info.LatestVersion,
+		"updateAvailable", info.UpdateAvailable)
+	return info, nil
+}
+
+// IsUpdateNotificationsDisabled returns whether the user has suppressed update toasts
+func (a *AppService) IsUpdateNotificationsDisabled() bool {
+	disabled, err := scribe.IsUpdateNotificationsDisabled()
+	if err != nil {
+		scribe.Logger.Error("failed to check update notification preference", "error", err)
+		return false
+	}
+	return disabled
+}
+
+// SetUpdateNotificationsDisabled sets the user's preference for update notifications
+func (a *AppService) SetUpdateNotificationsDisabled(disabled bool) error {
+	return scribe.SetUpdateNotificationsDisabled(disabled)
+}
+
 // Helper functions for system tray labels
 
 func getSkillCountLabel() string {

@@ -25,6 +25,48 @@
                 <AgentStatusPanel />
               </section>
 
+              <section v-else-if="activeSection === 'updates'" class="settings-section">
+                <h3 class="section-title">Updates</h3>
+                <div class="updates-section">
+                  <div class="version-info">
+                    <div class="version-row">
+                      <span class="version-label">Current version</span>
+                      <span class="version-value">{{ updateInfo?.currentVersion ?? '...' }}</span>
+                    </div>
+                    <div class="version-row">
+                      <span class="version-label">Latest version</span>
+                      <span class="version-value">{{ updateInfo?.latestVersion ?? '...' }}</span>
+                    </div>
+                    <div v-if="updateInfo?.updateAvailable" class="update-available">
+                      <span class="update-badge">Update available</span>
+                      <button class="update-link-btn" @click="openReleasePage">
+                        View release notes
+                      </button>
+                    </div>
+                    <div v-else-if="updateInfo && !updateInfo.updateAvailable" class="up-to-date">
+                      You're running the latest version.
+                    </div>
+                  </div>
+
+                  <button
+                    class="check-update-btn"
+                    :disabled="updateLoading"
+                    @click="checkForUpdate"
+                  >
+                    {{ updateLoading ? 'Checking...' : 'Check for Updates' }}
+                  </button>
+
+                  <label class="suppress-checkbox">
+                    <input
+                      type="checkbox"
+                      :checked="notificationsDisabled"
+                      @change="setNotificationsDisabled(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>Don't show update notifications</span>
+                  </label>
+                </div>
+              </section>
+
               <section v-else-if="activeSection === 'support'" class="settings-section">
                 <h3 class="section-title">Support Scribe</h3>
                 <div class="support-section">
@@ -104,6 +146,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Browser } from '@wailsio/runtime'
 import AgentStatusPanel from './AgentStatusPanel.vue'
+import { useUpdateChecker } from '../composables/useUpdateChecker'
 
 defineEmits<{
   close: []
@@ -112,11 +155,25 @@ defineEmits<{
 const visible = ref(true)
 const activeSection = ref('agents')
 
+const {
+  updateInfo,
+  loading: updateLoading,
+  notificationsDisabled,
+  checkForUpdate,
+  setNotificationsDisabled,
+  openReleasePage,
+} = useUpdateChecker()
+
 const sections = [
   {
     id: 'agents',
     label: 'Agents',
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+  },
+  {
+    id: 'updates',
+    label: 'Updates',
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   },
   {
     id: 'support',
@@ -369,6 +426,107 @@ onUnmounted(() => {
   color: var(--text-secondary);
   margin: 0;
   opacity: 0.7;
+}
+
+/* Updates section */
+.updates-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.version-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.version-label {
+  color: var(--text-secondary);
+}
+
+.version-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.update-available {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.update-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  background-color: var(--bg-secondary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+}
+
+.update-link-btn {
+  font-size: 0.75rem;
+  color: var(--accent-color);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.update-link-btn:hover {
+  opacity: 0.8;
+}
+
+.up-to-date {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.check-update-btn {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.check-update-btn:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.check-update-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.suppress-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.suppress-checkbox input[type="checkbox"] {
+  accent-color: var(--accent-color);
 }
 
 /* Modal transition */

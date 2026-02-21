@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -50,10 +51,45 @@ Examples:
 				return runOnboardingIfNeeded()
 			}
 
+			// Check for app updates (once per day, non-blocking)
+			if !quiet && !skipOnboarding {
+				checkForAppUpdate()
+			}
+
 			return nil
 		},
 	}
 )
+
+// checkForAppUpdate checks for a newer version of Scribe once per day.
+// Prints a single-line message if an update is available.
+// Never returns an error — failures are silently logged.
+func checkForAppUpdate() {
+	if scribe.Version == "dev" {
+		return
+	}
+
+	if !scribe.ShouldCheckForUpdate(24 * time.Hour) {
+		return
+	}
+
+	info, err := scribe.CheckForUpdate("")
+	if err != nil {
+		scribe.Logger.Debug("update check failed", "error", err)
+		return
+	}
+
+	// Record that we checked, regardless of result
+	if err := scribe.SetLastUpdateCheck(); err != nil {
+		scribe.Logger.Debug("failed to record update check time", "error", err)
+	}
+
+	if info.UpdateAvailable {
+		fmt.Fprintf(os.Stderr,
+			"\n  A new version of Scribe is available: %s (current: %s)\n  https://github.com/usescrolls/scribe/releases/latest\n\n",
+			info.LatestVersion, info.CurrentVersion)
+	}
+}
 
 func init() {
 	// Global flags

@@ -67,8 +67,10 @@ type Workspace struct {
 
 // Config represents the global Scribe configuration
 type Config struct {
-	ActiveWorkspace     string `json:"activeWorkspace"`
-	OnboardingCompleted bool   `json:"onboardingCompleted"`
+	ActiveWorkspace             string `json:"activeWorkspace"`
+	OnboardingCompleted         bool   `json:"onboardingCompleted"`
+	UpdateNotificationsDisabled bool   `json:"updateNotificationsDisabled,omitempty"`
+	LastUpdateCheck             string `json:"lastUpdateCheck,omitempty"` // RFC3339 timestamp
 }
 
 // InstallOptions configures skill installation behavior
@@ -123,6 +125,15 @@ type UpdateResult struct {
 	OldHash    string `json:"oldHash,omitempty"`    // Previous commit hash or truncated content hash
 	NewHash    string `json:"newHash,omitempty"`    // New commit hash or truncated content hash
 	CommitDate string `json:"commitDate,omitempty"` // New commit date if available
+}
+
+// UpdateInfo contains information about an available application update
+type UpdateInfo struct {
+	CurrentVersion  string `json:"currentVersion"`
+	LatestVersion   string `json:"latestVersion"`
+	UpdateAvailable bool   `json:"updateAvailable"`
+	ReleaseURL      string `json:"releaseURL"`
+	PublishedAt     string `json:"publishedAt"`
 }
 
 // WorkspaceInfo is the frontend-friendly representation of a workspace
