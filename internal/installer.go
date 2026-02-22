@@ -8,7 +8,9 @@ import (
 	"runtime"
 )
 
-// InstallSkill installs a skill to the canonical location and syncs to agents
+// InstallSkill installs a skill to the canonical location.
+// It does NOT sync to agents — that is handled by workspace logic so that
+// only skills in the active workspace appear in agent folders.
 func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo, emit ...ProgressEmitter) error {
 	// Determine target directory (always global)
 	scrollsDir, err := GetScrollsDir()
@@ -47,12 +49,6 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 	metaPath := filepath.Join(skillDir, MetaFileName)
 	if err := WriteSkillMeta(metaPath, meta); err != nil {
 		return fmt.Errorf("failed to write metadata: %w", err)
-	}
-
-	// Sync to all detected agents
-	agents := AgentIDs(DetectInstalledAgents())
-	if err := SyncSkillToAgents(skill.Name, agents, emit...); err != nil {
-		return fmt.Errorf("failed to sync to agents: %w", err)
 	}
 
 	return nil

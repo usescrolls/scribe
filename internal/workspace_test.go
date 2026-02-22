@@ -427,16 +427,13 @@ func TestBoost_AddSkillToActiveAndDefaultWorkspace_DifferentActive(t *testing.T)
 		t.Error("skill not added to default workspace")
 	}
 
-	// Verify in custom
+	// Verify NOT in custom — skills should only go to default,
+	// respecting the user's active workspace boundaries
 	customWs, _ := GetWorkspace("custom")
-	foundInCustom := false
 	for _, s := range customWs.Skills {
 		if s == "dual-skill" {
-			foundInCustom = true
+			t.Error("skill should not be added to custom (active) workspace — install should only add to default")
 		}
-	}
-	if !foundInCustom {
-		t.Error("skill not added to custom (active) workspace")
 	}
 }
 

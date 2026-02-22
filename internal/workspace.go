@@ -428,27 +428,13 @@ func skillDiff(a, b []string) []string {
 	return diff
 }
 
-// AddSkillToActiveAndDefaultWorkspace adds a skill to both the active workspace and default workspace
-// This is called when installing a new skill
+// AddSkillToActiveAndDefaultWorkspace adds a skill to the default workspace.
+// If the default workspace is active, the skill is also synced to agents.
+// If a different workspace is active, the skill is stored but not synced —
+// the user must explicitly add it to their active workspace.
 func AddSkillToActiveAndDefaultWorkspace(skillName string) error {
-	config, err := LoadConfig()
-	if err != nil {
-		return err
-	}
-
-	// Always add to default workspace
-	if err := AddSkillToWorkspace(skillName, DefaultWorkspaceName); err != nil {
-		return err
-	}
-
-	// Add to active workspace if different from default
-	if config.ActiveWorkspace != DefaultWorkspaceName {
-		if err := AddSkillToWorkspace(skillName, config.ActiveWorkspace); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// Only add to default workspace — respect the user's active workspace
+	return AddSkillToWorkspace(skillName, DefaultWorkspaceName)
 }
 
 // RemoveSkillFromAllWorkspaces removes a skill from all workspaces

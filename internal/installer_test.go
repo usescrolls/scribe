@@ -113,7 +113,7 @@ func TestBoost_InstallSkill_WithSubpath(t *testing.T) {
 	}
 }
 
-func TestBoost_InstallSkill_WithSpecificAgents(t *testing.T) {
+func TestBoost_InstallSkill_DoesNotSyncToAgents(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
@@ -137,10 +137,10 @@ func TestBoost_InstallSkill_WithSpecificAgents(t *testing.T) {
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
 
-	// Verify the skill was synced to claude-code
+	// InstallSkill should NOT sync to agents — workspace logic handles that
 	agentSkillDir := filepath.Join(tmpDir, ".claude", "skills", "agent-skill")
-	if _, err := os.Stat(agentSkillDir); err != nil {
-		t.Error("skill not synced to specified agent")
+	if _, err := os.Stat(agentSkillDir); err == nil {
+		t.Error("InstallSkill should not sync to agents directly — workspace logic should handle syncing")
 	}
 }
 

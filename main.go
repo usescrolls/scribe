@@ -770,7 +770,12 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 			continue
 		}
 
-		// Add to selected workspaces
+		// Always add to default workspace (consistent with CLI behavior)
+		if err := scribe.AddSkillToActiveAndDefaultWorkspace(skill.Name); err != nil {
+			scribe.Logger.Warn("failed to add to default workspace", "skill", skill.Name, "error", err)
+		}
+
+		// Add to user-selected workspaces (from the UI checkboxes)
 		for _, wsName := range workspaceNames {
 			emit(scribe.ProgressEvent{
 				Phase:   "install",

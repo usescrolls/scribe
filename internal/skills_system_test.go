@@ -857,6 +857,9 @@ This skill does cool things.
 `
 	_ = os.WriteFile(filepath.Join(sourceDir, "SKILL.md"), []byte(skillContent), 0o644)
 
+	// Ensure default workspace exists before install (matches real CLI flow)
+	_ = EnsureDefaultWorkspace()
+
 	// Parse and install
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
@@ -866,8 +869,7 @@ This skill does cool things.
 		t.Fatalf("InstallSkill() error: %v", err)
 	}
 
-	// Add to workspace
-	_ = EnsureDefaultWorkspace()
+	// Add to workspace (this syncs to agents when default is active)
 	_ = AddSkillToActiveAndDefaultWorkspace("my-skill")
 
 	// Verify installation
@@ -2687,6 +2689,7 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 	skill, _ := ParseSkillMd(filepath.Join(sourceDir, "SKILL.md"))
 	source := &SourceInfo{Type: "local", LocalPath: sourceDir}
 	_ = InstallSkill(skill, source, InstallOptions{}, nil)
+	_ = AddSkillToActiveAndDefaultWorkspace(skill.Name)
 
 	// Verify symlink exists in all agent directories
 	for _, agent := range agents {
@@ -2717,6 +2720,92 @@ func TestIntegration_MultiAgentSync(t *testing.T) {
 		linkPath := filepath.Join(agent.skillsDir, "multi-agent-skill")
 		if IsSymlink(linkPath) {
 			t.Errorf("Skill symlink should be removed from %s", agent.id)
+		}
+	}
+}
+
+// TestIntegration_InstallRespectsActiveWorkspace verifies the fix for the bug
+// where installing skills from a repo would bypass workspace logic and dump
+// all skills into agent folders regardless of the active workspace.
+func TestIntegration_InstallRespectsActiveWorkspace(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-integration-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	// Create agent directory
+	claudeSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	_ = os.MkdirAll(claudeSkillsDir, 0o755)
+
+	// Create and switch to a custom workspace with one existing skill
+	_ = CreateWorkspace(&Workspace{
+		Name:        "my-project",
+		Description: "Curated project workspace",
+		Skills:      []string{},
+	})
+	_ = SetActiveWorkspace("my-project")
+
+	// Simulate installing multiple skills from a repo (like `scribe install owner/repo`)
+	skillNames := []string{"frontend-utils", "backend-patterns", "devops-tools"}
+	for _, name := range skillNames {
+		srcDir := filepath.Join(tmpDir, "source", name)
+		_ = os.MkdirAll(srcDir, 0o755)
+		content := fmt.Sprintf("---\nname: %s\ndescription: %s skill\n---\n# %s\n", name, name, name)
+		_ = os.WriteFile(filepath.Join(srcDir, "SKILL.md"), []byte(content), 0o644)
+
+		skill, _ := ParseSkillMd(filepath.Join(srcDir, "SKILL.md"))
+		source := &SourceInfo{Type: "local", LocalPath: srcDir}
+
+		if err := InstallSkill(skill, source, InstallOptions{}, nil); err != nil {
+			t.Fatalf("InstallSkill(%s) error: %v", name, err)
+		}
+		_ = AddSkillToActiveAndDefaultWorkspace(name)
+	}
+
+	// Verify: skills should be in the default workspace
+	defaultWs, _ := GetWorkspace("default")
+	for _, name := range skillNames {
+		if !slices.Contains(defaultWs.Skills, name) {
+			t.Errorf("skill %q should be in default workspace", name)
+		}
+	}
+
+	// Verify: skills should NOT be in the active custom workspace
+	customWs, _ := GetWorkspace("my-project")
+	for _, name := range skillNames {
+		if slices.Contains(customWs.Skills, name) {
+			t.Errorf("skill %q should NOT be in custom active workspace", name)
+		}
+	}
+
+	// Verify: skills should NOT have symlinks in agent folders
+	for _, name := range skillNames {
+		linkPath := filepath.Join(claudeSkillsDir, name)
+		if _, err := os.Lstat(linkPath); err == nil {
+			t.Errorf("skill %q should NOT be symlinked in agent folder when custom workspace is active", name)
+		}
+	}
+
+	// Now explicitly add one skill to the custom workspace
+	_ = AddSkillToWorkspace("frontend-utils", "my-project")
+
+	// Verify: only that skill should appear in agent folders
+	linkPath := filepath.Join(claudeSkillsDir, "frontend-utils")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Error("skill 'frontend-utils' should be symlinked after explicitly adding to active workspace")
+	}
+	for _, name := range []string{"backend-patterns", "devops-tools"} {
+		linkPath := filepath.Join(claudeSkillsDir, name)
+		if _, err := os.Lstat(linkPath); err == nil {
+			t.Errorf("skill %q should still NOT be symlinked", name)
 		}
 	}
 }

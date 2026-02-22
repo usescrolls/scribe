@@ -392,7 +392,7 @@ async function handleDiscover() {
       selectedSkills.add(skill.name)
     }
 
-    // Pre-select active workspace
+    // No workspaces pre-selected — user opts in via checkboxes
     selectedWorkspaces.clear()
 
     // Refresh workspaces for step 3

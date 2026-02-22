@@ -309,13 +309,12 @@ func TestInstallSkill_EmitsProgress(t *testing.T) {
 
 	events := rec.get()
 
-	// Should emit: copying, metadata, syncing (at least one agent)
+	// Should emit: copying, metadata (syncing is handled by workspace logic, not InstallSkill)
 	assertHasStep(t, events, "install", "copying")
 	assertHasStep(t, events, "install", "metadata")
-	assertHasStep(t, events, "install", "syncing")
 }
 
-func TestInstallSkill_SyncEmitsAgentName(t *testing.T) {
+func TestInstallSkill_NoSyncEvents(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
@@ -343,13 +342,10 @@ func TestInstallSkill_SyncEmitsAgentName(t *testing.T) {
 
 	events := rec.get()
 
-	// Find the syncing event and verify it has a Detail with the agent name
+	// InstallSkill should NOT emit syncing events — workspace logic handles syncing
 	syncEvent := findEvent(events, "install", "syncing")
-	if syncEvent == nil {
-		t.Fatal("missing syncing event")
-	}
-	if syncEvent.Detail != "Claude Code" {
-		t.Errorf("syncing Detail = %q, want 'Claude Code'", syncEvent.Detail)
+	if syncEvent != nil {
+		t.Error("InstallSkill should not emit syncing events — workspace logic handles syncing")
 	}
 }
 
@@ -470,19 +466,15 @@ func TestInstallSkill_EventOrder(t *testing.T) {
 
 	events := rec.get()
 
-	// Verify order: copying → metadata → syncing
+	// Verify order: copying → metadata (syncing is handled by workspace logic)
 	copyIdx := indexOfStep(events, "copying")
 	metaIdx := indexOfStep(events, "metadata")
-	syncIdx := indexOfStep(events, "syncing")
 
-	if copyIdx == -1 || metaIdx == -1 || syncIdx == -1 {
-		t.Fatalf("missing expected events (copying=%d, metadata=%d, syncing=%d)", copyIdx, metaIdx, syncIdx)
+	if copyIdx == -1 || metaIdx == -1 {
+		t.Fatalf("missing expected events (copying=%d, metadata=%d)", copyIdx, metaIdx)
 	}
 	if copyIdx >= metaIdx {
 		t.Errorf("copying (idx %d) should come before metadata (idx %d)", copyIdx, metaIdx)
-	}
-	if metaIdx >= syncIdx {
-		t.Errorf("metadata (idx %d) should come before syncing (idx %d)", metaIdx, syncIdx)
 	}
 
 	// All events should have phase "install"
