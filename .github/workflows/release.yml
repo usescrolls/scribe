@@ -253,15 +253,26 @@ jobs:
           cp artifacts/scribe-Installer.dmg/scribe-Installer.dmg release/
           ls -la release/
 
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        id: changelog
+        with:
+          args: --latest --strip header
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.changelog.outputs.content }}
           files: |
             release/scribe-linux-amd64
             release/scribe-windows-amd64.exe
             release/scribe-darwin-arm64
             release/scribe-Installer.dmg
-          generate_release_notes: true
 
   update-homebrew:
     needs: [release]

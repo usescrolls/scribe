@@ -1,0 +1,35 @@
+#!/bin/sh
+# commit-msg hook: validates that commit messages follow Conventional Commits
+# https://www.conventionalcommits.org/
+
+commit_msg_file="$1"
+commit_msg=$(head -1 "$commit_msg_file")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -qE '^Merge '; then
+    exit 0
+fi
+
+# Conventional Commits pattern:
+#   type(optional-scope): description
+#   type!: description (breaking change)
+pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+'
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+    echo ""
+    echo "ERROR: Commit message does not follow Conventional Commits format."
+    echo ""
+    echo "  Expected: <type>[optional scope]: <description>"
+    echo ""
+    echo "  Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+    echo ""
+    echo "  Examples:"
+    echo "    feat: add changelog generation"
+    echo "    fix(ui): resolve modal overflow"
+    echo "    feat!: redesign settings API"
+    echo "    docs: update README with install instructions"
+    echo ""
+    echo "  Your message: $commit_msg"
+    echo ""
+    exit 1
+fi
