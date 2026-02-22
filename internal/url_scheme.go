@@ -63,12 +63,23 @@ func HandleInstallURL(urlString string) *InstallResult {
 		Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Filter out already-installed skills
+	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	if len(newSkills) == 0 {
+		if len(alreadyInstalled) == 1 {
+			result.ErrorMessage = fmt.Sprintf("Skill '%s' is already installed", alreadyInstalled[0])
+		} else {
+			result.ErrorMessage = fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
+		}
+		return result
+	}
+
 	// Extract git commit info from fetched repo
 	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
 
 	// Install each skill
 	opts := InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate} // Auto-confirm for URL scheme installs
-	for _, skill := range skills {
+	for _, skill := range newSkills {
 		Logger.Info("installing skill", "name", skill.Name)
 
 		if err := InstallSkill(skill, source, opts, gitInfo); err != nil {

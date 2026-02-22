@@ -259,6 +259,29 @@ func TestBoost_RemoveSkillFromWorkspace_Success(t *testing.T) {
 	}
 }
 
+func TestRemoveSkillFromWorkspace_CaseInsensitive(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	// Add with lowercase
+	_ = AddSkillToWorkspace("my-skill", DefaultWorkspaceName)
+
+	// Remove with different casing
+	err := RemoveSkillFromWorkspace("MY-SKILL", DefaultWorkspaceName)
+	if err != nil {
+		t.Fatalf("RemoveSkillFromWorkspace(different case) error: %v", err)
+	}
+
+	ws, _ := GetWorkspace(DefaultWorkspaceName)
+	for _, s := range ws.Skills {
+		if strings.EqualFold(s, "my-skill") {
+			t.Error("skill still in workspace after case-insensitive removal")
+		}
+	}
+}
+
 func TestBoost_RemoveSkillFromWorkspace_ActiveWorkspace(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)
@@ -667,6 +690,17 @@ func TestBoost_SkillDiff(t *testing.T) {
 	}
 }
 
+func TestSkillDiff_CaseInsensitive(t *testing.T) {
+	// "Alpha" in b should exclude "alpha" from a
+	got := skillDiff([]string{"alpha", "beta"}, []string{"Alpha"})
+	if len(got) != 1 {
+		t.Fatalf("skillDiff() = %v, want [beta]", got)
+	}
+	if got[0] != "beta" {
+		t.Errorf("skillDiff() = %v, want [beta]", got)
+	}
+}
+
 // ============================================================================
 // SyncWorkspace (workspace.go)
 // ============================================================================
@@ -869,6 +903,31 @@ func TestBoost_AddSkillToWorkspace_AlreadyPresent(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("skill appears %d times, want 1", count)
+	}
+}
+
+func TestAddSkillToWorkspace_CaseInsensitiveDuplicate(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	_ = AddSkillToWorkspace("my-skill", DefaultWorkspaceName)
+	// Adding with different case should not create a duplicate
+	err := AddSkillToWorkspace("My-Skill", DefaultWorkspaceName)
+	if err != nil {
+		t.Fatalf("AddSkillToWorkspace(case-diff) error: %v", err)
+	}
+
+	ws, _ := GetWorkspace(DefaultWorkspaceName)
+	count := 0
+	for _, s := range ws.Skills {
+		if strings.EqualFold(s, "my-skill") {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("skill appears %d times, want 1 (case-insensitive dedup)", count)
 	}
 }
 

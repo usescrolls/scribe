@@ -130,6 +130,22 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
+	// Check which skills are already installed (case-insensitive) and filter them out
+	newSkills, alreadyInstalled := scribe.FilterAlreadyInstalled(skills)
+
+	if len(newSkills) == 0 {
+		if len(alreadyInstalled) == 1 {
+			return fmt.Errorf("skill '%s' is already installed", alreadyInstalled[0])
+		}
+		return fmt.Errorf("all %d skill(s) from this source are already installed", len(alreadyInstalled))
+	}
+
+	if len(alreadyInstalled) > 0 && !quiet {
+		fmt.Printf("Skipping %d already installed skill(s): %s\n", len(alreadyInstalled), strings.Join(alreadyInstalled, ", "))
+	}
+
+	skills = newSkills
+
 	// Extract git commit info from fetched repo
 	gitInfo := scribe.GetHeadCommitInfo(fetchResult.ContentDir)
 

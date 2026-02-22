@@ -192,6 +192,51 @@ func TestFilterSkillsByName_DuplicateNamesInFilter(t *testing.T) {
 	}
 }
 
+func TestFilterSkillsByName_CaseInsensitive(t *testing.T) {
+	skills := []*Skill{
+		{Name: "alpha", Description: "A"},
+		{Name: "beta", Description: "B"},
+	}
+	result := FilterSkillsByName(skills, []string{"Alpha", "BETA"})
+	if len(result) != 2 {
+		t.Errorf("expected 2 skills with case-insensitive match, got %d", len(result))
+	}
+}
+
+func TestSkillInList_CaseInsensitive(t *testing.T) {
+	skills := []*Skill{
+		{Name: "my-skill", Description: "A"},
+	}
+	if !skillInList(skills, "My-Skill") {
+		t.Error("skillInList should match case-insensitively")
+	}
+	if !skillInList(skills, "MY-SKILL") {
+		t.Error("skillInList should match case-insensitively")
+	}
+}
+
+func TestParseSkillContent_NormalizesName(t *testing.T) {
+	content := "---\nname: My Cool Skill\ndescription: Test\n---\n# Body\n"
+	skill, err := ParseSkillContent(content, "/tmp")
+	if err != nil {
+		t.Fatalf("ParseSkillContent() error: %v", err)
+	}
+	if skill.Name != "my-cool-skill" {
+		t.Errorf("name = %q, want 'my-cool-skill' (normalized)", skill.Name)
+	}
+}
+
+func TestParseSkillContent_NormalizesUppercase(t *testing.T) {
+	content := "---\nname: MySkill\ndescription: Test\n---\n# Body\n"
+	skill, err := ParseSkillContent(content, "/tmp")
+	if err != nil {
+		t.Fatalf("ParseSkillContent() error: %v", err)
+	}
+	if skill.Name != "myskill" {
+		t.Errorf("name = %q, want 'myskill' (normalized)", skill.Name)
+	}
+}
+
 // ============================================================================
 // GetSkillInfo (skills.go)
 // ============================================================================

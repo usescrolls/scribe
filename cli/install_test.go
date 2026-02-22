@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -465,7 +464,7 @@ func TestRunInstallDuplicateSkill(t *testing.T) {
 	homeDir, cleanup := setupTempHome(t)
 	defer cleanup()
 	saveAndRestoreFlags(t)
-	quiet = false
+	quiet = true
 	installYes = true
 	installListOnly = false
 	installSkills = ""
@@ -487,31 +486,99 @@ func TestRunInstallDuplicateSkill(t *testing.T) {
 
 	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte("---\nname: already-here\ndescription: Duplicate\n---\n\nDup\n"), 0o644)
 
-	// Capture stderr too since "Failed to install" goes to stderr
-	oldStderr := os.Stderr
-	stderrR, stderrW, _ := os.Pipe()
-	os.Stderr = stderrW
-
-	output := captureStdout(t, func() {
+	captureStdout(t, func() {
 		err = runInstall(installCmd, []string{tmpSrc})
 	})
 
-	_ = stderrW.Close()
-	os.Stderr = oldStderr
-	var stderrBuf bytes.Buffer
-	_, _ = stderrBuf.ReadFrom(stderrR)
-	stderrOutput := stderrBuf.String()
+	// Should fail early because the skill is already installed
+	if err == nil {
+		t.Fatal("expected error when all skills are already installed")
+	}
+	if !strings.Contains(err.Error(), "already installed") {
+		t.Errorf("expected 'already installed' in error, got: %v", err)
+	}
+}
 
-	// Should not fail overall, but the skill should fail to install
+func TestRunInstallDuplicateSkillCaseInsensitive(t *testing.T) {
+	homeDir, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = true
+	installYes = true
+	installListOnly = false
+	installSkills = ""
+	installAll = false
+
+	// Create agent config dir
+	_ = os.MkdirAll(filepath.Join(homeDir, ".claude"), 0o755)
+
+	// Pre-install with lowercase name
+	installFakeSkill(t, "my-skill", "Already installed", "github", "owner/repo")
+
+	// Create source with different casing in frontmatter
+	tmpSrc, err := os.MkdirTemp("", "scribe-dup-case-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpSrc) }()
+
+	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte("---\nname: My-Skill\ndescription: Same skill different case\n---\n\nDup\n"), 0o644)
+
+	captureStdout(t, func() {
+		err = runInstall(installCmd, []string{tmpSrc})
+	})
+
+	// Should fail - "My-Skill" normalizes to "my-skill" which is already installed
+	if err == nil {
+		t.Fatal("expected error when skill with different casing is already installed")
+	}
+	if !strings.Contains(err.Error(), "already installed") {
+		t.Errorf("expected 'already installed' in error, got: %v", err)
+	}
+}
+
+func TestRunInstallPartialDuplicate(t *testing.T) {
+	homeDir, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = true
+	installYes = true
+	installListOnly = false
+	installSkills = ""
+	installAll = false
+
+	// Create agent config dir
+	_ = os.MkdirAll(filepath.Join(homeDir, ".claude"), 0o755)
+
+	// Pre-install one skill
+	installFakeSkill(t, "existing-skill", "Already installed", "github", "owner/repo")
+
+	// Create source with two skills (one already installed, one new)
+	tmpSrc, err := os.MkdirTemp("", "scribe-partial-dup-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpSrc) }()
+
+	skill1Dir := filepath.Join(tmpSrc, "skills", "existing-skill")
+	skill2Dir := filepath.Join(tmpSrc, "skills", "new-skill")
+	_ = os.MkdirAll(skill1Dir, 0o755)
+	_ = os.MkdirAll(skill2Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(skill1Dir, "SKILL.md"), []byte("---\nname: existing-skill\ndescription: Already here\n---\n\nOld\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(skill2Dir, "SKILL.md"), []byte("---\nname: new-skill\ndescription: Brand new\n---\n\nNew\n"), 0o644)
+
+	captureStdout(t, func() {
+		err = runInstall(installCmd, []string{tmpSrc})
+	})
+
+	// Should succeed - installs only the new skill, skips the existing one
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// "Failed to install" goes to stderr, "Installed 0/1" goes to stdout
-	if !strings.Contains(output, "0/1") {
-		t.Errorf("expected '0/1' installed count, got stdout: %s", output)
-	}
-	if !strings.Contains(stderrOutput, "already exists") {
-		t.Errorf("expected 'already exists' in stderr, got: %s", stderrOutput)
+
+	exists, _ := scribe.SkillExists("new-skill")
+	if !exists {
+		t.Error("expected 'new-skill' to be installed")
 	}
 }
 

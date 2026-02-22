@@ -20,16 +20,16 @@ var (
 	ErrMissingDesc   = errors.New("skill missing required 'description' field in frontmatter")
 )
 
-// FilterSkillsByName returns only the skills whose name matches one of the given names.
+// FilterSkillsByName returns only the skills whose name matches one of the given names (case-insensitive).
 func FilterSkillsByName(skills []*Skill, names []string) []*Skill {
 	nameSet := make(map[string]bool, len(names))
 	for _, n := range names {
-		nameSet[strings.TrimSpace(n)] = true
+		nameSet[strings.ToLower(strings.TrimSpace(n))] = true
 	}
 
 	var filtered []*Skill
 	for _, skill := range skills {
-		if nameSet[skill.Name] {
+		if nameSet[strings.ToLower(skill.Name)] {
 			filtered = append(filtered, skill)
 		}
 	}
@@ -110,7 +110,7 @@ func ParseSkillContent(content, skillDir string) (*Skill, error) {
 	delete(fm.Metadata, "description")
 
 	skill := &Skill{
-		Name:        fm.Name,
+		Name:        SanitizeName(fm.Name),
 		Description: fm.Description,
 		Path:        skillDir,
 		Content:     body,
@@ -303,10 +303,10 @@ func discoverSkillsInDir(dir string, maxDepth int) ([]*Skill, []SkillParseError)
 	return skills, parseErrors
 }
 
-// skillInList checks if a skill with the given name is already in the list
+// skillInList checks if a skill with the given name is already in the list (case-insensitive)
 func skillInList(skills []*Skill, name string) bool {
 	for _, s := range skills {
-		if s.Name == name {
+		if strings.EqualFold(s.Name, name) {
 			return true
 		}
 	}

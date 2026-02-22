@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // InstallSkill installs a skill to the canonical location.
@@ -20,9 +21,12 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 
 	skillDir := filepath.Join(scrollsDir, skill.Name)
 
-	// Check if skill already exists
-	if _, err := os.Stat(skillDir); err == nil {
-		return fmt.Errorf("skill '%s' already exists", skill.Name)
+	// Check if skill already exists (case-insensitive)
+	installed, _ := ListInstalledSkills()
+	for _, name := range installed {
+		if strings.EqualFold(name, skill.Name) {
+			return fmt.Errorf("skill '%s' already exists", name)
+		}
 	}
 
 	// Copy skill to canonical location
@@ -220,6 +224,25 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
+}
+
+// FilterAlreadyInstalled partitions discovered skills into new and already-installed.
+// Comparisons are case-insensitive. Returns (newSkills, alreadyInstalledNames).
+func FilterAlreadyInstalled(skills []*Skill) (newSkills []*Skill, alreadyInstalledNames []string) {
+	installed, _ := ListInstalledSkills()
+	installedSet := make(map[string]bool, len(installed))
+	for _, name := range installed {
+		installedSet[strings.ToLower(name)] = true
+	}
+
+	for _, skill := range skills {
+		if installedSet[strings.ToLower(skill.Name)] {
+			alreadyInstalledNames = append(alreadyInstalledNames, skill.Name)
+		} else {
+			newSkills = append(newSkills, skill)
+		}
+	}
+	return
 }
 
 // SyncAllSkillsToAgents syncs all installed skills to all detected agents

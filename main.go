@@ -585,13 +585,23 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		return &scribe.InstallResult{ErrorMessage: "No skills found in source"}, nil
 	}
 
+	// Filter out already-installed skills
+	newSkills, alreadyInstalled := scribe.FilterAlreadyInstalled(skills)
+	if len(newSkills) == 0 {
+		msg := fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
+		if len(alreadyInstalled) == 1 {
+			msg = fmt.Sprintf("Skill '%s' is already installed", alreadyInstalled[0])
+		}
+		return &scribe.InstallResult{ErrorMessage: msg}, nil
+	}
+
 	// Extract git commit info from fetched repo
 	gitInfo := scribe.GetHeadCommitInfo(fetchResult.ContentDir)
 
 	// Install each discovered skill
 	result := &scribe.InstallResult{}
 	opts := scribe.InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate}
-	for _, skill := range skills {
+	for _, skill := range newSkills {
 		scribe.Logger.Info("installing skill from GUI", "name", skill.Name)
 
 		if err := scribe.InstallSkill(skill, source, opts, gitInfo, emit); err != nil {
@@ -736,24 +746,35 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 		}
 	}
 
+	// Filter out already-installed skills
+	newToInstall, alreadyInstalled := scribe.FilterAlreadyInstalled(toInstall)
+	if len(newToInstall) == 0 {
+		msg := fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
+		if len(alreadyInstalled) == 1 {
+			msg = fmt.Sprintf("Skill '%s' is already installed", alreadyInstalled[0])
+		}
+		a.clearPending()
+		return &scribe.InstallResult{ErrorMessage: msg}, nil
+	}
+
 	// Install each requested skill
 	result := &scribe.InstallResult{}
 	isPrivate := a.pendingFetch != nil && a.pendingFetch.IsPrivate
 	opts := scribe.InstallOptions{Yes: true, IsPrivate: isPrivate}
-	for i, skill := range toInstall {
+	for i, skill := range newToInstall {
 		// Emit progress event so the frontend can show per-skill status
 		if wailsApp != nil {
 			wailsApp.Event.Emit("install-progress", map[string]any{
 				"skillName": skill.Name,
 				"current":   i + 1,
-				"total":     len(toInstall),
+				"total":     len(newToInstall),
 			})
 		}
 
 		emit(scribe.ProgressEvent{
 			Phase:   "install",
 			Step:    "start",
-			Message: fmt.Sprintf("Installing %s (%d/%d)...", skill.Name, i+1, len(toInstall)),
+			Message: fmt.Sprintf("Installing %s (%d/%d)...", skill.Name, i+1, len(newToInstall)),
 			Detail:  skill.Name,
 		})
 

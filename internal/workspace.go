@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -236,8 +235,8 @@ func AddSkillToWorkspace(skillName, workspaceName string) error {
 		return err
 	}
 
-	// Check if already in workspace
-	if slices.Contains(ws.Skills, skillName) {
+	// Check if already in workspace (case-insensitive)
+	if slicesContainsFold(ws.Skills, skillName) {
 		return nil // Already present
 	}
 
@@ -271,11 +270,11 @@ func RemoveSkillFromWorkspace(skillName, workspaceName string) error {
 		return err
 	}
 
-	// Find and remove skill
+	// Find and remove skill (case-insensitive)
 	found := false
 	newSkills := make([]string, 0, len(ws.Skills))
 	for _, s := range ws.Skills {
-		if s == skillName {
+		if strings.EqualFold(s, skillName) {
 			found = true
 			continue
 		}
@@ -406,26 +405,36 @@ func createDefaultWorkspace() *Workspace {
 // injectSystemSkills ensures system skills are always present in a skill list.
 // System skills are prepended so they appear first.
 func injectSystemSkills(skills []string) []string {
-	if slices.Contains(skills, SystemSkillName) {
+	if slicesContainsFold(skills, SystemSkillName) {
 		return skills // Already present
 	}
 	return append([]string{SystemSkillName}, skills...)
 }
 
-// skillDiff returns skills in a that are not in b
+// skillDiff returns skills in a that are not in b (case-insensitive)
 func skillDiff(a, b []string) []string {
 	bSet := make(map[string]bool, len(b))
 	for _, s := range b {
-		bSet[s] = true
+		bSet[strings.ToLower(s)] = true
 	}
 
 	var diff []string
 	for _, s := range a {
-		if !bSet[s] {
+		if !bSet[strings.ToLower(s)] {
 			diff = append(diff, s)
 		}
 	}
 	return diff
+}
+
+// slicesContainsFold checks if a string slice contains a value (case-insensitive)
+func slicesContainsFold(slice []string, val string) bool {
+	for _, s := range slice {
+		if strings.EqualFold(s, val) {
+			return true
+		}
+	}
+	return false
 }
 
 // AddSkillToActiveAndDefaultWorkspace adds a skill to the default workspace.
@@ -450,10 +459,10 @@ func RemoveSkillFromAllWorkspaces(skillName string) error {
 	}
 
 	for _, ws := range workspaces {
-		// Find and remove skill
+		// Find and remove skill (case-insensitive)
 		newSkills := make([]string, 0, len(ws.Skills))
 		for _, s := range ws.Skills {
-			if s != skillName {
+			if !strings.EqualFold(s, skillName) {
 				newSkills = append(newSkills, s)
 			}
 		}
@@ -490,7 +499,7 @@ func CleanWorkspaces() error {
 
 	installedSet := make(map[string]bool, len(installed))
 	for _, s := range installed {
-		installedSet[s] = true
+		installedSet[strings.ToLower(s)] = true
 	}
 
 	workspaces, err := ListWorkspaces()
@@ -507,7 +516,7 @@ func CleanWorkspaces() error {
 		changed := false
 		newSkills := make([]string, 0, len(ws.Skills))
 		for _, s := range ws.Skills {
-			if installedSet[s] {
+			if installedSet[strings.ToLower(s)] {
 				newSkills = append(newSkills, s)
 			} else {
 				changed = true

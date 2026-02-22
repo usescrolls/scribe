@@ -580,3 +580,39 @@ func TestBoost_HandleInstallURL_WithFilter_Match(t *testing.T) {
 		t.Error("alpha skill not installed after filter+install")
 	}
 }
+
+func TestHandleInstallURL_AlreadyInstalled(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	// Create a local git repo with a skill
+	remoteDir := filepath.Join(tmpDir, "dup-repo")
+	repoURL := createTestGitRepo(t, remoteDir, map[string]string{
+		"SKILL.md": "---\nname: dup-url-skill\ndescription: Duplicate URL test\n---\n# Dup\n",
+	})
+
+	// First install via direct call
+	source := &SourceInfo{Type: "github", Owner: "test", Repo: "dup-repo", URL: repoURL}
+	skills, fetchResult, err := FetchAndDiscoverSkills(source)
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
+	if err != nil {
+		t.Fatalf("FetchAndDiscoverSkills error: %v", err)
+	}
+	for _, skill := range skills {
+		_ = InstallSkill(skill, source, InstallOptions{Yes: true}, nil)
+		_ = AddSkillToActiveAndDefaultWorkspace(skill.Name)
+	}
+
+	// Now FilterAlreadyInstalled should catch it
+	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	if len(newSkills) != 0 {
+		t.Errorf("expected 0 new skills, got %d", len(newSkills))
+	}
+	if len(alreadyInstalled) != 1 {
+		t.Errorf("expected 1 already installed, got %d", len(alreadyInstalled))
+	}
+}

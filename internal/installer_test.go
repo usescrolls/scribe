@@ -563,3 +563,74 @@ func TestBoost_CopyFile_CreateParentDir(t *testing.T) {
 		t.Errorf("content = %q, want 'data'", string(data))
 	}
 }
+
+// ============================================================================
+// FilterAlreadyInstalled (installer.go)
+// ============================================================================
+
+func TestFilterAlreadyInstalled_AllNew(t *testing.T) {
+	_ = setupTempHome(t)
+	_ = EnsureScribeDirs()
+
+	skills := []*Skill{
+		{Name: "new-a", Description: "A"},
+		{Name: "new-b", Description: "B"},
+	}
+	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	if len(newSkills) != 2 {
+		t.Errorf("expected 2 new skills, got %d", len(newSkills))
+	}
+	if len(alreadyInstalled) != 0 {
+		t.Errorf("expected 0 already installed, got %d", len(alreadyInstalled))
+	}
+}
+
+func TestFilterAlreadyInstalled_AllExisting(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	_ = EnsureScribeDirs()
+
+	// Pre-install skills
+	for _, name := range []string{"existing-a", "existing-b"} {
+		skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# skill"), 0o644)
+	}
+
+	skills := []*Skill{
+		{Name: "existing-a", Description: "A"},
+		{Name: "existing-b", Description: "B"},
+	}
+	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	if len(newSkills) != 0 {
+		t.Errorf("expected 0 new skills, got %d", len(newSkills))
+	}
+	if len(alreadyInstalled) != 2 {
+		t.Errorf("expected 2 already installed, got %d", len(alreadyInstalled))
+	}
+}
+
+func TestFilterAlreadyInstalled_CaseInsensitive(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	_ = EnsureScribeDirs()
+
+	// Pre-install with lowercase
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "my-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# skill"), 0o644)
+
+	// Try to install with different casing (already normalized by SanitizeName, but test the check itself)
+	skills := []*Skill{
+		{Name: "my-skill", Description: "Same name"},
+		{Name: "brand-new", Description: "New"},
+	}
+	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	if len(newSkills) != 1 {
+		t.Errorf("expected 1 new skill, got %d", len(newSkills))
+	}
+	if len(alreadyInstalled) != 1 {
+		t.Errorf("expected 1 already installed, got %d", len(alreadyInstalled))
+	}
+	if len(newSkills) > 0 && newSkills[0].Name != "brand-new" {
+		t.Errorf("expected new skill 'brand-new', got %q", newSkills[0].Name)
+	}
+}
