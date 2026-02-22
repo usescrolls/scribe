@@ -206,6 +206,444 @@ func TestCheckSkillForUpdate_Outdated(t *testing.T) {
 }
 
 // ============================================================================
+// CheckSourceForUpdates (updater.go) — batch check
+// ============================================================================
+
+func TestCheckSourceForUpdates_EmptyList(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	results := CheckSourceForUpdates("owner/repo", nil)
+	if results != nil {
+		t.Errorf("expected nil for empty skill list, got %v", results)
+	}
+}
+
+func TestCheckSourceForUpdates_NonexistentSkill(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	results := CheckSourceForUpdates("owner/repo", []string{"nonexistent"})
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Error == "" {
+		t.Error("expected error for nonexistent skill")
+	}
+}
+
+func TestCheckSourceForUpdates_FetchFailure(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	installFakeSkill(t, "batch-fail-a", "Batch fail A", "github", "nonexistent-owner/nonexistent-repo")
+	installFakeSkill(t, "batch-fail-b", "Batch fail B", "github", "nonexistent-owner/nonexistent-repo")
+
+	results := CheckSourceForUpdates("nonexistent-owner/nonexistent-repo", []string{"batch-fail-a", "batch-fail-b"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	for _, r := range results {
+		if r.Error == "" {
+			t.Errorf("expected error for %s", r.Name)
+		}
+		if !strings.Contains(r.Error, "failed to fetch") {
+			t.Errorf("unexpected error for %s: %s", r.Name, r.Error)
+		}
+	}
+}
+
+func TestCheckSourceForUpdates_BatchUpToDate(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: batch-a\ndescription: Batch A\n---\n# Batch A\n"
+	contentB := "---\nname: batch-b\ndescription: Batch B\n---\n# Batch B\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"batch-a/SKILL.md": contentA,
+		"batch-b/SKILL.md": contentB,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+	for _, tc := range []struct{ name, content string }{
+		{"batch-a", contentA},
+		{"batch-b", contentB},
+	} {
+		skillDir := filepath.Join(scrollsDir, tc.name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(tc.content), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", tc.content, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results := CheckSourceForUpdates("testowner/remote-repo", []string{"batch-a", "batch-b"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	for _, r := range results {
+		if r.Error != "" {
+			t.Errorf("unexpected error for %s: %s", r.Name, r.Error)
+		}
+		if r.NeedsUpdate {
+			t.Errorf("expected NeedsUpdate=false for %s", r.Name)
+		}
+	}
+}
+
+func TestCheckSourceForUpdates_BatchMixed(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: mix-a\ndescription: Mix A\n---\n# Mix A\n"
+	oldContentB := "---\nname: mix-b\ndescription: Mix B\n---\n# Mix B old\n"
+	newContentB := "---\nname: mix-b\ndescription: Mix B\n---\n# Mix B new version\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"mix-a/SKILL.md": contentA,
+		"mix-b/SKILL.md": newContentB,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+	// mix-a is up to date
+	{
+		skillDir := filepath.Join(scrollsDir, "mix-a")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", contentA, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+	// mix-b is outdated
+	{
+		skillDir := filepath.Join(scrollsDir, "mix-b")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(oldContentB), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", oldContentB, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results := CheckSourceForUpdates("testowner/remote-repo", []string{"mix-a", "mix-b"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	resultMap := make(map[string]CheckResult)
+	for _, r := range results {
+		resultMap[r.Name] = r
+	}
+
+	if resultMap["mix-a"].NeedsUpdate {
+		t.Error("mix-a should be up to date")
+	}
+	if !resultMap["mix-b"].NeedsUpdate {
+		t.Error("mix-b should need an update")
+	}
+}
+
+func TestCheckSourceForUpdates_SkillNotInRemote(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: exists-remote\ndescription: Exists\n---\n# Exists\n"
+
+	// Remote repo only has "exists-remote", not "ghost"
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"exists-remote/SKILL.md": contentA,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+
+	// Install "exists-remote" (matches remote)
+	{
+		skillDir := filepath.Join(scrollsDir, "exists-remote")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", contentA, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	// Install "ghost" (not in the remote repo, but claims same source)
+	ghostContent := "---\nname: ghost\ndescription: Ghost\n---\n# Ghost\n"
+	{
+		skillDir := filepath.Join(scrollsDir, "ghost")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(ghostContent), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", ghostContent, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results := CheckSourceForUpdates("testowner/remote-repo", []string{"exists-remote", "ghost"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	resultMap := make(map[string]CheckResult)
+	for _, r := range results {
+		resultMap[r.Name] = r
+	}
+
+	// exists-remote should be fine
+	if resultMap["exists-remote"].Error != "" {
+		t.Errorf("unexpected error for exists-remote: %s", resultMap["exists-remote"].Error)
+	}
+
+	// ghost should report "not found in remote source"
+	if resultMap["ghost"].Error == "" {
+		t.Error("expected error for ghost skill")
+	}
+	if !strings.Contains(resultMap["ghost"].Error, "not found in remote source") {
+		t.Errorf("unexpected error for ghost: %s", resultMap["ghost"].Error)
+	}
+}
+
+func TestCheckSourceForUpdates_SkillNoMeta(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: has-meta\ndescription: Has meta\n---\n# Has meta\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"has-meta/SKILL.md": contentA,
+		"no-meta/SKILL.md":  "---\nname: no-meta\ndescription: No meta\n---\n# No meta\n",
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+
+	// Install "has-meta" with proper metadata (this is the first skill, so source can be reconstructed)
+	{
+		skillDir := filepath.Join(scrollsDir, "has-meta")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", contentA, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	// Install "no-meta" WITHOUT metadata sidecar
+	{
+		skillDir := filepath.Join(scrollsDir, "no-meta")
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: no-meta\ndescription: No meta\n---\n# No meta\n"), 0o644)
+		// No WriteSkillMeta — deliberately missing
+	}
+
+	results := CheckSourceForUpdates("testowner/remote-repo", []string{"has-meta", "no-meta"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	resultMap := make(map[string]CheckResult)
+	for _, r := range results {
+		resultMap[r.Name] = r
+	}
+
+	if resultMap["has-meta"].Error != "" {
+		t.Errorf("unexpected error for has-meta: %s", resultMap["has-meta"].Error)
+	}
+	if resultMap["no-meta"].Error == "" {
+		t.Error("expected error for no-meta skill")
+	}
+	if !strings.Contains(resultMap["no-meta"].Error, "no metadata") {
+		t.Errorf("unexpected error for no-meta: %s", resultMap["no-meta"].Error)
+	}
+}
+
+// ============================================================================
+// CheckAllSourcesForUpdates (updater.go) — full scan
+// ============================================================================
+
+func TestCheckAllSourcesForUpdates_Empty(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	results := CheckAllSourcesForUpdates()
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty scrolls, got %d", len(results))
+	}
+}
+
+func TestCheckAllSourcesForUpdates_SkipsLocalAndSystem(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	installFakeSkill(t, "local-skill", "Local", "local", "/some/path")
+	installFakeSkill(t, "builtin-skill", "Builtin", "builtin", "builtin")
+
+	results := CheckAllSourcesForUpdates()
+	if len(results) != 0 {
+		t.Errorf("expected 0 results (local and builtin should be skipped), got %d", len(results))
+	}
+}
+
+func TestCheckAllSourcesForUpdates_GroupsBySource(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: grp-a\ndescription: Group A\n---\n# Group A\n"
+	contentB := "---\nname: grp-b\ndescription: Group B\n---\n# Group B\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"grp-a/SKILL.md": contentA,
+		"grp-b/SKILL.md": contentB,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+	for _, tc := range []struct{ name, content string }{
+		{"grp-a", contentA},
+		{"grp-b", contentB},
+	} {
+		skillDir := filepath.Join(scrollsDir, tc.name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(tc.content), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", tc.content, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results := CheckAllSourcesForUpdates()
+	if len(results) != 1 {
+		t.Fatalf("expected 1 source group, got %d", len(results))
+	}
+
+	sgr, ok := results["testowner/remote-repo"]
+	if !ok {
+		t.Fatal("expected result for 'testowner/remote-repo'")
+	}
+	if sgr.HasUpdates {
+		t.Error("expected HasUpdates=false (all up to date)")
+	}
+	if sgr.Source != "testowner/remote-repo" {
+		t.Errorf("Source = %q, want 'testowner/remote-repo'", sgr.Source)
+	}
+	if sgr.CheckedAt == "" {
+		t.Error("expected CheckedAt to be set")
+	}
+}
+
+func TestCheckAllSourcesForUpdates_DetectsOutdated(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	oldContent := "---\nname: outdated-scan\ndescription: Outdated\n---\n# Old\n"
+	newContent := "---\nname: outdated-scan\ndescription: Outdated\n---\n# New version\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"outdated-scan/SKILL.md": newContent,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+	skillDir := filepath.Join(scrollsDir, "outdated-scan")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(oldContent), 0o644)
+	meta := NewSkillMeta(&SourceInfo{
+		Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+	}, "", oldContent, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+
+	results := CheckAllSourcesForUpdates()
+	if len(results) != 1 {
+		t.Fatalf("expected 1 source group, got %d", len(results))
+	}
+
+	sgr := results["testowner/remote-repo"]
+	if !sgr.HasUpdates {
+		t.Error("expected HasUpdates=true")
+	}
+	if len(sgr.UpdatedSkillNames) != 1 || sgr.UpdatedSkillNames[0] != "outdated-scan" {
+		t.Errorf("UpdatedSkillNames = %v, want [outdated-scan]", sgr.UpdatedSkillNames)
+	}
+}
+
+// ============================================================================
+// SourceGroupCheckResult JSON serialization
+// ============================================================================
+
+func TestSourceGroupCheckResult_JSONRoundTrip(t *testing.T) {
+	original := SourceGroupCheckResult{
+		Source:            "owner/repo",
+		HasUpdates:        true,
+		UpdatedSkillNames: []string{"skill-a", "skill-b"},
+		CheckedAt:         "2025-01-01T00:00:00Z",
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	var decoded SourceGroupCheckResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+
+	if decoded.Source != original.Source {
+		t.Errorf("Source = %q, want %q", decoded.Source, original.Source)
+	}
+	if decoded.HasUpdates != original.HasUpdates {
+		t.Errorf("HasUpdates = %v, want %v", decoded.HasUpdates, original.HasUpdates)
+	}
+	if len(decoded.UpdatedSkillNames) != 2 {
+		t.Errorf("UpdatedSkillNames len = %d, want 2", len(decoded.UpdatedSkillNames))
+	}
+	if decoded.CheckedAt != original.CheckedAt {
+		t.Errorf("CheckedAt = %q, want %q", decoded.CheckedAt, original.CheckedAt)
+	}
+}
+
+func TestSourceGroupCheckResult_JSONOmitsEmptyError(t *testing.T) {
+	result := SourceGroupCheckResult{Source: "test", HasUpdates: false}
+	data, _ := json.Marshal(result)
+	if strings.Contains(string(data), `"error"`) {
+		t.Error("expected empty error to be omitted from JSON")
+	}
+}
+
+// ============================================================================
 // UpdateSkill (updater.go)
 // ============================================================================
 

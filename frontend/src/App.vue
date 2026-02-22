@@ -83,6 +83,7 @@ import ToastNotification from './components/ToastNotification.vue'
 import { AppService } from './bindings/scribe'
 import { useLogger } from './composables/useLogger'
 import { useUpdateChecker } from './composables/useUpdateChecker'
+import { useSkillUpdateChecker } from './composables/useSkillUpdateChecker'
 
 const log = useLogger('App')
 const version = ref('1.0.0')
@@ -92,6 +93,7 @@ const showSettings = ref(false)
 const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
 const pendingInstallSource = ref<string | null>(null)
 const { updateInfo, showToast: showUpdateToast, dismissToast, startPolling } = useUpdateChecker()
+const { startPolling: startSkillUpdatePolling } = useSkillUpdateChecker()
 
 onMounted(async () => {
   try {
@@ -107,6 +109,7 @@ onMounted(async () => {
 
     // Start update polling (shared state — only runs once)
     startPolling()
+    startSkillUpdatePolling()
   } catch (e) {
     log.error(`failed to initialize app: ${e instanceof Error ? e.message : e}`)
     // If we can't check onboarding, show the main app

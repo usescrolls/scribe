@@ -49,7 +49,7 @@
         </div>
       </div>
 
-      <div v-for="group in groupedSkills" :key="group.source" class="source-group">
+      <div v-for="group in groupedSkills" :key="group.source" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
         <div class="group-header">
           <span class="group-badge">{{ group.sourceType }}</span>
           <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
@@ -71,9 +71,17 @@
           <span v-else class="group-source">{{ group.source }}</span>
           <span v-if="getGroupVersion(group)" class="group-version" :title="getGroupVersionTooltip(group)">{{ getGroupVersion(group) }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
+          <span
+            v-if="groupHasUpdate(group)"
+            class="update-badge"
+            :title="getUpdateTooltip(group)"
+          >
+            Update available
+          </span>
           <button
             v-if="isGroupUpdatable(group)"
             class="group-action-btn group-update-btn"
+            :class="{ 'group-update-btn--highlighted': groupHasUpdate(group) }"
             :disabled="updatingGroup === group.source"
             @click="handleUpdateGroup(group)"
           >
@@ -140,7 +148,10 @@ import SkillCard from './SkillCard.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
+import { useSkillUpdateChecker } from '../composables/useSkillUpdateChecker'
 import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
+
+const { hasUpdates: sourceHasUpdates, getUpdateInfo, clearUpdate } = useSkillUpdateChecker()
 
 const allSkillsRaw = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
@@ -230,6 +241,17 @@ function isGroupUpdatable(group: SourceGroup): boolean {
   return !!group.sourceType && group.sourceType !== 'local' && group.sourceType !== 'builtin' && group.sourceType !== 'system'
 }
 
+function groupHasUpdate(group: SourceGroup): boolean {
+  return sourceHasUpdates(group.source)
+}
+
+function getUpdateTooltip(group: SourceGroup): string {
+  const info = getUpdateInfo(group.source)
+  if (!info || !info.updatedSkillNames?.length) return 'Update available'
+  const count = info.updatedSkillNames.length
+  return `${count} skill${count !== 1 ? 's' : ''} changed: ${info.updatedSkillNames.join(', ')}`
+}
+
 async function handleUpdateGroup(group: SourceGroup) {
   if (updatingGroup.value) return
   updatingGroup.value = group.source
@@ -240,6 +262,7 @@ async function handleUpdateGroup(group: SourceGroup) {
       if (result) results.push(result as UpdateResult)
     }
     await fetchAll()
+    clearUpdate(group.source)
 
     // Show toast with update summary
     const updated = results.filter(r => r.updated)
@@ -500,6 +523,15 @@ onUnmounted(() => {
 /* Source groups */
 .source-group {
   margin-bottom: 1.25rem;
+  border-left: 2px solid transparent;
+  padding-left: 0.5rem;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.source-group--has-update {
+  border-left-color: #34c759;
+  background-color: rgba(52, 199, 89, 0.04);
+  border-radius: 4px;
 }
 
 .group-header {
@@ -577,6 +609,17 @@ onUnmounted(() => {
   margin-left: auto;
 }
 
+.update-badge {
+  padding: 0.0625rem 0.375rem;
+  background-color: #248a3d;
+  color: white;
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .group-action-btn {
   padding: 0.125rem 0.5rem;
   border: none;
@@ -600,6 +643,12 @@ onUnmounted(() => {
 }
 
 .group-update-btn:hover:not(:disabled) {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.group-update-btn--highlighted {
+  opacity: 1;
   background-color: var(--accent-color);
   color: white;
 }

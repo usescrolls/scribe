@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // CheckSkillForUpdate checks if a single skill has a remote update available.
@@ -71,6 +72,155 @@ func CheckSkillForUpdate(skillName string) CheckResult {
 	result.NeedsUpdate = result.CurrentHash != result.RemoteHash
 
 	return result
+}
+
+// CheckSourceForUpdates fetches a source repo once and checks all given skills
+// against their installed content hashes. This is much more efficient than
+// calling CheckSkillForUpdate per-skill when multiple skills share a source.
+func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult {
+	if len(skillNames) == 0 {
+		return nil
+	}
+
+	// Read the first skill to reconstruct the source info
+	firstSkill, err := ReadSkill(skillNames[0])
+	if err != nil || firstSkill.Meta == nil {
+		var results []CheckResult
+		for _, name := range skillNames {
+			results = append(results, CheckResult{Name: name, Error: fmt.Sprintf("failed to read skill: %v", err)})
+		}
+		return results
+	}
+
+	source := ReconstructSource(firstSkill.Meta)
+
+	remoteSkills, fetchResult, err := FetchAndDiscoverSkills(source)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to fetch: %v", err)
+		if IsAuthError(err) {
+			errMsg += " (auth issue)"
+		}
+		var results []CheckResult
+		for _, name := range skillNames {
+			results = append(results, CheckResult{Name: name, Error: errMsg})
+		}
+		return results
+	}
+	if fetchResult != nil {
+		defer fetchResult.Cleanup()
+	}
+
+	// Index remote skills by name for fast lookup
+	remoteByName := make(map[string]*Skill, len(remoteSkills))
+	for _, s := range remoteSkills {
+		remoteByName[s.Name] = s
+	}
+
+	var results []CheckResult
+	for _, skillName := range skillNames {
+		r := CheckResult{Name: skillName}
+
+		skill, err := ReadSkill(skillName)
+		if err != nil {
+			r.Error = fmt.Sprintf("failed to read skill: %v", err)
+			results = append(results, r)
+			continue
+		}
+		if skill.Meta == nil {
+			r.Error = "no metadata"
+			results = append(results, r)
+			continue
+		}
+
+		r.CurrentHash = skill.Meta.ContentHash
+
+		remote := remoteByName[skillName]
+		if remote == nil {
+			r.Error = "skill not found in remote source"
+			results = append(results, r)
+			continue
+		}
+
+		remoteContent, err := os.ReadFile(filepath.Join(remote.Path, SkillFileName))
+		if err != nil {
+			r.Error = fmt.Sprintf("failed to read remote skill: %v", err)
+			results = append(results, r)
+			continue
+		}
+
+		r.RemoteHash = ComputeContentHash(string(remoteContent))
+		r.NeedsUpdate = r.CurrentHash != r.RemoteHash
+		results = append(results, r)
+	}
+
+	return results
+}
+
+// CheckAllSourcesForUpdates checks every installed source group for updates,
+// fetching each remote repository only once. Returns results keyed by source string.
+func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
+	skillNames, err := ListInstalledSkills()
+	if err != nil {
+		Logger.Warn("failed to list installed skills for update check", "error", err)
+		return nil
+	}
+
+	// Group skill names by their source
+	type sourceGroup struct {
+		source     string
+		sourceType string
+		skills     []string
+	}
+	groups := make(map[string]*sourceGroup)
+
+	for _, name := range skillNames {
+		if IsSystemSkill(name) {
+			continue
+		}
+		skill, err := ReadSkill(name)
+		if err != nil || skill.Meta == nil {
+			continue
+		}
+		if skill.Meta.SourceType == "local" || skill.Meta.SourceType == "builtin" {
+			continue
+		}
+		key := skill.Meta.Source
+		if key == "" {
+			continue
+		}
+		g, ok := groups[key]
+		if !ok {
+			g = &sourceGroup{source: key, sourceType: skill.Meta.SourceType}
+			groups[key] = g
+		}
+		g.skills = append(g.skills, name)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	results := make(map[string]SourceGroupCheckResult, len(groups))
+
+	for key, g := range groups {
+		checkResults := CheckSourceForUpdates(g.source, g.skills)
+
+		sgr := SourceGroupCheckResult{
+			Source:    key,
+			CheckedAt: now,
+		}
+
+		for _, cr := range checkResults {
+			if cr.Error != "" && sgr.Error == "" {
+				sgr.Error = cr.Error
+			}
+			if cr.NeedsUpdate {
+				sgr.HasUpdates = true
+				sgr.UpdatedSkillNames = append(sgr.UpdatedSkillNames, cr.Name)
+			}
+		}
+
+		results[key] = sgr
+	}
+
+	return results
 }
 
 // UpdateSkill updates a skill to its latest version from its source.

@@ -118,6 +118,15 @@ type CheckResult struct {
 	RemoteHash  string `json:"remoteHash,omitempty"`
 }
 
+// SourceGroupCheckResult summarizes an update check for all skills from a single source.
+type SourceGroupCheckResult struct {
+	Source            string   `json:"source"`
+	HasUpdates        bool     `json:"hasUpdates"`
+	UpdatedSkillNames []string `json:"updatedSkillNames"`
+	CheckedAt         string   `json:"checkedAt"`
+	Error             string   `json:"error,omitempty"`
+}
+
 // UpdateResult contains the outcome of a skill update operation
 type UpdateResult struct {
 	SkillName  string `json:"skillName"`

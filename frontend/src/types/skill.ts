@@ -14,6 +14,14 @@ export interface SkillInfo {
   agents: string[]
 }
 
+export interface SourceGroupCheckResult {
+  source: string
+  hasUpdates: boolean
+  updatedSkillNames: string[]
+  checkedAt: string
+  error?: string
+}
+
 export interface UpdateResult {
   skillName: string
   updated: boolean

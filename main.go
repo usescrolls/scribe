@@ -862,6 +862,25 @@ func (a *AppService) GetRepoReadme(owner, repo string) (string, error) {
 // Updates API
 // ======================================================================
 
+// CheckSourceGroupUpdates checks all installed source groups for available updates.
+// Each remote repository is fetched only once regardless of how many skills it contains.
+func (a *AppService) CheckSourceGroupUpdates() map[string]scribe.SourceGroupCheckResult {
+	scribe.Logger.Info("AppService.CheckSourceGroupUpdates called")
+	results := scribe.CheckAllSourcesForUpdates()
+	if results == nil {
+		return map[string]scribe.SourceGroupCheckResult{}
+	}
+
+	updatable := 0
+	for _, r := range results {
+		if r.HasUpdates {
+			updatable++
+		}
+	}
+	scribe.Logger.Info("source group update check completed", "groups", len(results), "withUpdates", updatable)
+	return results
+}
+
 // CheckForAppUpdate queries GitHub for the latest release and returns update info
 func (a *AppService) CheckForAppUpdate() (*scribe.UpdateInfo, error) {
 	scribe.Logger.Info("AppService.CheckForAppUpdate called")
