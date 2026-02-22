@@ -198,34 +198,63 @@ func ResyncCurrentWorkspace() error {
 	return nil
 }
 
-// SyncWorkspace updates agent symlinks to match the target workspace
+// SyncWorkspace reconciles agent skill directories to match the target workspace.
+// Instead of diffing workspace definitions (which can miss orphaned skills),
+// it reads the actual agent directory contents and reconciles against the target.
 func SyncWorkspace(current, target *Workspace) error {
-	agentIDs := AgentIDs(DetectInstalledAgents())
+	agents := DetectInstalledAgents()
 
-	// Find skills to remove (in current but not in target)
-	toRemove := skillDiff(current.Skills, target.Skills)
-
-	// Find skills to add (in target but not in current)
-	toAdd := skillDiff(target.Skills, current.Skills)
-
-	// Remove symlinks for skills no longer in workspace
-	for _, skillName := range toRemove {
-		// Log but continue on error
-		_ = RemoveSkillFromAgents(skillName, agentIDs)
+	targetSet := make(map[string]bool, len(target.Skills))
+	for _, s := range target.Skills {
+		targetSet[strings.ToLower(s)] = true
 	}
 
-	// Add symlinks for new skills in workspace
-	for _, skillName := range toAdd {
-		// Verify skill exists in canonical location
+	// Remove skills from each agent that are not in the target workspace
+	for _, agent := range agents {
+		removeOrphanedSkills(expandPath(agent.GlobalSkillsDir), targetSet)
+	}
+
+	// Add symlinks for all skills in the target workspace
+	agentIDs := AgentIDs(agents)
+	for _, skillName := range target.Skills {
 		exists, _ := SkillExists(skillName)
 		if !exists {
 			continue
 		}
-		// Log but continue on error
 		_ = SyncSkillToAgents(skillName, agentIDs)
 	}
 
 	return nil
+}
+
+// removeOrphanedSkills removes entries from an agent skills directory
+// that are not present in the targetSet (keyed by lowercase name).
+func removeOrphanedSkills(agentSkillsDir string, targetSet map[string]bool) {
+	entries, err := os.ReadDir(agentSkillsDir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		fullPath := filepath.Join(agentSkillsDir, name)
+		// Only consider directories and symlinks (skip plain files like README.md)
+		if !entry.IsDir() && !isSymlinkEntry(fullPath) {
+			continue
+		}
+		if !targetSet[strings.ToLower(name)] {
+			_ = os.RemoveAll(fullPath)
+		}
+	}
+}
+
+// isSymlinkEntry checks if a path is a symlink (possibly to a directory)
+func isSymlinkEntry(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink != 0
 }
 
 // AddSkillToWorkspace adds a skill to a workspace

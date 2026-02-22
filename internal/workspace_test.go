@@ -750,6 +750,51 @@ func TestBoost_SyncWorkspace_MixedSkills(t *testing.T) {
 	// "exists" should be synced, "missing" should be silently skipped
 }
 
+func TestSyncWorkspace_RemovesOrphanedSkills(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create canonical skills
+	for _, name := range []string{"skill-a", "skill-b"} {
+		skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: "+name+"\ndescription: test\n---\n# Test\n"), 0o644)
+	}
+
+	// Create agent dir and pre-populate with an orphaned skill
+	agentSkillsDir := filepath.Join(tmpDir, ".claude", "skills")
+	_ = os.MkdirAll(agentSkillsDir, 0o755)
+	orphanDir := filepath.Join(agentSkillsDir, "orphaned-skill")
+	_ = os.MkdirAll(orphanDir, 0o755)
+	_ = os.WriteFile(filepath.Join(orphanDir, "SKILL.md"), []byte("orphan"), 0o644)
+
+	// Current workspace does NOT list the orphan (simulates out-of-sync state)
+	current := &Workspace{Name: "old", Skills: []string{"skill-a"}}
+	// Target workspace only wants skill-b
+	target := &Workspace{Name: "new", Skills: []string{"skill-b"}}
+
+	err := SyncWorkspace(current, target)
+	if err != nil {
+		t.Fatalf("SyncWorkspace() error: %v", err)
+	}
+
+	// Orphaned skill should be removed even though it wasn't in current workspace
+	if _, err := os.Stat(orphanDir); !os.IsNotExist(err) {
+		t.Error("orphaned skill should have been removed from agent directory")
+	}
+
+	// skill-a should be removed (not in target)
+	if _, err := os.Stat(filepath.Join(agentSkillsDir, "skill-a")); !os.IsNotExist(err) {
+		t.Error("skill-a should have been removed (not in target workspace)")
+	}
+
+	// skill-b should be present (in target)
+	if _, err := os.Stat(filepath.Join(agentSkillsDir, "skill-b")); err != nil {
+		t.Error("skill-b should have been synced to agent directory")
+	}
+}
+
 // ============================================================================
 // ResyncCurrentWorkspace (workspace.go)
 // ============================================================================
