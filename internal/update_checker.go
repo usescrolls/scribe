@@ -10,26 +10,22 @@ import (
 	"time"
 )
 
-// ghRelease is the minimal GitHub release JSON shape needed for update checking.
-type ghRelease struct {
-	TagName     string `json:"tag_name"`
-	HTMLURL     string `json:"html_url"`
-	PublishedAt string `json:"published_at"`
+// ghReleaseAsset is a single asset attached to a GitHub release.
+type ghReleaseAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
 }
 
-// CheckForUpdate queries the GitHub releases API and compares the latest
-// release tag against the current compiled version.
-// Pass "" for baseURL to use the production GitHub API.
-func CheckForUpdate(baseURL string) (*UpdateInfo, error) {
-	// Dev builds should not trigger update notifications
-	if Version == "dev" {
-		return &UpdateInfo{
-			CurrentVersion:  Version,
-			LatestVersion:   "unknown",
-			UpdateAvailable: false,
-		}, nil
-	}
+// ghRelease is the GitHub release JSON shape needed for update checking and self-update.
+type ghRelease struct {
+	TagName     string           `json:"tag_name"`
+	HTMLURL     string           `json:"html_url"`
+	PublishedAt string           `json:"published_at"`
+	Assets      []ghReleaseAsset `json:"assets"`
+}
 
+// fetchLatestRelease queries the GitHub releases API and returns the latest release.
+func fetchLatestRelease(baseURL string) (*ghRelease, error) {
 	if baseURL == "" {
 		baseURL = "https://api.github.com"
 	}
@@ -62,6 +58,27 @@ func CheckForUpdate(baseURL string) (*UpdateInfo, error) {
 	var release ghRelease
 	if err := json.Unmarshal(body, &release); err != nil {
 		return nil, fmt.Errorf("failed to parse release JSON: %w", err)
+	}
+
+	return &release, nil
+}
+
+// CheckForUpdate queries the GitHub releases API and compares the latest
+// release tag against the current compiled version.
+// Pass "" for baseURL to use the production GitHub API.
+func CheckForUpdate(baseURL string) (*UpdateInfo, error) {
+	// Dev builds should not trigger update notifications
+	if Version == "dev" {
+		return &UpdateInfo{
+			CurrentVersion:  Version,
+			LatestVersion:   "unknown",
+			UpdateAvailable: false,
+		}, nil
+	}
+
+	release, err := fetchLatestRelease(baseURL)
+	if err != nil {
+		return nil, err
 	}
 
 	latest := strings.TrimPrefix(release.TagName, "v")

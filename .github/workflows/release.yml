@@ -223,6 +223,12 @@ jobs:
           # Rename to expected name
           mv build/Scribe-Installer.dmg build/scribe-Installer.dmg
 
+      - name: Upload macOS standalone binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: scribe-darwin-arm64
+          path: build/scribe-darwin-arm64
+
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
@@ -243,6 +249,7 @@ jobs:
           mkdir -p release
           cp artifacts/scribe-linux-amd64/scribe-linux-amd64 release/
           cp artifacts/scribe-windows-amd64.exe/scribe-windows-amd64.exe release/
+          cp artifacts/scribe-darwin-arm64/scribe-darwin-arm64 release/
           cp artifacts/scribe-Installer.dmg/scribe-Installer.dmg release/
           ls -la release/
 
@@ -252,6 +259,7 @@ jobs:
           files: |
             release/scribe-linux-amd64
             release/scribe-windows-amd64.exe
+            release/scribe-darwin-arm64
             release/scribe-Installer.dmg
           generate_release_notes: true
 

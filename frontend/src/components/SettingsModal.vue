@@ -39,9 +39,34 @@
                     </div>
                     <div v-if="updateInfo?.updateAvailable" class="update-available">
                       <span class="update-badge">Update available</span>
-                      <button class="update-link-btn" @click="openReleasePage">
-                        View release notes
-                      </button>
+
+                      <template v-if="installMethod === 'binary'">
+                        <button
+                          class="upgrade-btn"
+                          :disabled="upgrading"
+                          @click="upgradeApp"
+                        >
+                          {{ upgrading ? 'Upgrading...' : 'Upgrade now' }}
+                        </button>
+                        <span v-if="upgradeSuccess" class="upgrade-success">
+                          Upgraded! Restart Scribe to use the new version.
+                        </span>
+                        <span v-if="upgradeError" class="upgrade-error">
+                          {{ upgradeError }}
+                        </span>
+                      </template>
+
+                      <template v-else-if="installMethod === 'homebrew'">
+                        <span class="homebrew-hint">
+                          Run <code>brew upgrade usescrolls/tap/scribe</code> to update
+                        </span>
+                      </template>
+
+                      <template v-else>
+                        <button class="update-link-btn" @click="openReleasePage">
+                          View release notes
+                        </button>
+                      </template>
                     </div>
                     <div v-else-if="updateInfo && !updateInfo.updateAvailable" class="up-to-date">
                       You're running the latest version.
@@ -159,9 +184,14 @@ const {
   updateInfo,
   loading: updateLoading,
   notificationsDisabled,
+  installMethod,
+  upgrading,
+  upgradeError,
+  upgradeSuccess,
   checkForUpdate,
   setNotificationsDisabled,
   openReleasePage,
+  upgradeApp,
 } = useUpdateChecker()
 
 const sections = [
@@ -486,6 +516,51 @@ onUnmounted(() => {
 
 .update-link-btn:hover {
   opacity: 0.8;
+}
+
+.upgrade-btn {
+  padding: 0.25rem 0.75rem;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.upgrade-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.upgrade-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upgrade-success {
+  font-size: 0.75rem;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.upgrade-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.homebrew-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.homebrew-hint code {
+  background-color: var(--bg-secondary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.6875rem;
 }
 
 .up-to-date {

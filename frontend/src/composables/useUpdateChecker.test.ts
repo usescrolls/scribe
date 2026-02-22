@@ -29,11 +29,17 @@ describe("useUpdateChecker", () => {
     checker.loading.value = false
     checker.notificationsDisabled.value = false
     checker.showToast.value = false
+    checker.installMethod.value = null
+    checker.upgrading.value = false
+    checker.upgradeError.value = null
+    checker.upgradeSuccess.value = false
     checker.stopPolling()
 
     mockAppService.CheckForAppUpdate.mockResolvedValue(mockUpdateAvailable)
     mockAppService.IsUpdateNotificationsDisabled.mockResolvedValue(false)
     mockAppService.SetUpdateNotificationsDisabled.mockResolvedValue(undefined)
+    mockAppService.GetInstallMethod.mockResolvedValue("binary")
+    mockAppService.UpgradeApp.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -207,6 +213,59 @@ describe("useUpdateChecker", () => {
       await checker.startPolling()
       await vi.advanceTimersByTimeAsync(5000)
       expect(mockAppService.CheckForAppUpdate).toHaveBeenCalled()
+    })
+  })
+
+  describe("installMethod", () => {
+    it("detects install method on startPolling", async () => {
+      mockAppService.GetInstallMethod.mockResolvedValue("binary")
+      await checker.startPolling()
+      expect(checker.installMethod.value).toBe("binary")
+    })
+
+    it("handles detection errors gracefully", async () => {
+      mockAppService.GetInstallMethod.mockRejectedValue(new Error("fail"))
+      await checker.startPolling()
+      expect(checker.installMethod.value).toBe("unknown")
+    })
+  })
+
+  describe("upgradeApp", () => {
+    it("performs upgrade and sets success", async () => {
+      mockAppService.UpgradeApp.mockResolvedValue({
+        updated: true,
+        oldVersion: "1.0.0",
+        newVersion: "v1.1.0",
+        installMethod: "binary",
+        message: "upgraded",
+      })
+      await checker.upgradeApp()
+      expect(checker.upgradeSuccess.value).toBe(true)
+      expect(checker.upgradeError.value).toBeNull()
+    })
+
+    it("handles upgrade errors", async () => {
+      mockAppService.UpgradeApp.mockRejectedValue(
+        new Error("permission denied"),
+      )
+      await checker.upgradeApp()
+      expect(checker.upgradeError.value).toBe("permission denied")
+      expect(checker.upgradeSuccess.value).toBe(false)
+    })
+
+    it("sets upgrading flag during operation", async () => {
+      let resolve: (v: unknown) => void
+      mockAppService.UpgradeApp.mockReturnValue(
+        new Promise((r) => {
+          resolve = r
+        }),
+      )
+      const promise = checker.upgradeApp()
+      expect(checker.upgrading.value).toBe(true)
+
+      resolve!({ updated: false })
+      await promise
+      expect(checker.upgrading.value).toBe(false)
     })
   })
 })

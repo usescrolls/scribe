@@ -892,6 +892,26 @@ func (a *AppService) SetUpdateNotificationsDisabled(disabled bool) error {
 	return scribe.SetUpdateNotificationsDisabled(disabled)
 }
 
+// GetInstallMethod returns how Scribe was installed ("homebrew", "app-bundle", "binary", "dev", "unknown").
+func (a *AppService) GetInstallMethod() string {
+	return scribe.DetectInstallMethod()
+}
+
+// UpgradeApp performs a self-update of the Scribe binary.
+func (a *AppService) UpgradeApp() (*scribe.SelfUpdateResult, error) {
+	scribe.Logger.Info("AppService.UpgradeApp called")
+	result, err := scribe.SelfUpdate("")
+	if err != nil {
+		scribe.Logger.Error("self-update failed", "error", err)
+		return nil, err
+	}
+	scribe.Logger.Info("self-update completed",
+		"updated", result.Updated,
+		"oldVersion", result.OldVersion,
+		"newVersion", result.NewVersion)
+	return result, nil
+}
+
 // Helper functions for system tray labels
 
 func getSkillCountLabel() string {

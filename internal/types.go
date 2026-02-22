@@ -136,6 +136,15 @@ type UpdateInfo struct {
 	PublishedAt     string `json:"publishedAt"`
 }
 
+// SelfUpdateResult contains the outcome of a self-update (binary upgrade) attempt.
+type SelfUpdateResult struct {
+	Updated       bool   `json:"updated"`
+	OldVersion    string `json:"oldVersion"`
+	NewVersion    string `json:"newVersion"`
+	InstallMethod string `json:"installMethod"`
+	Message       string `json:"message"`
+}
+
 // WorkspaceInfo is the frontend-friendly representation of a workspace
 type WorkspaceInfo struct {
 	Name        string   `json:"name"`

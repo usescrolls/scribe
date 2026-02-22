@@ -20,6 +20,10 @@ const updateInfo = ref<UpdateInfo | null>(null)
 const loading = ref(false)
 const notificationsDisabled = ref(false)
 const showToast = ref(false)
+const installMethod = ref<string | null>(null)
+const upgrading = ref(false)
+const upgradeError = ref<string | null>(null)
+const upgradeSuccess = ref(false)
 
 let pollingStarted = false
 let intervalId: ReturnType<typeof setInterval> | null = null
@@ -87,10 +91,44 @@ function openReleasePage() {
   }
 }
 
+async function detectInstallMethod() {
+  try {
+    installMethod.value = await AppService.GetInstallMethod()
+    log.info(`install method: ${installMethod.value}`)
+  } catch (e) {
+    log.error(
+      `failed to detect install method: ${e instanceof Error ? e.message : e}`,
+    )
+    installMethod.value = "unknown"
+  }
+}
+
+async function upgradeApp() {
+  try {
+    upgrading.value = true
+    upgradeError.value = null
+    upgradeSuccess.value = false
+    const result = await AppService.UpgradeApp()
+    if (result?.updated) {
+      upgradeSuccess.value = true
+      await checkForUpdate()
+      log.info(`upgrade complete: ${result.oldVersion} -> ${result.newVersion}`)
+    } else {
+      log.info("already up to date")
+    }
+  } catch (e) {
+    upgradeError.value = e instanceof Error ? e.message : String(e)
+    log.error(`upgrade failed: ${upgradeError.value}`)
+  } finally {
+    upgrading.value = false
+  }
+}
+
 async function startPolling() {
   if (pollingStarted) return
   pollingStarted = true
   await loadPreference()
+  await detectInstallMethod()
   // Initial check after a short delay (don't block app startup)
   setTimeout(checkForUpdate, 5000)
   // Then check every hour
@@ -111,10 +149,15 @@ export function useUpdateChecker() {
     loading,
     notificationsDisabled,
     showToast,
+    installMethod,
+    upgrading,
+    upgradeError,
+    upgradeSuccess,
     checkForUpdate,
     setNotificationsDisabled,
     dismissToast,
     openReleasePage,
+    upgradeApp,
     startPolling,
     stopPolling,
   }

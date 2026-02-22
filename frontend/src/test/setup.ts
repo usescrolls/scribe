@@ -38,6 +38,8 @@ export const mockAppService = {
   CheckForAppUpdate: vi.fn(),
   IsUpdateNotificationsDisabled: vi.fn(),
   SetUpdateNotificationsDisabled: vi.fn(),
+  GetInstallMethod: vi.fn(),
+  UpgradeApp: vi.fn(),
   Log: vi.fn().mockResolvedValue(undefined),
 }
 

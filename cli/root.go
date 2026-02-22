@@ -85,9 +85,21 @@ func checkForAppUpdate() {
 	}
 
 	if info.UpdateAvailable {
-		fmt.Fprintf(os.Stderr,
-			"\n  A new version of Scribe is available: %s (current: %s)\n  https://github.com/usescrolls/scribe/releases/latest\n\n",
-			info.LatestVersion, info.CurrentVersion)
+		method := scribe.DetectInstallMethod()
+		switch method {
+		case "homebrew":
+			fmt.Fprintf(os.Stderr,
+				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: brew upgrade usescrolls/tap/scribe\n\n",
+				info.LatestVersion, info.CurrentVersion)
+		case "binary":
+			fmt.Fprintf(os.Stderr,
+				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: scribe upgrade\n\n",
+				info.LatestVersion, info.CurrentVersion)
+		default:
+			fmt.Fprintf(os.Stderr,
+				"\n  A new version of Scribe is available: %s (current: %s)\n  https://github.com/usescrolls/scribe/releases/latest\n\n",
+				info.LatestVersion, info.CurrentVersion)
+		}
 	}
 }
 
@@ -107,6 +119,7 @@ func init() {
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(cacheCmd)
+	rootCmd.AddCommand(upgradeCmd)
 }
 
 // Execute runs the CLI
@@ -134,5 +147,6 @@ func CLICommands() []string {
 		"update",
 		"cache",
 		"setup",
+		"upgrade",
 	}
 }
