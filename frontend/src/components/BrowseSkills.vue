@@ -51,6 +51,14 @@
 
       <div v-for="group in groupedSkills" :key="group.source" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
         <div class="group-header">
+          <input
+            v-if="selectionMode && hasSelectableSkills(group)"
+            type="checkbox"
+            class="group-checkbox"
+            :checked="isGroupAllSelected(group)"
+            :indeterminate="isGroupPartiallySelected(group)"
+            @click.stop="toggleGroupSelection(group)"
+          />
           <span class="group-badge">{{ group.sourceType }}</span>
           <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -124,10 +132,17 @@
         </select>
         <button
           class="btn-primary btn-sm"
-          :disabled="!bulkWorkspace || bulkAdding"
+          :disabled="!bulkWorkspace || bulkOperating"
           @click="bulkAddToWorkspace"
         >
           {{ bulkAdding ? 'Adding...' : 'Add to workspace' }}
+        </button>
+        <button
+          class="btn-danger btn-sm"
+          :disabled="!bulkWorkspace || bulkOperating"
+          @click="bulkRemoveFromWorkspace"
+        >
+          {{ bulkRemoving ? 'Removing...' : 'Remove from workspace' }}
         </button>
         <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
       </div>
@@ -162,6 +177,8 @@ const selectedSkills = reactive(new Set<string>())
 const selectionMode = ref(false)
 const bulkWorkspace = ref('')
 const bulkAdding = ref(false)
+const bulkRemoving = ref(false)
+const bulkOperating = computed(() => bulkAdding.value || bulkRemoving.value)
 let unsubscribeSkills: { (): void } | null = null
 let unsubscribeWorkspace: { (): void } | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -423,6 +440,34 @@ function toggleSelectAll() {
   }
 }
 
+function hasSelectableSkills(group: SourceGroup): boolean {
+  return group.skills.some(s => !s.isSystem)
+}
+
+function isGroupAllSelected(group: SourceGroup): boolean {
+  const selectable = group.skills.filter(s => !s.isSystem)
+  return selectable.length > 0 && selectable.every(s => selectedSkills.has(s.name))
+}
+
+function isGroupPartiallySelected(group: SourceGroup): boolean {
+  const selectable = group.skills.filter(s => !s.isSystem)
+  const selectedCount = selectable.filter(s => selectedSkills.has(s.name)).length
+  return selectedCount > 0 && selectedCount < selectable.length
+}
+
+function toggleGroupSelection(group: SourceGroup) {
+  const selectable = group.skills.filter(s => !s.isSystem)
+  if (isGroupAllSelected(group)) {
+    for (const skill of selectable) {
+      selectedSkills.delete(skill.name)
+    }
+  } else {
+    for (const skill of selectable) {
+      selectedSkills.add(skill.name)
+    }
+  }
+}
+
 async function bulkAddToWorkspace() {
   if (!bulkWorkspace.value || selectedSkills.size === 0) return
   bulkAdding.value = true
@@ -444,6 +489,42 @@ async function bulkAddToWorkspace() {
     }
   } finally {
     bulkAdding.value = false
+  }
+}
+
+async function bulkRemoveFromWorkspace() {
+  if (!bulkWorkspace.value || selectedSkills.size === 0) return
+  bulkRemoving.value = true
+  try {
+    let removed = 0
+    for (const skillName of selectedSkills) {
+      const ws = workspaces.value.find(w => w.name === bulkWorkspace.value)
+      if (ws?.skills.includes(skillName)) {
+        await AppService.RemoveSkillFromWorkspace(skillName, bulkWorkspace.value)
+        removed++
+      }
+    }
+    await fetchAll()
+    if (removed > 0) {
+      const plural = removed === 1 ? '' : 's'
+      toast.value = {
+        message: `Removed ${removed} skill${plural} from ${bulkWorkspace.value}`,
+        type: 'success',
+      }
+    } else {
+      toast.value = {
+        message: `No selected skills were in ${bulkWorkspace.value}`,
+        type: 'info',
+      }
+    }
+    exitSelectionMode()
+  } catch (e) {
+    toast.value = {
+      message: e instanceof Error ? e.message : 'Failed to remove skills from workspace',
+      type: 'error',
+    }
+  } finally {
+    bulkRemoving.value = false
   }
 }
 
@@ -545,6 +626,14 @@ onUnmounted(() => {
   margin-bottom: 0.5rem;
   padding-bottom: 0.375rem;
   border-bottom: 1px solid var(--border-color);
+}
+
+.group-checkbox {
+  width: 0.875rem;
+  height: 0.875rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: var(--accent-color);
 }
 
 .group-badge {
@@ -697,6 +786,27 @@ onUnmounted(() => {
 }
 
 .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: var(--danger-color);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.btn-danger:disabled {
   opacity: 0.5;
   cursor: default;
 }

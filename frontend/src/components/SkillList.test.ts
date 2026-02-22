@@ -259,6 +259,322 @@ describe("SkillList", () => {
     })
   })
 
+  describe("selection mode", () => {
+    it("shows Select button in header", async () => {
+      const wrapper = await mountSkillList()
+
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.exists()).toBe(true)
+      expect(selectBtn.text()).toBe("Select")
+    })
+
+    it("enters selection mode on Select click", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const buttons = wrapper.findAll(".header-actions button")
+      expect(buttons.some((b) => b.text() === "Select All")).toBe(true)
+      expect(buttons.some((b) => b.text() === "Cancel")).toBe(true)
+    })
+
+    it("passes selectable prop to skill cards in selection mode", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selectable")).toBe(true)
+      })
+    })
+
+    it("hides remove button in selection mode", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("showRemove")).toBe(false)
+      })
+    })
+
+    it("exits selection mode on Cancel click", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const cancelBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Cancel")
+      await cancelBtn!.trigger("click")
+
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.text()).toBe("Select")
+    })
+
+    it("toggles individual skill selection", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit("toggle-select", "react-patterns")
+      await wrapper.vm.$nextTick()
+
+      const reactCard = wrapper
+        .findAllComponents({ name: "SkillCard" })
+        .find((c) => c.props("skill").name === "react-patterns")
+      expect(reactCard?.props("selected")).toBe(true)
+    })
+
+    it("Select All selects all skills", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const selectAllBtn = wrapper
+        .findAll(".header-actions button")
+        .find((b) => b.text() === "Select All")
+      await selectAllBtn!.trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selected")).toBe(true)
+      })
+    })
+  })
+
+  describe("group selection", () => {
+    it("shows group checkbox in selection mode", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      expect(wrapper.find(".group-checkbox").exists()).toBe(true)
+    })
+
+    it("does not show group checkbox outside selection mode", async () => {
+      const wrapper = await mountSkillList()
+
+      expect(wrapper.find(".group-checkbox").exists()).toBe(false)
+    })
+
+    it("selects all skills in a group when group checkbox is clicked", async () => {
+      // Use skills with 2 in same source to test group selection
+      mockAppService.GetSkills.mockResolvedValue([
+        mockSkills[0],
+        {
+          ...mockSkills[1],
+          source: "vercel-labs/skills",
+          sourceType: "github",
+        },
+      ])
+      mockAppService.GetWorkspaces.mockResolvedValue([
+        {
+          name: "default",
+          description: "",
+          skills: ["react-patterns", "typescript-tips"],
+          isActive: true,
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      const checkbox = wrapper.find(".group-checkbox")
+      await checkbox.trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      cards.forEach((card) => {
+        expect(card.props("selected")).toBe(true)
+      })
+    })
+  })
+
+  describe("bulk remove from workspace", () => {
+    async function enterSelectionAndSelect(
+      wrapper: ReturnType<typeof mount>,
+      skillNames: string[],
+    ) {
+      await wrapper.find(".header-actions button").trigger("click")
+      for (const name of skillNames) {
+        const card = wrapper
+          .findAllComponents({ name: "SkillCard" })
+          .find((c) => c.props("skill").name === name)
+        await card!.vm.$emit("toggle-select", name)
+      }
+      await wrapper.vm.$nextTick()
+    }
+
+    it("shows bulk action bar when skills are selected", async () => {
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(true)
+      expect(wrapper.find(".bulk-count").text()).toBe("1 skill selected")
+    })
+
+    it("does not show bulk action bar when no skills selected", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+
+    it("shows confirm dialog when remove button is clicked", async () => {
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      expect(bulkDialog).toBeDefined()
+      expect(bulkDialog!.props("message")).toContain("2 skills")
+    })
+
+    it("calls RemoveSkillFromWorkspace for each selected skill on confirm", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      await bulkDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "react-patterns",
+        "default",
+      )
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "typescript-tips",
+        "default",
+      )
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledTimes(2)
+    })
+
+    it("exits selection mode after successful bulk remove", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      await bulkDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.text()).toBe("Select")
+      expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+
+    it("shows success toast after bulk remove", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      await bulkDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("2 skills")
+      expect(toast.props("message")).toContain("default")
+      expect(toast.props("type")).toBe("success")
+    })
+
+    it("does not remove on cancel", async () => {
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      await bulkDialog!.vm.$emit("cancel")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkillFromWorkspace).not.toHaveBeenCalled()
+    })
+
+    it("shows error toast on bulk remove failure", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockRejectedValue(
+        new Error("Permission denied"),
+      )
+
+      const wrapper = await mountSkillList()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const bulkDialog = dialogs.find(
+        (d) => d.props("confirmLabel") === "Remove All",
+      )
+      await bulkDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Permission denied")
+      expect(toast.props("type")).toBe("error")
+    })
+  })
+
   describe("source URL validation", () => {
     it("renders source as link for https URLs", async () => {
       mockAppService.GetSkills.mockResolvedValue([

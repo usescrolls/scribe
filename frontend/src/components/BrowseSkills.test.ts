@@ -830,21 +830,25 @@ describe("BrowseSkills", () => {
     })
   })
 
-  describe("bulk action bar", () => {
-    async function enterSelectionAndSelect(
-      wrapper: ReturnType<typeof mount>,
-      skillNames: string[],
-    ) {
-      await wrapper.find(".header-actions button").trigger("click")
-      for (const name of skillNames) {
-        const card = wrapper
-          .findAllComponents({ name: "SkillCard" })
-          .find((c) => c.props("skill").name === name)
-        await card!.vm.$emit("toggle-select", name)
-      }
-      await wrapper.vm.$nextTick()
-    }
+  async function enterSelectionMode(wrapper: ReturnType<typeof mount>) {
+    await wrapper.find(".header-actions button").trigger("click")
+  }
 
+  async function enterSelectionAndSelect(
+    wrapper: ReturnType<typeof mount>,
+    skillNames: string[],
+  ) {
+    await enterSelectionMode(wrapper)
+    for (const name of skillNames) {
+      const card = wrapper
+        .findAllComponents({ name: "SkillCard" })
+        .find((c) => c.props("skill").name === name)
+      await card!.vm.$emit("toggle-select", name)
+    }
+    await wrapper.vm.$nextTick()
+  }
+
+  describe("bulk action bar", () => {
     it("does not show bulk action bar when no skills selected", async () => {
       const wrapper = await mountBrowseSkills()
 
@@ -1037,6 +1041,225 @@ describe("BrowseSkills", () => {
       await cancelBtn!.trigger("click")
 
       expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+  })
+
+  describe("group selection", () => {
+    it("shows group checkbox in selection mode", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionMode(wrapper)
+
+      const checkboxes = wrapper.findAll(".group-checkbox")
+      expect(checkboxes.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("does not show group checkbox outside selection mode", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".group-checkbox").exists()).toBe(false)
+    })
+
+    it("selects all skills in a group when group checkbox is clicked", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionMode(wrapper)
+
+      // Click the first group checkbox (vercel-labs/skills with 2 skills)
+      const checkbox = wrapper.find(".group-checkbox")
+      await checkbox.trigger("click")
+
+      // Both skills in the group should be selected
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      const vercelCards = cards.filter(
+        (c) => c.props("skill").source === "vercel-labs/skills",
+      )
+      vercelCards.forEach((card) => {
+        expect(card.props("selected")).toBe(true)
+      })
+    })
+
+    it("deselects all skills in a group when all are selected", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionMode(wrapper)
+
+      // Select all in group
+      const checkbox = wrapper.find(".group-checkbox")
+      await checkbox.trigger("click")
+
+      // Deselect all in group
+      await checkbox.trigger("click")
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      const vercelCards = cards.filter(
+        (c) => c.props("skill").source === "vercel-labs/skills",
+      )
+      vercelCards.forEach((card) => {
+        expect(card.props("selected")).toBe(false)
+      })
+    })
+
+    it("does not select skills from other groups", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionMode(wrapper)
+
+      // Click the first group checkbox
+      const checkbox = wrapper.find(".group-checkbox")
+      await checkbox.trigger("click")
+
+      // vue/skills group should not be selected
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      const vueCard = cards.find(
+        (c) => c.props("skill").source === "vue/skills",
+      )
+      expect(vueCard?.props("selected")).toBe(false)
+    })
+
+    it("does not show group checkbox for system-only groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "system-skill",
+          description: "System",
+          source: "system",
+          sourceType: "system",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+          isSystem: true,
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionMode(wrapper)
+
+      expect(wrapper.find(".group-checkbox").exists()).toBe(false)
+    })
+  })
+
+  describe("bulk remove from workspace", () => {
+    it("shows remove from workspace button in bulk action bar", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      expect(removeBtn.exists()).toBe(true)
+      expect(removeBtn.text()).toBe("Remove from workspace")
+    })
+
+    it("disables remove button when no workspace is chosen", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      expect(removeBtn.attributes("disabled")).toBeDefined()
+    })
+
+    it("calls RemoveSkillFromWorkspace for each selected skill", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, [
+        "react-patterns",
+        "typescript-tips",
+      ])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("my-workspace")
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await flushPromises()
+
+      // react-patterns is in my-workspace, typescript-tips is not
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "react-patterns",
+        "my-workspace",
+      )
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledTimes(1)
+    })
+
+    it("shows success toast after bulk remove", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("my-workspace")
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("1 skill")
+      expect(toast.props("message")).toContain("my-workspace")
+      expect(toast.props("type")).toBe("success")
+    })
+
+    it("shows info toast when no selected skills are in the workspace", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["vue-utils"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("my-workspace")
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("No selected skills")
+      expect(toast.props("type")).toBe("info")
+    })
+
+    it("exits selection mode after bulk remove", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("my-workspace")
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await flushPromises()
+
+      const selectBtn = wrapper.find(".header-actions button")
+      expect(selectBtn.text()).toBe("Select")
+    })
+
+    it("shows error toast on bulk remove failure", async () => {
+      mockAppService.RemoveSkillFromWorkspace.mockRejectedValue(
+        new Error("Remove failed"),
+      )
+
+      const wrapper = await mountBrowseSkills()
+
+      await enterSelectionAndSelect(wrapper, ["react-patterns"])
+
+      const select = wrapper.find(".bulk-workspace-select")
+      await select.setValue("my-workspace")
+
+      const removeBtn = wrapper.find(".bulk-action-bar .btn-danger")
+      await removeBtn.trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Remove failed")
+      expect(toast.props("type")).toBe("error")
     })
   })
 
