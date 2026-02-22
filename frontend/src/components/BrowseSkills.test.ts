@@ -3,7 +3,7 @@ import { mount, flushPromises } from "@vue/test-utils"
 import BrowseSkills from "./BrowseSkills.vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
 import SkillDetailModal from "./SkillDetailModal.vue"
-import { mockAppService, mockBrowser } from "../test/setup"
+import { mockAppService, mockBrowser, mockEvents } from "../test/setup"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
 describe("BrowseSkills", () => {
@@ -1037,6 +1037,134 @@ describe("BrowseSkills", () => {
       await cancelBtn!.trigger("click")
 
       expect(wrapper.find(".bulk-action-bar").exists()).toBe(false)
+    })
+  })
+
+  describe("refetch without loading flicker", () => {
+    it("does not show loading spinner when refetching after initial load", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      // Should not be in loading state after initial load
+      expect(wrapper.find(".loading").exists()).toBe(false)
+      expect(wrapper.findAll(".source-group").length).toBeGreaterThan(0)
+
+      // Trigger a refetch (e.g. after an update)
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      mockAppService.UpdateSkill.mockResolvedValue({
+        skillName: "react-patterns",
+        updated: false,
+      })
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      // Loading spinner should never have appeared — skill list should remain visible
+      expect(wrapper.find(".loading").exists()).toBe(false)
+      expect(wrapper.findAll(".source-group").length).toBeGreaterThan(0)
+    })
+
+    it("shows loading spinner only on initial load", () => {
+      mockAppService.GetSkills.mockReturnValue(new Promise(() => {}))
+      mockAppService.GetWorkspaces.mockReturnValue(new Promise(() => {}))
+      const wrapper = mount(BrowseSkills)
+
+      expect(wrapper.find(".loading").exists()).toBe(true)
+    })
+  })
+
+  describe("debounced event handling", () => {
+    it("registers event listeners with debounced handler on mount", async () => {
+      await mountBrowseSkills()
+
+      // Events.On should have been called for both events
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "skills-updated",
+        expect.any(Function),
+      )
+      expect(mockEvents.On).toHaveBeenCalledWith(
+        "workspace-changed",
+        expect.any(Function),
+      )
+    })
+
+    it("coalesces rapid event emissions into a single fetch", async () => {
+      vi.useFakeTimers()
+
+      // Capture event handlers registered via Events.On
+      const eventHandlers: Record<string, Function> = {}
+      ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
+        (event: string, handler: Function) => {
+          eventHandlers[event] = handler
+          return vi.fn()
+        },
+      )
+
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      mount(BrowseSkills)
+      // Flush the initial fetchAll
+      await flushPromises()
+
+      // Clear to track subsequent calls
+      mockAppService.GetSkills.mockClear()
+      mockAppService.GetWorkspaces.mockClear()
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      // Simulate 5 rapid "skills-updated" events
+      for (let i = 0; i < 5; i++) {
+        eventHandlers["skills-updated"]?.()
+      }
+
+      // Advance past debounce period
+      vi.advanceTimersByTime(350)
+      await flushPromises()
+
+      // Should have fetched only once despite 5 events
+      expect(mockAppService.GetSkills).toHaveBeenCalledTimes(1)
+
+      vi.useRealTimers()
+    })
+
+    it("cleans up debounce timer on unmount", async () => {
+      vi.useFakeTimers()
+
+      const eventHandlers: Record<string, Function> = {}
+      const unsubscribeFns = { skills: vi.fn(), workspace: vi.fn() }
+      ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
+        (event: string, handler: Function) => {
+          eventHandlers[event] = handler
+          return event === "skills-updated"
+            ? unsubscribeFns.skills
+            : unsubscribeFns.workspace
+        },
+      )
+
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+
+      const wrapper = mount(BrowseSkills)
+      await flushPromises()
+
+      // Fire an event to start a debounce timer
+      eventHandlers["skills-updated"]?.()
+
+      // Unmount before debounce fires
+      wrapper.unmount()
+
+      // Clear and check that nothing fires after unmount
+      mockAppService.GetSkills.mockClear()
+      vi.advanceTimersByTime(350)
+      await flushPromises()
+
+      expect(mockAppService.GetSkills).not.toHaveBeenCalled()
+      expect(unsubscribeFns.skills).toHaveBeenCalled()
+      expect(unsubscribeFns.workspace).toHaveBeenCalled()
+
+      vi.useRealTimers()
     })
   })
 

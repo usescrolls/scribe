@@ -164,6 +164,7 @@ const bulkWorkspace = ref('')
 const bulkAdding = ref(false)
 let unsubscribeSkills: { (): void } | null = null
 let unsubscribeWorkspace: { (): void } | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 interface SourceGroup {
   source: string
@@ -191,8 +192,9 @@ function getSkillWorkspaces(skillName: string): string[] {
 }
 
 async function fetchAll() {
+  const isInitialLoad = allSkillsRaw.value.length === 0
   try {
-    loading.value = true
+    if (isInitialLoad) loading.value = true
     error.value = null
     const [skills, ws] = await Promise.all([
       AppService.GetSkills(),
@@ -203,8 +205,13 @@ async function fetchAll() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load skills'
   } finally {
-    loading.value = false
+    if (isInitialLoad) loading.value = false
   }
+}
+
+function debouncedFetchAll() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(fetchAll, 300)
 }
 
 async function handleAddToWorkspace(skillName: string, workspaceName: string) {
@@ -419,8 +426,6 @@ function toggleSelectAll() {
 async function bulkAddToWorkspace() {
   if (!bulkWorkspace.value || selectedSkills.size === 0) return
   bulkAdding.value = true
-  // Temporarily unsub from workspace-changed to avoid N refetches
-  if (unsubscribeWorkspace) unsubscribeWorkspace()
   try {
     for (const skillName of selectedSkills) {
       await AppService.AddSkillToWorkspace(skillName, bulkWorkspace.value)
@@ -439,20 +444,19 @@ async function bulkAddToWorkspace() {
     }
   } finally {
     bulkAdding.value = false
-    // Re-subscribe
-    unsubscribeWorkspace = Events.On('workspace-changed', fetchAll)
   }
 }
 
 onMounted(() => {
   fetchAll()
-  unsubscribeSkills = Events.On('skills-updated', fetchAll)
-  unsubscribeWorkspace = Events.On('workspace-changed', fetchAll)
+  unsubscribeSkills = Events.On('skills-updated', debouncedFetchAll)
+  unsubscribeWorkspace = Events.On('workspace-changed', debouncedFetchAll)
 })
 
 onUnmounted(() => {
   if (unsubscribeSkills) unsubscribeSkills()
   if (unsubscribeWorkspace) unsubscribeWorkspace()
+  if (debounceTimer) clearTimeout(debounceTimer)
 })
 </script>
 
