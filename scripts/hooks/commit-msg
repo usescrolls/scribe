@@ -10,10 +10,10 @@ if echo "$commit_msg" | grep -qE '^Merge '; then
     exit 0
 fi
 
-# Conventional Commits pattern:
-#   type(optional-scope): description
+# Conventional Commits pattern (with optional gitmoji prefix):
+#   [emoji] type(optional-scope): description
 #   type!: description (breaking change)
-pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+'
+pattern='^(.+ )?(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .+'
 
 if ! echo "$commit_msg" | grep -qE "$pattern"; then
     echo ""
