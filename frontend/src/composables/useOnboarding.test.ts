@@ -378,10 +378,10 @@ describe("useOnboarding", () => {
       const { nextStep, currentStep } = useOnboarding()
 
       nextStep()
-      expect(currentStep.value).toBe("agents")
+      expect(currentStep.value).toBe("terms")
 
       nextStep()
-      expect(currentStep.value).toBe("existing-skills")
+      expect(currentStep.value).toBe("agents")
     })
 
     it("nextStep does nothing on last step", () => {
@@ -397,7 +397,7 @@ describe("useOnboarding", () => {
 
       goToStep("agents")
       previousStep()
-      expect(currentStep.value).toBe("welcome")
+      expect(currentStep.value).toBe("terms")
     })
 
     it("previousStep does nothing on first step", () => {

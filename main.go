@@ -492,6 +492,36 @@ func (a *AppService) IsOnboardingCompleted() bool {
 	return completed
 }
 
+// AreTermsAccepted checks if the user has accepted the terms and conditions
+func (a *AppService) AreTermsAccepted() bool {
+	accepted, err := scribe.AreTermsAccepted()
+	if err != nil {
+		scribe.Logger.Error("failed to check terms acceptance", "error", err)
+		return false
+	}
+	return accepted
+}
+
+// AcceptTerms records the user's acceptance of the terms and conditions
+func (a *AppService) AcceptTerms() error {
+	return scribe.AcceptTerms()
+}
+
+// GetTermsClauses returns the terms and conditions clauses (single source of truth)
+func (a *AppService) GetTermsClauses() []scribe.TermsClause {
+	return scribe.TermsClauses
+}
+
+// GetTermsAcceptedAt returns the RFC3339 timestamp of when terms were accepted, or empty string
+func (a *AppService) GetTermsAcceptedAt() string {
+	config, err := scribe.LoadConfig()
+	if err != nil {
+		scribe.Logger.Error("failed to load config for terms timestamp", "error", err)
+		return ""
+	}
+	return config.TermsAcceptedAt
+}
+
 // CompleteOnboarding marks onboarding as completed
 func (a *AppService) CompleteOnboarding() error {
 	err := scribe.CompleteOnboarding()

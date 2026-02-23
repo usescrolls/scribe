@@ -94,6 +94,178 @@ func TestCompleteOnboarding_Idempotent(t *testing.T) {
 }
 
 // ============================================================================
+// AreTermsAccepted / AcceptTerms (onboarding.go)
+// ============================================================================
+
+func TestAreTermsAccepted_Default(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	InitLoggerCLI(false)
+
+	accepted, err := AreTermsAccepted()
+	if err != nil {
+		t.Fatalf("AreTermsAccepted() error: %v", err)
+	}
+	if accepted {
+		t.Error("AreTermsAccepted() = true for fresh install, want false")
+	}
+}
+
+func TestAcceptTerms(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	InitLoggerCLI(false)
+
+	// Accept terms
+	if err := AcceptTerms(); err != nil {
+		t.Fatalf("AcceptTerms() error: %v", err)
+	}
+
+	// Verify
+	accepted, err := AreTermsAccepted()
+	if err != nil {
+		t.Fatalf("AreTermsAccepted() error: %v", err)
+	}
+	if !accepted {
+		t.Error("AreTermsAccepted() = false after AcceptTerms(), want true")
+	}
+
+	// Verify timestamp and version are persisted in config
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig() error: %v", err)
+	}
+	if config.TermsAcceptedAt == "" {
+		t.Error("config.TermsAcceptedAt is empty after AcceptTerms()")
+	}
+	if config.TermsAcceptedVersion != CurrentTermsVersion {
+		t.Errorf("config.TermsAcceptedVersion = %d, want %d", config.TermsAcceptedVersion, CurrentTermsVersion)
+	}
+}
+
+func TestAcceptTerms_Idempotent(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	InitLoggerCLI(false)
+
+	// Accept twice
+	if err := AcceptTerms(); err != nil {
+		t.Fatalf("AcceptTerms() first call error: %v", err)
+	}
+	if err := AcceptTerms(); err != nil {
+		t.Fatalf("AcceptTerms() second call error: %v", err)
+	}
+
+	accepted, err := AreTermsAccepted()
+	if err != nil {
+		t.Fatalf("AreTermsAccepted() error: %v", err)
+	}
+	if !accepted {
+		t.Error("AreTermsAccepted() = false after double AcceptTerms()")
+	}
+}
+
+func TestAreTermsAccepted_OldVersionRequiresReAcceptance(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	InitLoggerCLI(false)
+
+	// Simulate an old acceptance: set version to 0 (before versioning existed)
+	config, _ := LoadConfig()
+	config.TermsAcceptedAt = "2025-01-01T00:00:00Z"
+	config.TermsAcceptedVersion = 0
+	_ = SaveConfig(config)
+
+	// Should NOT be accepted because version is older than current
+	accepted, err := AreTermsAccepted()
+	if err != nil {
+		t.Fatalf("AreTermsAccepted() error: %v", err)
+	}
+	if accepted {
+		t.Error("AreTermsAccepted() = true for old version, want false")
+	}
+
+	// Now accept — should update version
+	if err := AcceptTerms(); err != nil {
+		t.Fatalf("AcceptTerms() error: %v", err)
+	}
+
+	accepted, err = AreTermsAccepted()
+	if err != nil {
+		t.Fatalf("AreTermsAccepted() after re-accept error: %v", err)
+	}
+	if !accepted {
+		t.Error("AreTermsAccepted() = false after re-accepting, want true")
+	}
+
+	// Verify version was updated
+	config, _ = LoadConfig()
+	if config.TermsAcceptedVersion != CurrentTermsVersion {
+		t.Errorf("config.TermsAcceptedVersion = %d, want %d", config.TermsAcceptedVersion, CurrentTermsVersion)
+	}
+}
+
+func TestAcceptTerms_DoesNotAffectOnboardingFlag(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "scribe-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	origHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpDir)
+	defer func() { _ = os.Setenv("HOME", origHome) }()
+
+	InitLoggerCLI(false)
+
+	// Accept terms but don't complete onboarding
+	if err := AcceptTerms(); err != nil {
+		t.Fatalf("AcceptTerms() error: %v", err)
+	}
+
+	// Onboarding should still be incomplete
+	completed, err := IsOnboardingCompleted()
+	if err != nil {
+		t.Fatalf("IsOnboardingCompleted() error: %v", err)
+	}
+	if completed {
+		t.Error("IsOnboardingCompleted() = true after only AcceptTerms(), want false")
+	}
+}
+
+// ============================================================================
 // DetectSkillConflicts (onboarding.go)
 // ============================================================================
 

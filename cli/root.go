@@ -51,6 +51,14 @@ Examples:
 				return runOnboardingIfNeeded()
 			}
 
+			// For existing users who completed onboarding before T&C were added,
+			// prompt them to accept terms before proceeding.
+			if !skipOnboarding {
+				if err := checkAndPromptTerms(); err != nil {
+					return err
+				}
+			}
+
 			// Check for app updates (once per day, non-blocking)
 			if !quiet && !skipOnboarding {
 				checkForAppUpdate()

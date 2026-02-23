@@ -31,6 +31,8 @@ describe("OnboardingWizard", () => {
     mockAppService.ResolveSkillConflict.mockResolvedValue(undefined)
     mockAppService.InstallDemoSkill.mockResolvedValue(undefined)
     mockAppService.CompleteOnboarding.mockResolvedValue(undefined)
+    mockAppService.AcceptTerms.mockResolvedValue(undefined)
+    mockAppService.GetTermsClauses.mockResolvedValue([])
   })
 
   async function mountWizard() {
@@ -47,6 +49,8 @@ describe("OnboardingWizard", () => {
 
   async function navigateToAgents(wrapper: ReturnType<typeof mount>) {
     wrapper.findComponent({ name: "WelcomeStep" }).vm.$emit("next")
+    await flushPromises()
+    wrapper.findComponent({ name: "TermsStep" }).vm.$emit("accept")
     await flushPromises()
   }
 
@@ -82,7 +86,7 @@ describe("OnboardingWizard", () => {
 
     it("renders progress dots for all steps", async () => {
       const wrapper = await mountWizard()
-      expect(wrapper.findAll(".dot")).toHaveLength(5)
+      expect(wrapper.findAll(".dot")).toHaveLength(6)
     })
 
     it("marks first dot as active", async () => {
@@ -324,7 +328,8 @@ describe("OnboardingWizard", () => {
 
       const dots = wrapper.findAll(".dot")
       expect(dots[0].classes()).toContain("completed")
-      expect(dots[1].classes()).toContain("active")
+      expect(dots[1].classes()).toContain("completed")
+      expect(dots[2].classes()).toContain("active")
     })
   })
 })

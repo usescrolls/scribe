@@ -10,7 +10,7 @@ import type {
 
 const log = useLogger("Onboarding")
 
-export type OnboardingStep = "welcome" | "agents" | "existing-skills" | "install-demo" | "complete"
+export type OnboardingStep = "welcome" | "terms" | "agents" | "existing-skills" | "install-demo" | "complete"
 
 export function useOnboarding() {
   const isCompleted = ref(false)
@@ -157,6 +157,18 @@ export function useOnboarding() {
     }
   }
 
+  // Accept terms and conditions
+  async function acceptTerms(): Promise<boolean> {
+    log.info("accepting terms and conditions")
+    try {
+      await AppService.AcceptTerms()
+      return true
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : "Failed to accept terms"
+      return false
+    }
+  }
+
   // Complete onboarding
   async function completeOnboarding(): Promise<boolean> {
     log.info("completing onboarding")
@@ -179,6 +191,7 @@ export function useOnboarding() {
   function nextStep() {
     const steps: OnboardingStep[] = [
       "welcome",
+      "terms",
       "agents",
       "existing-skills",
       "install-demo",
@@ -193,6 +206,7 @@ export function useOnboarding() {
   function previousStep() {
     const steps: OnboardingStep[] = [
       "welcome",
+      "terms",
       "agents",
       "existing-skills",
       "install-demo",
@@ -247,6 +261,7 @@ export function useOnboarding() {
     deleteAllSkills,
     resolveConflict,
     installDemoSkill,
+    acceptTerms,
     completeOnboarding,
 
     // Navigation

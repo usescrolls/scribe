@@ -65,10 +65,43 @@ type Workspace struct {
 	Skills      []string `json:"skills"` // Skill names in this workspace
 }
 
+// CurrentTermsVersion is bumped whenever the terms and conditions text changes.
+// When this is higher than the user's TermsAcceptedVersion, they must re-accept.
+const CurrentTermsVersion = 1
+
+// TermsClause is a single clause in the terms and conditions.
+type TermsClause struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// TermsClauses is the single source of truth for the terms and conditions text.
+// Both the CLI and frontend read from this. Bump CurrentTermsVersion when changing.
+var TermsClauses = []TermsClause{
+	{
+		Title: "Skill Management",
+		Body:  "Scribe manages files in your coding agents' configuration directories (e.g., ~/.claude/skills, ~/.cursor/skills). By using Scribe, you authorize it to create, update, and remove skill files in these directories on your behalf.",
+	},
+	{
+		Title: "Community Content",
+		Body:  "Skills available through Scribe may be created by third-party contributors. Scribe does not verify, audit, or endorse the content of any skill. You are responsible for reviewing skills before installing them.",
+	},
+	{
+		Title: "No Warranty",
+		Body:  "Scribe is provided \"as is\" without warranty of any kind. The authors and contributors are not liable for any damages or issues arising from the use of this tool or any installed skills.",
+	},
+	{
+		Title: "Use at Your Own Risk",
+		Body:  "You accept full responsibility for any consequences of using Scribe, including any changes made to your system or coding agent configurations.",
+	},
+}
+
 // Config represents the global Scribe configuration
 type Config struct {
 	ActiveWorkspace             string `json:"activeWorkspace"`
 	OnboardingCompleted         bool   `json:"onboardingCompleted"`
+	TermsAcceptedAt             string `json:"termsAcceptedAt,omitempty"`      // RFC3339 timestamp when terms were accepted
+	TermsAcceptedVersion        int    `json:"termsAcceptedVersion,omitempty"` // Version of terms the user accepted
 	UpdateNotificationsDisabled bool   `json:"updateNotificationsDisabled,omitempty"`
 	LastUpdateCheck             string `json:"lastUpdateCheck,omitempty"` // RFC3339 timestamp
 }

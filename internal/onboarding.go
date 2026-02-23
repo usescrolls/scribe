@@ -40,6 +40,27 @@ AI coding agents. This skill is now available in all your detected agents.
 You can safely uninstall this demo skill anytime with ` + "`scribe uninstall scribe-welcome`" + `.
 `
 
+// AreTermsAccepted checks if the user has accepted the current version of the terms.
+// Returns false if terms were never accepted or if a newer version is available.
+func AreTermsAccepted() (bool, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return false, err
+	}
+	return config.TermsAcceptedVersion >= CurrentTermsVersion, nil
+}
+
+// AcceptTerms records the user's acceptance of the current terms version.
+func AcceptTerms() error {
+	config, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+	config.TermsAcceptedAt = time.Now().Format(time.RFC3339)
+	config.TermsAcceptedVersion = CurrentTermsVersion
+	return SaveConfig(config)
+}
+
 // IsOnboardingCompleted checks if onboarding has been completed
 func IsOnboardingCompleted() (bool, error) {
 	config, err := LoadConfig()

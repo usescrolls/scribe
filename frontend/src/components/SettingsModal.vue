@@ -92,6 +92,23 @@
                 </div>
               </section>
 
+              <section v-else-if="activeSection === 'terms'" class="settings-section">
+                <h3 class="section-title">Terms & Conditions</h3>
+                <div class="terms-section">
+                  <div class="terms-box">
+                    <div class="terms-content">
+                      <template v-for="(clause, i) in termsClauses" :key="i">
+                        <h4>{{ i + 1 }}. {{ clause.title }}</h4>
+                        <p>{{ clause.body }}</p>
+                      </template>
+                    </div>
+                  </div>
+                  <div v-if="termsAcceptedAt" class="terms-accepted-note">
+                    Accepted on {{ formatDate(termsAcceptedAt) }}
+                  </div>
+                </div>
+              </section>
+
               <section v-else-if="activeSection === 'support'" class="settings-section">
                 <h3 class="section-title">Support Scribe</h3>
                 <div class="support-section">
@@ -172,6 +189,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Browser } from '@wailsio/runtime'
 import AgentStatusPanel from './AgentStatusPanel.vue'
 import { useUpdateChecker } from '../composables/useUpdateChecker'
+import { AppService } from '../bindings/scribe'
 
 defineEmits<{
   close: []
@@ -179,6 +197,8 @@ defineEmits<{
 
 const visible = ref(true)
 const activeSection = ref('agents')
+const termsAcceptedAt = ref('')
+const termsClauses = ref<{ title: string; body: string }[]>([])
 
 const {
   updateInfo,
@@ -206,11 +226,28 @@ const sections = [
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   },
   {
+    id: 'terms',
+    label: 'Terms',
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  },
+  {
     id: 'support',
     label: 'Support',
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
   },
 ]
+
+function formatDate(isoString: string): string {
+  try {
+    return new Date(isoString).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  } catch {
+    return isoString
+  }
+}
 
 function handleClose() {
   visible.value = false
@@ -222,8 +259,10 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
+  termsAcceptedAt.value = await AppService.GetTermsAcceptedAt()
+  termsClauses.value = await AppService.GetTermsClauses()
 })
 
 onUnmounted(() => {
@@ -456,6 +495,49 @@ onUnmounted(() => {
   font-size: 0.6875rem;
   color: var(--text-secondary);
   margin: 0;
+  opacity: 0.7;
+}
+
+/* Terms section */
+.terms-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.terms-box {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+}
+
+.terms-content {
+  padding: 1rem;
+}
+
+.terms-content h4 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+}
+
+.terms-content h4:not(:first-child) {
+  margin-top: 0.75rem;
+}
+
+.terms-content p {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.terms-accepted-note {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
   opacity: 0.7;
 }
 

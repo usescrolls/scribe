@@ -7,6 +7,9 @@ describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAppService.IsOnboardingCompleted.mockResolvedValue(true)
+    mockAppService.AreTermsAccepted.mockResolvedValue(true)
+    mockAppService.GetTermsClauses.mockResolvedValue([])
+    mockAppService.AcceptTerms.mockResolvedValue(undefined)
     mockAppService.GetVersion.mockResolvedValue("1.2.3")
     mockAppService.GetSkills.mockResolvedValue([])
     mockAppService.GetWorkspaces.mockResolvedValue([

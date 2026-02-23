@@ -4,7 +4,11 @@
       <Transition name="fade" mode="out-in">
         <WelcomeStep
           v-if="currentStep === 'welcome'"
-          @next="goToAgents"
+          @next="goToTerms"
+        />
+        <TermsStep
+          v-else-if="currentStep === 'terms'"
+          @accept="handleAcceptTerms"
         />
         <AgentDetectionStep
           v-else-if="currentStep === 'agents'"
@@ -54,6 +58,7 @@
 import { computed, watch } from 'vue'
 import { useOnboarding, type OnboardingStep } from '../composables/useOnboarding'
 import WelcomeStep from './onboarding/WelcomeStep.vue'
+import TermsStep from './onboarding/TermsStep.vue'
 import AgentDetectionStep from './onboarding/AgentDetectionStep.vue'
 import ExistingSkillsStep from './onboarding/ExistingSkillsStep.vue'
 import InstallDemoStep from './onboarding/InstallDemoStep.vue'
@@ -81,10 +86,11 @@ const {
   deleteAllSkills,
   resolveConflict,
   installDemoSkill,
+  acceptTerms,
   completeOnboarding,
 } = useOnboarding()
 
-const steps: OnboardingStep[] = ['welcome', 'agents', 'existing-skills', 'install-demo', 'complete']
+const steps: OnboardingStep[] = ['welcome', 'terms', 'agents', 'existing-skills', 'install-demo', 'complete']
 
 const currentStepIndex = computed(() => steps.indexOf(currentStep.value))
 
@@ -92,7 +98,12 @@ function isStepCompleted(step: OnboardingStep): boolean {
   return steps.indexOf(step) < currentStepIndex.value
 }
 
-function goToAgents() {
+function goToTerms() {
+  goToStep('terms')
+}
+
+async function handleAcceptTerms() {
+  await acceptTerms()
   goToStep('agents')
   startAgentScan()
 }

@@ -3,6 +3,9 @@
     v-if="showOnboarding"
     @complete="onOnboardingComplete"
   />
+  <div v-else-if="showTermsGate" class="terms-gate-overlay">
+    <TermsStep @accept="onTermsAccepted" />
+  </div>
   <div v-else class="app">
     <header class="header">
       <div class="header-spacer"></div>
@@ -79,6 +82,7 @@ import WorkspaceDropdown from './components/WorkspaceDropdown.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import WorkspaceSwitchInfoModal from './components/WorkspaceSwitchInfoModal.vue'
 import OnboardingWizard from './components/OnboardingWizard.vue'
+import TermsStep from './components/onboarding/TermsStep.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import { AppService } from './bindings/scribe'
 import { useLogger } from './composables/useLogger'
@@ -88,6 +92,7 @@ import { useSkillUpdateChecker } from './composables/useSkillUpdateChecker'
 const log = useLogger('App')
 const version = ref('1.0.0')
 const showOnboarding = ref(false)
+const showTermsGate = ref(false)
 const onboardingChecked = ref(false)
 const showSettings = ref(false)
 const activeTab = ref<'workspace' | 'browse' | 'install' | 'marketplace'>('workspace')
@@ -102,6 +107,14 @@ onMounted(async () => {
     const completed = await AppService.IsOnboardingCompleted()
     showOnboarding.value = !completed
     onboardingChecked.value = true
+
+    // For existing users who completed onboarding before T&C were added
+    if (completed) {
+      const termsAccepted = await AppService.AreTermsAccepted()
+      if (!termsAccepted) {
+        showTermsGate.value = true
+      }
+    }
 
     // Load version
     version.value = await AppService.GetVersion()
@@ -119,6 +132,15 @@ onMounted(async () => {
 
 function onOnboardingComplete() {
   showOnboarding.value = false
+}
+
+async function onTermsAccepted() {
+  try {
+    await AppService.AcceptTerms()
+    showTermsGate.value = false
+  } catch (e) {
+    log.error(`failed to accept terms: ${e instanceof Error ? e.message : e}`)
+  }
 }
 
 function handleMarketplaceInstall(source: string) {
@@ -265,5 +287,14 @@ function handleMarketplaceInstall(source: string) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.terms-gate-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: var(--bg-primary);
+  padding: 2rem;
 }
 </style>

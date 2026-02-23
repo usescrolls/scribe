@@ -239,6 +239,11 @@ jobs:
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -252,11 +257,6 @@ jobs:
           cp artifacts/scribe-darwin-arm64/scribe-darwin-arm64 release/
           cp artifacts/scribe-Installer.dmg/scribe-Installer.dmg release/
           ls -la release/
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4

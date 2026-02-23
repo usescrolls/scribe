@@ -47,6 +47,54 @@ func runOnboardingIfNeeded() error {
 	return runOnboarding()
 }
 
+// checkAndPromptTerms checks if terms have been accepted and prompts if not.
+// This is a lightweight gate for existing users who completed onboarding before
+// terms and conditions were added. Returns nil if terms are already accepted or
+// if the user accepts them now.
+func checkAndPromptTerms() error {
+	accepted, err := scribe.AreTermsAccepted()
+	if err != nil {
+		scribe.Logger.Warn("failed to check terms acceptance", "error", err)
+		return nil // don't block on errors
+	}
+	if accepted {
+		return nil
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println()
+	fmt.Println("Scribe has updated its Terms & Conditions.")
+	fmt.Println("Please review and accept before continuing:")
+	fmt.Println()
+	printTermsClauses()
+	fmt.Println()
+
+	fmt.Print("Do you accept these terms? [y/N] ")
+	input, _ := reader.ReadString('\n')
+	input = strings.ToLower(strings.TrimSpace(input))
+
+	if input != "y" && input != "yes" {
+		fmt.Println("You must accept the terms and conditions to use Scribe.")
+		return fmt.Errorf("terms and conditions not accepted")
+	}
+
+	if err := scribe.AcceptTerms(); err != nil {
+		return fmt.Errorf("failed to save terms acceptance: %w", err)
+	}
+	fmt.Println("Terms accepted.")
+	fmt.Println()
+	return nil
+}
+
+// printTermsClauses prints the terms clauses from the centralized source of truth.
+func printTermsClauses() {
+	for i, clause := range scribe.TermsClauses {
+		fmt.Printf("  %d. %s: %s\n", i+1, clause.Title, clause.Body)
+		fmt.Println()
+	}
+}
+
 // runOnboarding runs the interactive CLI onboarding flow
 func runOnboarding() error {
 	reader := bufio.NewReader(os.Stdin)
@@ -56,7 +104,31 @@ func runOnboarding() error {
 	fmt.Println("Scribe syncs AI coding skills to all your coding agents.")
 	fmt.Println()
 
-	// Step 2: Detect agents
+	// Step 2: Terms and Conditions
+	fmt.Println("Before continuing, please review the following terms:")
+	fmt.Println()
+	fmt.Println("  Terms & Conditions")
+	fmt.Println("  ==================")
+	fmt.Println()
+	printTermsClauses()
+	fmt.Println()
+
+	fmt.Print("Do you accept these terms? [y/N] ")
+	input, _ := reader.ReadString('\n')
+	input = strings.ToLower(strings.TrimSpace(input))
+
+	if input != "y" && input != "yes" {
+		fmt.Println("You must accept the terms and conditions to use Scribe.")
+		return fmt.Errorf("terms and conditions not accepted")
+	}
+
+	if err := scribe.AcceptTerms(); err != nil {
+		return fmt.Errorf("failed to save terms acceptance: %w", err)
+	}
+	fmt.Println("Terms accepted.")
+	fmt.Println()
+
+	// Step 3: Detect agents
 	fmt.Println("Detecting installed coding agents...")
 	agents := scribe.DetectInstalledAgents()
 
@@ -79,7 +151,7 @@ func runOnboarding() error {
 	}
 	fmt.Println()
 
-	// Step 3: Check for existing skills
+	// Step 4: Check for existing skills
 	fmt.Println("Checking for existing skills...")
 	existingSkills, err := scribe.DetectExistingSkills()
 	if err != nil {
@@ -120,9 +192,9 @@ func runOnboarding() error {
 		fmt.Println()
 	}
 
-	// Step 4: Install demo skill
+	// Step 5: Install demo skill
 	fmt.Print("Would you like to install the demo skill? [Y/n] ")
-	input, _ := reader.ReadString('\n')
+	input, _ = reader.ReadString('\n')
 	input = strings.ToLower(strings.TrimSpace(input))
 
 	if input == "" || input == "y" || input == "yes" {
@@ -139,7 +211,7 @@ func runOnboarding() error {
 	}
 	fmt.Println()
 
-	// Step 5: Complete
+	// Step 6: Complete
 	if err := scribe.CompleteOnboarding(); err != nil {
 		return fmt.Errorf("failed to complete onboarding: %w", err)
 	}
