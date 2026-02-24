@@ -90,6 +90,14 @@
             <code>https://github.com/owner/repo</code>
             <span>Full GitHub URL</span>
           </button>
+          <button class="example" @click="fillExample('git@github.com:owner/repo.git')">
+            <code>git@github.com:owner/repo.git</code>
+            <span>SSH clone URL</span>
+          </button>
+          <button class="example" @click="fillExample('https://gitlab.com/group/subgroup/repo')">
+            <code>https://gitlab.com/group/subgroup/repo</code>
+            <span>GitLab nested groups</span>
+          </button>
           <button class="example" @click="fillExample('https://bitbucket.org/owner/repo')">
             <code>https://bitbucket.org/owner/repo</code>
             <span>Bitbucket URL</span>
@@ -756,7 +764,7 @@ function isAuthError(msg: string): boolean {
   font-family: 'SF Mono', Monaco, 'Courier New', monospace;
   font-size: 0.75rem;
   color: var(--accent-color);
-  min-width: 220px;
+  min-width: 270px;
 }
 
 .example span {

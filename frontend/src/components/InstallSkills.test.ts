@@ -51,7 +51,7 @@ describe("InstallSkills", () => {
       const wrapper = mountInstallSkills()
 
       expect(wrapper.find(".examples").exists()).toBe(true)
-      expect(wrapper.findAll(".example")).toHaveLength(6)
+      expect(wrapper.findAll(".example")).toHaveLength(8)
     })
   })
 
@@ -86,10 +86,30 @@ describe("InstallSkills", () => {
       )
     })
 
-    it("fills with bitbucket URL example", async () => {
+    it("fills with SSH clone URL example", async () => {
       const wrapper = mountInstallSkills()
 
       await wrapper.findAll(".example")[3].trigger("click")
+
+      expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
+        "git@github.com:owner/repo.git",
+      )
+    })
+
+    it("fills with GitLab nested groups example", async () => {
+      const wrapper = mountInstallSkills()
+
+      await wrapper.findAll(".example")[4].trigger("click")
+
+      expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
+        "https://gitlab.com/group/subgroup/repo",
+      )
+    })
+
+    it("fills with bitbucket URL example", async () => {
+      const wrapper = mountInstallSkills()
+
+      await wrapper.findAll(".example")[5].trigger("click")
 
       expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
         "https://bitbucket.org/owner/repo",
@@ -99,7 +119,7 @@ describe("InstallSkills", () => {
     it("fills with zip URL example", async () => {
       const wrapper = mountInstallSkills()
 
-      await wrapper.findAll(".example")[4].trigger("click")
+      await wrapper.findAll(".example")[6].trigger("click")
 
       expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
         "https://example.com/skills.zip",
@@ -109,7 +129,7 @@ describe("InstallSkills", () => {
     it("fills with CLI command example", async () => {
       const wrapper = mountInstallSkills()
 
-      await wrapper.findAll(".example")[5].trigger("click")
+      await wrapper.findAll(".example")[7].trigger("click")
 
       expect((wrapper.find("input").element as HTMLInputElement).value).toBe(
         "npx skills add owner/repo",
