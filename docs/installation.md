@@ -2,15 +2,15 @@
 
 This guide covers all installation methods for Scribe.
 
-## Option 1: macOS DMG Installer (Recommended)
-
-Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
-
-## Option 2: Homebrew (macOS)
+## Option 1: Homebrew (macOS — Recommended)
 
 ```bash
 brew install usescrolls/tap/scribe
 ```
+
+## Option 2: macOS DMG Installer
+
+Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
 
 ## Option 3: Shell Installer (macOS, Linux & WSL)
 
@@ -101,122 +101,4 @@ Register-ScheduledTask -TaskName "Scribe" -Action $Action -Trigger $Trigger -Set
 
 ---
 
-## Command Line Interface
-
-Scribe provides a full CLI for managing skills.
-
-### Install Skills
-
-```bash
-scribe install <source> [flags]
-```
-
-**Sources:**
-```bash
-scribe install owner/repo                          # GitHub shorthand
-scribe install https://github.com/owner/repo       # Full GitHub URL
-scribe install https://gitlab.com/owner/repo       # GitLab URL
-scribe install https://bitbucket.org/owner/repo    # Bitbucket URL
-scribe install git@github.com:owner/repo.git       # SSH URL (private repos)
-scribe install ./local/path                        # Local directory
-scribe install https://example.com/skills.zip      # Zip URL
-```
-
-**Flags:**
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--skill` | `-s` | Select specific skills to install |
-| `--list` | `-l` | List available skills without installing |
-| `--yes` | `-y` | Skip interactive prompts |
-| `--all` | | Install all skills to all detected agents |
-
-### Uninstall Skills
-
-```bash
-scribe uninstall <skill-name>
-scribe rm <skill-name>
-scribe uninstall --all
-```
-
-### List Installed Skills
-
-```bash
-scribe list
-scribe ls --json
-scribe list --names-only
-```
-
-### Show Skill Info
-
-```bash
-scribe info <skill-name>
-```
-
-### Check for Updates
-
-```bash
-scribe check                    # Check all skills
-scribe check <skill-name>       # Check a specific skill
-```
-
-### Update Skills
-
-```bash
-scribe update                    # Update all outdated skills
-scribe update <skill-name>       # Update specific skill
-scribe update --force            # Force update even if up-to-date
-```
-
-### Workspace Commands
-
-```bash
-scribe workspace list              # List workspaces
-scribe workspace create <name>     # Create workspace
-scribe workspace use <name>        # Switch workspace
-scribe workspace add <skill>       # Add skill to workspace
-scribe workspace remove <skill>    # Remove skill from workspace
-scribe workspace current           # Show active workspace
-scribe workspace delete <name>     # Delete workspace
-```
-
-### Setup & Cache
-
-```bash
-scribe setup                       # Run first-time onboarding wizard
-scribe cache path                  # Print cache directory path
-scribe cache clear                 # Clear the local clone cache
-```
-
-### Global Flags
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--debug` | | Enable debug logging |
-| `--json` | | Output in JSON format (where applicable) |
-| `--quiet` | `-q` | Suppress non-essential output |
-| `--help` | `-h` | Show help |
-
-### Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | General error |
-| 2 | Invalid usage / bad arguments |
-| 3 | Skill not found |
-| 4 | Source resolution failed |
-| 5 | Filesystem error |
-
-### GUI Mode Options
-
-When running without CLI commands, Scribe launches in GUI mode:
-
-```bash
-./scribe [options]
-
-Options:
-  --no-gui       Run without system tray icon (headless mode)
-  --debug        Enable debug logging
-```
-
-The GUI's **Install** tab accepts the same source formats as the CLI. You can also paste a full CLI command (e.g. `npx skills add owner/repo`) and Scribe will automatically extract the source.
+For CLI usage, see [CLI Specification](cli-spec.md).
