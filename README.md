@@ -59,7 +59,7 @@ brew install usescrolls/tap/scribe
 
 ### macOS (DMG)
 
-Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases), open it, and drag Scribe to your Applications folder.
+Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
 
 ### Other Platforms
 
@@ -173,22 +173,11 @@ Skills are symlinked to each agent's skills directory:
 ~/.cursor/skills/react-best-practices -> ~/.scribe/scrolls/react-best-practices
 ```
 
-## URL Scheme
-
-Scribe supports the `agenthub://` URL scheme for one-click installs from websites:
-
-```
-agenthub://install?source=github&repo=owner/repo
-```
-
-1. Click an install link on [useScrolls.com](https://usescrolls.com)
-2. OS launches Scribe with the URL
-3. Scribe installs the skill and symlinks to all detected agents
-
 ## Documentation
 
 - [Installation](docs/installation.md) - All installation methods and background service setup
 - [CLI Specification](docs/cli-spec.md) - Complete CLI command reference
+- [Install Badge](docs/install-badge.md) - One-click install badges and `agenthub://` URL scheme
 - [Configuration](docs/configuration.md) - Storage layout and settings
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Development](docs/development.md) - Building, testing, and architecture reference

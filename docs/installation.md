@@ -4,7 +4,7 @@ This guide covers all installation methods for Scribe.
 
 ## Option 1: macOS DMG Installer (Recommended)
 
-Download the DMG from [usescrolls.com/releases](https://usescrolls.com/releases), open it, and drag Scribe to your Applications folder.
+Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
 
 ## Option 2: Homebrew (macOS)
 
@@ -16,17 +16,17 @@ brew install usescrolls/tap/scribe
 
 ```bash
 # macOS (Apple Silicon)
-curl -fsSL https://usescrolls.com/releases/scribe-darwin-arm64 -o scribe
+curl -fsSL https://github.com/usescrolls/scribe/releases/latest/download/scribe-darwin-arm64 -o scribe
 chmod +x scribe
 ./scribe
 
 # Linux (x86_64)
-curl -fsSL https://usescrolls.com/releases/scribe-linux-amd64 -o scribe
+curl -fsSL https://github.com/usescrolls/scribe/releases/latest/download/scribe-linux-amd64 -o scribe
 chmod +x scribe
 ./scribe
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe -OutFile scribe.exe
+Invoke-WebRequest -Uri https://github.com/usescrolls/scribe/releases/latest/download/scribe-windows-amd64.exe -OutFile scribe.exe
 .\scribe.exe
 ```
 
@@ -50,7 +50,7 @@ For Windows, use the PowerShell installer script for full setup including URL sc
 
 ```powershell
 # Download the binary
-Invoke-WebRequest -Uri https://usescrolls.com/releases/scribe-windows-amd64.exe -OutFile scribe.exe
+Invoke-WebRequest -Uri https://github.com/usescrolls/scribe/releases/latest/download/scribe-windows-amd64.exe -OutFile scribe.exe
 
 # Clone the repo to get the installer script (or download install.ps1 from the repo)
 git clone https://github.com/usescrolls/scribe.git
