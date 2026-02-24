@@ -61,9 +61,15 @@ brew install usescrolls/tap/scribe
 
 Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
 
+### macOS, Linux & WSL
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+```
+
 ### Other Platforms
 
-For Linux, Windows, and other installation methods, see [Installation](docs/installation.md).
+For Windows, building from source, and other options, see [Installation](docs/installation.md).
 
 ## CLI Usage
 

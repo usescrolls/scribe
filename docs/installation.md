@@ -12,25 +12,15 @@ Download the DMG from the [latest GitHub release](https://github.com/usescrolls/
 brew install usescrolls/tap/scribe
 ```
 
-## Option 3: Download Binary
+## Option 3: Shell Installer (macOS, Linux & WSL)
 
 ```bash
-# macOS (Apple Silicon)
-curl -fsSL https://github.com/usescrolls/scribe/releases/latest/download/scribe-darwin-arm64 -o scribe
-chmod +x scribe
-./scribe
-
-# Linux (x86_64)
-curl -fsSL https://github.com/usescrolls/scribe/releases/latest/download/scribe-linux-amd64 -o scribe
-chmod +x scribe
-./scribe
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri https://github.com/usescrolls/scribe/releases/latest/download/scribe-windows-amd64.exe -OutFile scribe.exe
-.\scribe.exe
+curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
 ```
 
-> **Note (macOS):** The raw binary does not support URL scheme handling (`agenthub://`). For full functionality including URL scheme support, use the DMG installer or Homebrew which provide a proper `.app` bundle.
+This detects your OS and architecture, downloads the latest binary to `/usr/local/bin`, sets up a background service (launchd on macOS, systemd on Linux), and on Linux also registers the `agenthub://` URL scheme.
+
+> **Note (macOS):** The standalone binary does not support URL scheme handling (`agenthub://`). For full functionality, use the DMG installer or Homebrew which provide a proper `.app` bundle.
 
 > **Note (Linux):** The binary requires the following runtime dependencies: `libgtk-3`, `libwebkit2gtk-4.1`, and `libayatana-appindicator3`. Install them via your package manager before running Scribe:
 > ```bash
@@ -85,62 +75,7 @@ make build
 
 ## Running as a Background Service
 
-### macOS (launchd)
-
-```bash
-# Create launch agent
-cat > ~/Library/LaunchAgents/dev.scribe.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>dev.scribe</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/YOU/.local/bin/scribe</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/scribe.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/scribe.log</string>
-</dict>
-</plist>
-EOF
-
-# Load the service
-launchctl load ~/Library/LaunchAgents/dev.scribe.plist
-```
-
-### Linux (systemd)
-
-```bash
-# Create user service
-mkdir -p ~/.config/systemd/user
-
-cat > ~/.config/systemd/user/scribe.service << 'EOF'
-[Unit]
-Description=Scribe
-After=network.target
-
-[Service]
-ExecStart=%h/.local/bin/scribe
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-
-# Enable and start
-systemctl --user daemon-reload
-systemctl --user enable scribe
-systemctl --user start scribe
-```
+The shell installer (Option 3) automatically sets up the background service on macOS (launchd) and Linux (systemd).
 
 ### Windows (Startup Folder)
 
