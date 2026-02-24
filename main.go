@@ -26,6 +26,11 @@ var appIcon []byte
 //go:embed icons/tray-icon.png
 var trayIcon []byte
 
+const (
+	labelShowScribe = "Show Scribe"
+	labelHideScribe = "Hide Scribe"
+)
+
 var wailsApp *application.App
 var mainWindow *application.WebviewWindow
 
@@ -146,6 +151,7 @@ func runGUIMode() {
 				// Show the window to confirm installation
 				if mainWindow != nil {
 					mainWindow.Show()
+					mainWindow.Focus()
 				}
 			} else {
 				scribe.Logger.Error("URL scheme installation failed", "error", result.ErrorMessage)
@@ -180,12 +186,15 @@ func runGUIMode() {
 
 	// Create tray menu
 	trayMenu := wailsApp.NewMenu()
-	toggleItem := trayMenu.Add("Show Scribe")
+	toggleItem := trayMenu.Add(labelShowScribe)
 	toggleItem.OnClick(func(ctx *application.Context) {
 		if mainWindow.IsVisible() {
 			mainWindow.Hide()
+			toggleItem.SetLabel(labelShowScribe)
 		} else {
 			mainWindow.Show()
+			mainWindow.Focus()
+			toggleItem.SetLabel(labelHideScribe)
 		}
 	})
 	trayMenu.AddSeparator()
@@ -209,9 +218,9 @@ func runGUIMode() {
 		defer ticker.Stop()
 		for range ticker.C {
 			if mainWindow.IsVisible() {
-				toggleItem.SetLabel("Hide Scribe")
+				toggleItem.SetLabel(labelHideScribe)
 			} else {
-				toggleItem.SetLabel("Show Scribe")
+				toggleItem.SetLabel(labelShowScribe)
 			}
 			skillCountItem.SetLabel(getSkillCountLabel())
 			workspaceItem.SetLabel(getWorkspaceLabel())
