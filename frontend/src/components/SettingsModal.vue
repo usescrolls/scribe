@@ -176,6 +176,33 @@
                   <p class="made-in">Made with precision in Switzerland</p>
                 </div>
               </section>
+
+              <section v-else-if="activeSection === 'report'" class="settings-section">
+                <h3 class="section-title">Report an Issue</h3>
+                <div class="report-section">
+                  <p class="report-text">
+                    Found a bug or have a feature request? Open an issue on GitHub and we'll look into it.
+                  </p>
+                  <button
+                    class="report-btn"
+                    @click="Browser.OpenURL('https://github.com/usescrolls/scribe/issues/new')"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Open Issue on GitHub
+                  </button>
+                  <div class="log-hint">
+                    <h4 class="log-hint-heading">Include logs if needed</h4>
+                    <p class="log-hint-text">
+                      If you're reporting a bug, attaching the log file can help us diagnose the problem faster. You can find it at:
+                    </p>
+                    <code class="log-path">~/.scribe/scribe.log</code>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -234,6 +261,11 @@ const sections = [
     id: 'support',
     label: 'Support',
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+  },
+  {
+    id: 'report',
+    label: 'Report Issue',
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
   },
 ]
 
@@ -496,6 +528,74 @@ onUnmounted(() => {
   color: var(--text-secondary);
   margin: 0;
   opacity: 0.7;
+}
+
+/* Report issue section */
+.report-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.report-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.report-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  align-self: flex-start;
+}
+
+.report-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.log-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.log-hint-heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.log-hint-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.log-path {
+  font-size: 0.75rem;
+  background-color: var(--bg-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: var(--accent-color);
+  align-self: flex-start;
 }
 
 /* Terms section */
