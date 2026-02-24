@@ -57,6 +57,7 @@
             :indeterminate="isGroupPartiallySelected(group)"
             @click.stop="toggleGroupSelection(group)"
           />
+          <SourceAvatar :source="group.source" :source-type="group.sourceType" />
           <span class="group-badge">{{ group.sourceType }}</span>
           <a
             v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
@@ -114,6 +115,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
+import SourceAvatar from './SourceAvatar.vue'
 import EmptyState from './EmptyState.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'

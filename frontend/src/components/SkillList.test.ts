@@ -104,6 +104,17 @@ describe("SkillList", () => {
       expect(groups).toHaveLength(2)
     })
 
+    it("shows source avatar in group header", async () => {
+      const wrapper = await mountSkillList()
+
+      const avatars = wrapper.findAllComponents({ name: "SourceAvatar" })
+      expect(avatars).toHaveLength(2)
+      expect(avatars[0].props("source")).toBe("vercel-labs/skills")
+      expect(avatars[0].props("sourceType")).toBe("github")
+      expect(avatars[1].props("source")).toBe("local/path")
+      expect(avatars[1].props("sourceType")).toBe("local")
+    })
+
     it("renders source as link when sourceUrl is present", async () => {
       mockAppService.GetSkills.mockResolvedValue([
         {

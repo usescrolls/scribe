@@ -59,6 +59,7 @@
             :indeterminate="isGroupPartiallySelected(group)"
             @click.stop="toggleGroupSelection(group)"
           />
+          <SourceAvatar :source="group.source" :source-type="group.sourceType" :is-private="isGroupPrivate(group)" />
           <span class="group-badge">{{ group.sourceType }}</span>
           <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -160,6 +161,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
+import SourceAvatar from './SourceAvatar.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'

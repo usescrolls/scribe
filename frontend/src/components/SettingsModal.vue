@@ -182,6 +182,7 @@
                 <div class="report-section">
                   <p class="report-text">
                     Found a bug or have a feature request? Open an issue on GitHub and we'll look into it.
+                    Please note that we do not accept pull requests.
                   </p>
                   <button
                     class="report-btn"

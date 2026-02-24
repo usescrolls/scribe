@@ -100,6 +100,27 @@ describe("BrowseSkills", () => {
       expect(groups).toHaveLength(2)
     })
 
+    it("shows source avatar in group header for github sources", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      const avatars = wrapper.findAllComponents({ name: "SourceAvatar" })
+      expect(avatars).toHaveLength(2)
+      expect(avatars[0].props("source")).toBe("vercel-labs/skills")
+      expect(avatars[0].props("sourceType")).toBe("github")
+    })
+
+    it("passes isPrivate to source avatar for private groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        { ...mockSkills[0], isPrivate: true },
+        { ...mockSkills[1], isPrivate: true },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const avatar = wrapper.findComponent({ name: "SourceAvatar" })
+      expect(avatar.props("isPrivate")).toBe(true)
+    })
+
     it("shows source badge and name in group header", async () => {
       const wrapper = await mountBrowseSkills()
 

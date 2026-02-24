@@ -117,6 +117,7 @@
     <!-- Step 2: Review Discovered Skills -->
     <div v-else-if="step === 'review'" class="step-review">
       <div class="step-info">
+        <SourceAvatar :source="discoverResult!.source" :source-type="discoverResult!.sourceType" />
         <span class="source-badge">{{ discoverResult!.sourceType }}</span>
         <span class="source-label">{{ discoverResult!.source }}</span>
       </div>
@@ -271,6 +272,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, nextTick, onMounted, onUnmounted } from 'vue'
+import SourceAvatar from './SourceAvatar.vue'
 import { AppService } from '../bindings/scribe'
 import { Events } from '@wailsio/runtime'
 import type { DiscoverResult, InstallResult, WorkspaceInfo, ProgressEvent } from '../types/skill'

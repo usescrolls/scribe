@@ -308,6 +308,15 @@ describe("InstallSkills", () => {
       expect(wrapper.find(".source-label").text()).toBe("owner/repo")
     })
 
+    it("shows source avatar in review step", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      const avatar = wrapper.findComponent({ name: "SourceAvatar" })
+      expect(avatar.exists()).toBe(true)
+      expect(avatar.props("source")).toBe("owner/repo")
+      expect(avatar.props("sourceType")).toBe("github")
+    })
+
     it("shows discovered skills with checkboxes", async () => {
       const wrapper = await mountAtReviewStep()
 
