@@ -69,10 +69,10 @@ describe("SkillCard", () => {
       expect(desc.endsWith("...")).toBe(true)
     })
 
-    it("renders source type badge", () => {
+    it("does not render source type badge (shown on group level only)", () => {
       const wrapper = mountSkillCard()
 
-      expect(wrapper.find(".source-badge").text()).toBe("github")
+      expect(wrapper.find(".source-badge").exists()).toBe(false)
     })
 
     it("handles skill with no description", () => {

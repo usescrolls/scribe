@@ -907,6 +907,127 @@ func TestUpdateSkill_OldHashFromContentHash(t *testing.T) {
 	_ = result
 }
 
+func TestUpdateSkill_RemovesSkillNoLongerInSource(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	skillContent := "---\nname: ghost-skill\ndescription: Will be removed from repo\n---\n# Ghost\n"
+
+	// Create a repo that does NOT contain ghost-skill (only has other-skill)
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"other-skill/SKILL.md": "---\nname: other-skill\ndescription: Other\n---\n# Other\n",
+	})
+
+	// Install ghost-skill locally, pointing at the repo that no longer has it
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	skillDir := filepath.Join(scrollsDir, "ghost-skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644)
+
+	meta := NewSkillMeta(&SourceInfo{
+		Type:  "github",
+		Owner: "testowner",
+		Repo:  "remote-repo",
+		URL:   repoURL,
+	}, "", skillContent, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+
+	// Also add skill to a workspace so we can verify it gets cleaned up
+	wsDir, _ := GetWorkspacesDir()
+	_ = os.MkdirAll(wsDir, 0o755)
+	wsContent := `{"name":"test-ws","description":"","skills":["ghost-skill","other-skill"]}`
+	_ = os.WriteFile(filepath.Join(wsDir, "test-ws.json"), []byte(wsContent), 0o644)
+
+	result, err := UpdateSkill("ghost-skill", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Removed {
+		t.Error("expected Removed = true")
+	}
+	if result.Updated {
+		t.Error("expected Updated = false")
+	}
+
+	// Verify skill was uninstalled from disk
+	if _, err := os.Stat(skillDir); !os.IsNotExist(err) {
+		t.Error("expected skill directory to be removed")
+	}
+
+	// Verify skill was removed from workspace
+	ws, err := GetWorkspace("test-ws")
+	if err != nil {
+		t.Fatalf("failed to read workspace: %v", err)
+	}
+	for _, s := range ws.Skills {
+		if s == "ghost-skill" {
+			t.Error("expected ghost-skill to be removed from workspace")
+		}
+	}
+}
+
+func TestUpdateSkill_RefreshesCommitInfoWhenUpToDate(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	skillContent := "---\nname: refresh-test\ndescription: Refresh commit info\n---\n# Same\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"refresh-test/SKILL.md": skillContent,
+	})
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	skillDir := filepath.Join(scrollsDir, "refresh-test")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644)
+
+	// Create meta with a stale commit hash
+	meta := NewSkillMeta(&SourceInfo{
+		Type:  "github",
+		Owner: "testowner",
+		Repo:  "remote-repo",
+		URL:   repoURL,
+	}, "", skillContent, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	meta.CommitHash = "oldold1"
+	meta.CommitDate = "2020-01-01T00:00:00Z"
+	meta.UpdatedAt = "2020-01-01T00:00:00Z"
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+
+	result, err := UpdateSkill("refresh-test", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Updated {
+		t.Error("expected Updated = false (same content)")
+	}
+
+	// Verify commit info was refreshed to the repo HEAD
+	updatedMeta, err := ReadSkillMeta(filepath.Join(skillDir, MetaFileName))
+	if err != nil {
+		t.Fatalf("failed to read meta: %v", err)
+	}
+	if updatedMeta.CommitHash == "oldold1" {
+		t.Error("expected CommitHash to be refreshed from stale value")
+	}
+	if updatedMeta.CommitHash == "" {
+		t.Error("expected CommitHash to be set")
+	}
+	if updatedMeta.CommitDate == "2020-01-01T00:00:00Z" {
+		t.Error("expected CommitDate to be refreshed from stale value")
+	}
+	if updatedMeta.UpdatedAt == meta.UpdatedAt {
+		t.Error("expected UpdatedAt to be refreshed")
+	}
+}
+
 // ============================================================================
 // CheckResult JSON serialization
 // ============================================================================

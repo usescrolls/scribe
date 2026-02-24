@@ -281,27 +281,52 @@ async function handleUpdateGroup(group: SourceGroup) {
   updatingGroup.value = group.source
   try {
     const results: UpdateResult[] = []
+    const errors: string[] = []
     for (const skill of group.skills) {
-      const result = await AppService.UpdateSkill(skill.name)
-      if (result) results.push(result as UpdateResult)
+      try {
+        const result = await AppService.UpdateSkill(skill.name)
+        if (result) results.push(result as UpdateResult)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : `Failed to update ${skill.name}`
+        errors.push(msg)
+      }
     }
     await fetchAll()
     clearUpdate(group.source)
 
     // Show toast with update summary
     const updated = results.filter(r => r.updated)
-    if (updated.length > 0) {
-      const hashInfo = updated[0].newHash
-        ? updated[0].oldHash
-          ? ` (${updated[0].oldHash} \u2192 ${updated[0].newHash})`
-          : ` (${updated[0].newHash})`
+    const removed = results.filter(r => r.removed)
+    const parts: string[] = []
+
+    if (errors.length > 0 && results.length === 0) {
+      // All skills failed
+      const hint = errors.some(m => isAuthError(m))
+        ? '. For private repos, ensure git credentials are configured (e.g. gh auth login)'
         : ''
-      toast.value = {
-        message: `Updated ${updated.length} skill${updated.length !== 1 ? 's' : ''}${hashInfo}`,
-        type: 'success',
-      }
+      toast.value = { message: errors[0] + hint, type: 'error' }
     } else {
-      toast.value = { message: 'All skills already up to date', type: 'info' }
+      if (updated.length > 0) {
+        const hashInfo = updated[0].newHash
+          ? updated[0].oldHash
+            ? ` (${updated[0].oldHash} \u2192 ${updated[0].newHash})`
+            : ` (${updated[0].newHash})`
+          : ''
+        parts.push(`Updated ${updated.length} skill${updated.length !== 1 ? 's' : ''}${hashInfo}`)
+      }
+      if (removed.length > 0) {
+        parts.push(`Removed ${removed.length} skill${removed.length !== 1 ? 's' : ''} no longer in source`)
+      }
+      if (errors.length > 0) {
+        parts.push(`${errors.length} failed`)
+      }
+
+      if (parts.length > 0) {
+        const type = errors.length > 0 ? 'error' : (removed.length > 0 ? 'info' : 'success')
+        toast.value = { message: parts.join(', '), type }
+      } else {
+        toast.value = { message: 'All skills already up to date', type: 'info' }
+      }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to update skills'

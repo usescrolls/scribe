@@ -8,7 +8,6 @@
         :checked="selected"
         @click.stop="$emit('toggle-select', skill.name)"
       />
-      <span class="source-badge" :class="{ 'system-badge': skill.isSystem }">{{ skill.isSystem ? 'system' : skill.sourceType }}</span>
       <svg v-if="skill.isSystem" class="lock-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="System skill">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -204,22 +203,6 @@ const truncatedDescription = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.source-badge {
-  flex-shrink: 0;
-  padding: 0.125rem 0.375rem;
-  background-color: var(--accent-color);
-  color: white;
-  border-radius: 3px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.source-badge.system-badge {
-  background-color: var(--text-secondary);
 }
 
 .lock-icon {

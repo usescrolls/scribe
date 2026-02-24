@@ -25,6 +25,7 @@ export interface SourceGroupCheckResult {
 export interface UpdateResult {
   skillName: string
   updated: boolean
+  removed?: boolean
   oldHash?: string
   newHash?: string
   commitDate?: string

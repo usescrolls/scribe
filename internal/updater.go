@@ -270,7 +270,14 @@ func UpdateSkill(skillName string, force bool) (*UpdateResult, error) {
 		}
 	}
 	if newSkill == nil {
-		return nil, fmt.Errorf("skill not found in source")
+		// Skill was removed from the source repo — clean up locally
+		Logger.Info("skill removed from source, uninstalling", "skill", skillName)
+		_ = RemoveSkillFromAllWorkspaces(skillName)
+		_ = UninstallSkill(skillName)
+		return &UpdateResult{
+			SkillName: skillName,
+			Removed:   true,
+		}, nil
 	}
 
 	newContent, err := os.ReadFile(filepath.Join(newSkill.Path, SkillFileName))
@@ -297,13 +304,14 @@ func UpdateSkill(skillName string, force bool) (*UpdateResult, error) {
 	}
 
 	if !needsUpdate && !force {
-		// Backfill git info into metadata if missing (e.g. skill was installed
-		// before commit tracking was added).
-		if gitInfo != nil && skill.Meta.CommitHash == "" {
+		// Always update commit info to reflect the latest HEAD so the UI
+		// shows current version details after an explicit update.
+		if gitInfo != nil && (skill.Meta.CommitHash != gitInfo.Hash || skill.Meta.CommitDate != gitInfo.Date) {
 			metaPath, err := GetMetaPath(skillName)
 			if err == nil {
 				skill.Meta.CommitHash = gitInfo.Hash
 				skill.Meta.CommitDate = gitInfo.Date
+				skill.Meta.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 				_ = WriteSkillMeta(metaPath, skill.Meta)
 			}
 		}

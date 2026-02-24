@@ -164,6 +164,7 @@ type SourceGroupCheckResult struct {
 type UpdateResult struct {
 	SkillName  string `json:"skillName"`
 	Updated    bool   `json:"updated"`
+	Removed    bool   `json:"removed,omitempty"`    // True if skill was removed (no longer in source)
 	OldHash    string `json:"oldHash,omitempty"`    // Previous commit hash or truncated content hash
 	NewHash    string `json:"newHash,omitempty"`    // New commit hash or truncated content hash
 	CommitDate string `json:"commitDate,omitempty"` // New commit date if available

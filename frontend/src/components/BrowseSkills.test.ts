@@ -512,7 +512,7 @@ describe("BrowseSkills", () => {
       expect(mockAppService.GetWorkspaces).toHaveBeenCalled()
     })
 
-    it("shows error on update failure", async () => {
+    it("shows error on update failure for all skills in group", async () => {
       mockAppService.UpdateSkill.mockRejectedValue(new Error("Update failed"))
 
       const wrapper = await mountBrowseSkills()
@@ -580,6 +580,71 @@ describe("BrowseSkills", () => {
       expect(toast.exists()).toBe(true)
       expect(toast.props("message")).toContain("Network error")
       expect(toast.props("type")).toBe("error")
+    })
+
+    it("continues updating other skills when one fails", async () => {
+      mockAppService.UpdateSkill.mockRejectedValueOnce(
+        new Error("Skill removed"),
+      ).mockResolvedValueOnce({ skillName: "typescript-tips", updated: false })
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      // Both skills should have been attempted
+      expect(mockAppService.UpdateSkill).toHaveBeenCalledTimes(2)
+      // Toast shows partial failure
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("1 failed")
+      expect(toast.props("type")).toBe("error")
+    })
+
+    it("shows removed skills in toast when skill no longer in source", async () => {
+      mockAppService.UpdateSkill.mockResolvedValue({
+        skillName: "react-patterns",
+        updated: false,
+        removed: true,
+      })
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Removed")
+      expect(toast.props("message")).toContain("no longer in source")
+      expect(toast.props("type")).toBe("info")
+    })
+
+    it("shows combined toast for updates and removals", async () => {
+      mockAppService.UpdateSkill.mockResolvedValueOnce({
+        skillName: "react-patterns",
+        updated: true,
+        oldHash: "aaa",
+        newHash: "bbb",
+      }).mockResolvedValueOnce({
+        skillName: "typescript-tips",
+        updated: false,
+        removed: true,
+      })
+
+      const wrapper = await mountBrowseSkills()
+
+      const updateButtons = wrapper.findAll(".group-update-btn")
+      await updateButtons[0].trigger("click")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Updated 1 skill")
+      expect(toast.props("message")).toContain("Removed 1 skill")
+      expect(toast.props("type")).toBe("info")
     })
   })
 
