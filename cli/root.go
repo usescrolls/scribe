@@ -99,7 +99,7 @@ func checkForAppUpdate() {
 			fmt.Fprintf(os.Stderr,
 				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: brew upgrade usescrolls/tap/scribe\n\n",
 				info.LatestVersion, info.CurrentVersion)
-		case "binary":
+		case "binary", "app-bundle":
 			fmt.Fprintf(os.Stderr,
 				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: scribe upgrade\n\n",
 				info.LatestVersion, info.CurrentVersion)

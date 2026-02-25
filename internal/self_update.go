@@ -101,8 +101,6 @@ func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 	switch method {
 	case "homebrew":
 		return nil, fmt.Errorf("scribe was installed via Homebrew; run 'brew upgrade usescrolls/tap/scribe' instead")
-	case "app-bundle":
-		return nil, fmt.Errorf("self-update is not supported for the macOS .app bundle; download the latest version from the releases page")
 	case "dev":
 		return nil, fmt.Errorf("cannot upgrade development builds")
 	case "unknown":
