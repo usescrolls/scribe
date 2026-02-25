@@ -13,6 +13,10 @@
           v-model="sourceStr"
           type="text"
           placeholder="owner/repo, Git URL, zip URL, or paste a CLI command"
+          autocorrect="off"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
           :disabled="discovering"
           @keyup.enter="handleDiscover"
         />
