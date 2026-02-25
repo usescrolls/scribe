@@ -51,8 +51,9 @@ install: build
 	@echo "Installed to ~/.local/bin/$(BINARY_NAME)"
 	@echo "Make sure ~/.local/bin is in your PATH"
 
-# Download dependencies
+# Download dependencies and install tools
 deps:
+	go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 	go mod download
 	go mod tidy
 	cd frontend && pnpm install

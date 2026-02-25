@@ -2,20 +2,53 @@
 
 This guide covers building, testing, and contributing to Scribe.
 
+## Prerequisites
+
+**Go 1.26+**
+
+```bash
+# macOS
+brew install go
+
+# Linux / WSL
+curl -LO https://go.dev/dl/go1.26.0.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+```
+
+**Node.js 20+ and pnpm**
+
+```bash
+# macOS
+brew install node pnpm
+
+# Linux / WSL
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt install -y nodejs
+npm install -g pnpm
+```
+
+**Linux only — native dependencies**
+
+```bash
+# Debian/Ubuntu
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev pkg-config
+```
+
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install Go and frontend dependencies
 make deps
 
-# Run in development mode with Wails
+# Run in development mode with hot reload
 wails3 dev
 
 # Run tests
 go test ./...
 
-# Build for all platforms
-make build-all
+# Build for current platform
+make build
 ```
 
 ---
