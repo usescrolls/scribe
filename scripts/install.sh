@@ -107,16 +107,13 @@ fi
 # Get latest version tag from GitHub
 LATEST_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's|.*/v||')
 
+SKIP_DOWNLOAD=false
+
 if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
     echo "Scribe v$INSTALLED_VERSION is already installed and up to date."
-    echo ""
-    echo "  Binary: $BINARY_PATH"
-    echo "  To reinstall, run: scribe upgrade"
-    echo "  To uninstall, run: curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | bash -s -- --uninstall"
-    exit 0
-fi
-
-if [ -n "$INSTALLED_VERSION" ]; then
+    echo "  Verifying setup..."
+    SKIP_DOWNLOAD=true
+elif [ -n "$INSTALLED_VERSION" ]; then
     echo "Scribe Installer"
     echo "================"
     echo ""
@@ -128,20 +125,22 @@ else
     echo "Downloading $ASSET_NAME..."
 fi
 
-TMP_FILE=$(mktemp)
-trap 'rm -f "$TMP_FILE"' EXIT
+if [ "$SKIP_DOWNLOAD" = false ]; then
+    TMP_FILE=$(mktemp)
+    trap 'rm -f "$TMP_FILE"' EXIT
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
-    echo "Error: failed to download from $DOWNLOAD_URL"
-    exit 1
+    if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
+        echo "Error: failed to download from $DOWNLOAD_URL"
+        exit 1
+    fi
+    chmod +x "$TMP_FILE"
+
+    # Install binary
+    mkdir -p "$INSTALL_DIR"
+    echo "Installing to $BINARY_PATH..."
+    mv "$TMP_FILE" "$BINARY_PATH"
+    echo "  Binary installed: $BINARY_PATH"
 fi
-chmod +x "$TMP_FILE"
-
-# Install binary
-mkdir -p "$INSTALL_DIR"
-echo "Installing to $BINARY_PATH..."
-mv "$TMP_FILE" "$BINARY_PATH"
-echo "  Binary installed: $BINARY_PATH"
 
 # --- Add to PATH if needed ---
 
