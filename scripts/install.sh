@@ -52,19 +52,24 @@ if [ "${1:-}" = "--uninstall" ]; then
     fi
 
     if [ "$OS" = "Linux" ]; then
+        # Clean up legacy systemd service if present
         if command -v systemctl &> /dev/null; then
             systemctl --user stop scribe 2>/dev/null || true
             systemctl --user disable scribe 2>/dev/null || true
             rm -f "$HOME/.config/systemd/user/scribe.service"
             systemctl --user daemon-reload 2>/dev/null || true
-            echo "  Removed: systemd service"
         fi
+
+        rm -f "$HOME/.config/autostart/scribe.desktop"
+        echo "  Removed: autostart entry"
 
         rm -f "$HOME/.local/share/applications/scribe.desktop"
         if command -v update-desktop-database &> /dev/null; then
             update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
         fi
         echo "  Removed: desktop entry"
+
+        rm -f "$HOME/.local/share/icons/hicolor/256x256/apps/scribe.png"
     fi
 
     # Remove CLI binary / symlink
@@ -350,40 +355,35 @@ DESKTOP
         update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
     fi
 
-    # --- Systemd user service ---
-    if command -v systemctl &> /dev/null; then
-        SERVICE_DIR="$HOME/.config/systemd/user"
-        echo ""
-        echo "Setting up background service (systemd)..."
-        mkdir -p "$SERVICE_DIR"
-        cat > "$SERVICE_DIR/scribe.service" << EOF
-[Unit]
-Description=Scribe
-After=network.target
+    # --- Autostart on login (XDG autostart) ---
+    AUTOSTART_DIR="$HOME/.config/autostart"
+    echo ""
+    echo "Setting up autostart..."
+    mkdir -p "$AUTOSTART_DIR"
+    cat > "$AUTOSTART_DIR/scribe.desktop" << AUTOSTART
+[Desktop Entry]
+Version=1.0
+Name=Scribe
+Comment=Skill manager for coding agents
+Exec=$BINARY_PATH
+Icon=scribe
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
+AUTOSTART
 
-[Service]
-ExecStart=$BINARY_PATH
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-
-        systemctl --user daemon-reload
-        systemctl --user enable scribe
-        systemctl --user start scribe
-        echo "  Service enabled: scribe.service"
-    fi
+    echo "  Autostart entry: $AUTOSTART_DIR/scribe.desktop"
 fi
 
 echo ""
 echo "Installation complete!"
 
-# Open the Scribe window (give the service a moment to start)
-sleep 1
+# Open the Scribe window
 if [ "$OS" = "Darwin" ]; then
+    # launchd already started the service; trigger the URL scheme to show the window
+    sleep 1
     open "agenthub://show" 2>/dev/null || true
 elif [ "$OS" = "Linux" ]; then
-    xdg-open "agenthub://show" 2>/dev/null || true
+    # Launch Scribe directly (XDG autostart handles future logins)
+    nohup "$BINARY_PATH" > /dev/null 2>&1 &
 fi
