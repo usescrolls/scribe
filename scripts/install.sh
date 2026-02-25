@@ -98,10 +98,36 @@ esac
 
 DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/$ASSET_NAME"
 
-echo "Scribe Installer"
-echo "================"
-echo ""
-echo "Downloading $ASSET_NAME..."
+# Check for existing installation
+INSTALLED_VERSION=""
+if [ -x "$BINARY_PATH" ]; then
+    INSTALLED_VERSION=$("$BINARY_PATH" version 2>/dev/null | sed 's/scribe version //' || true)
+fi
+
+# Get latest version tag from GitHub
+LATEST_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's|.*/v||')
+
+if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+    echo "Scribe v$INSTALLED_VERSION is already installed and up to date."
+    echo ""
+    echo "  Binary: $BINARY_PATH"
+    echo "  To reinstall, run: scribe upgrade"
+    echo "  To uninstall, run: curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | bash -s -- --uninstall"
+    exit 0
+fi
+
+if [ -n "$INSTALLED_VERSION" ]; then
+    echo "Scribe Installer"
+    echo "================"
+    echo ""
+    echo "Updating Scribe v$INSTALLED_VERSION → v$LATEST_VERSION..."
+else
+    echo "Scribe Installer"
+    echo "================"
+    echo ""
+    echo "Downloading $ASSET_NAME..."
+fi
+
 TMP_FILE=$(mktemp)
 trap 'rm -f "$TMP_FILE"' EXIT
 
@@ -157,6 +183,7 @@ if [ "$OS" = "Darwin" ]; then
     # Unload existing service if present
     launchctl bootout "gui/$(id -u)/dev.scribe" 2>/dev/null || true
 
+    mkdir -p "$HOME/Library/LaunchAgents"
     cat > "$PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
