@@ -26,12 +26,29 @@ if [ "${1:-}" = "--uninstall" ]; then
     echo "=================="
     echo ""
 
+    # Remove skills and symlinks first (while binary still exists)
+    if [ -d "$HOME/.scribe" ]; then
+        if command -v scribe &> /dev/null; then
+            scribe uninstall --all --yes 2>/dev/null || true
+        fi
+        rm -rf "$HOME/.scribe"
+        echo "  Removed: ~/.scribe"
+    fi
+
     # Stop and remove background service
     if [ "$OS" = "Darwin" ]; then
         PLIST="$HOME/Library/LaunchAgents/dev.scribe.plist"
         launchctl bootout "gui/$(id -u)/dev.scribe" 2>/dev/null || true
         rm -f "$PLIST"
         echo "  Removed: launchd service"
+
+        # Remove app bundle and unregister URL scheme
+        APP_BUNDLE="$HOME/Applications/Scribe.app"
+        if [ -d "$APP_BUNDLE" ]; then
+            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP_BUNDLE" 2>/dev/null || true
+            rm -rf "$APP_BUNDLE"
+            echo "  Removed: $APP_BUNDLE"
+        fi
     fi
 
     if [ "$OS" = "Linux" ]; then
@@ -50,19 +67,9 @@ if [ "${1:-}" = "--uninstall" ]; then
         echo "  Removed: desktop entry"
     fi
 
-    # Remove binary
+    # Remove CLI binary / symlink
     rm -f "$BINARY_PATH"
     echo "  Removed: $BINARY_PATH"
-
-    # Remove skills and symlinks
-    if [ -d "$HOME/.scribe" ]; then
-        # Remove symlinks from agent directories before deleting data
-        if [ -f "$BINARY_PATH" ] || command -v scribe &> /dev/null; then
-            scribe uninstall --all --yes 2>/dev/null || true
-        fi
-        rm -rf "$HOME/.scribe"
-        echo "  Removed: ~/.scribe"
-    fi
 
     echo ""
     echo "Scribe has been uninstalled."
@@ -136,10 +143,38 @@ if [ "$SKIP_DOWNLOAD" = false ]; then
     chmod +x "$TMP_FILE"
 
     # Install binary
-    mkdir -p "$INSTALL_DIR"
-    echo "Installing to $BINARY_PATH..."
-    mv "$TMP_FILE" "$BINARY_PATH"
-    echo "  Binary installed: $BINARY_PATH"
+    if [ "$OS" = "Darwin" ]; then
+        # Create a minimal .app bundle so macOS registers the agenthub:// URL scheme
+        APP_BUNDLE="$HOME/Applications/Scribe.app"
+        APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
+        mkdir -p "$APP_BUNDLE/Contents/MacOS"
+
+        echo "Installing to $APP_BUNDLE..."
+        mv "$TMP_FILE" "$APP_BINARY"
+
+        # Symlink CLI binary into PATH
+        mkdir -p "$INSTALL_DIR"
+        ln -sf "$APP_BINARY" "$BINARY_PATH"
+        echo "  App bundle: $APP_BUNDLE"
+        echo "  CLI symlink: $BINARY_PATH"
+    else
+        mkdir -p "$INSTALL_DIR"
+        echo "Installing to $BINARY_PATH..."
+        mv "$TMP_FILE" "$BINARY_PATH"
+        echo "  Binary installed: $BINARY_PATH"
+    fi
+fi
+
+# Migrate: if macOS binary is not in .app bundle yet, move it there
+if [ "$OS" = "Darwin" ]; then
+    APP_BUNDLE="$HOME/Applications/Scribe.app"
+    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
+    if [ -x "$BINARY_PATH" ] && [ ! -L "$BINARY_PATH" ] && [ ! -x "$APP_BINARY" ]; then
+        echo "  Migrating binary into app bundle..."
+        mkdir -p "$APP_BUNDLE/Contents/MacOS"
+        mv "$BINARY_PATH" "$APP_BINARY"
+        ln -sf "$APP_BINARY" "$BINARY_PATH"
+    fi
 fi
 
 # --- Add to PATH if needed ---
@@ -175,6 +210,64 @@ fi
 # --- Background service ---
 
 if [ "$OS" = "Darwin" ]; then
+    APP_BUNDLE="$HOME/Applications/Scribe.app"
+    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
+
+    # --- App bundle Info.plist (registers agenthub:// URL scheme) ---
+    echo ""
+    echo "Configuring app bundle..."
+    mkdir -p "$APP_BUNDLE/Contents/MacOS"
+    cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLISTEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>scribe</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.scribe</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Scribe</string>
+    <key>CFBundleDisplayName</key>
+    <string>Scribe</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>Scribe Plugin Install</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>agenthub</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
+PLISTEOF
+
+    # Register with Launch Services so macOS knows about agenthub://
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_BUNDLE" 2>/dev/null || true
+    echo "  Registered: agenthub:// URL scheme"
+
+    # --- Background service (launchd) ---
     PLIST="$HOME/Library/LaunchAgents/dev.scribe.plist"
     echo ""
     echo "Setting up background service (launchd)..."
@@ -192,7 +285,7 @@ if [ "$OS" = "Darwin" ]; then
     <string>dev.scribe</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$BINARY_PATH</string>
+        <string>$APP_BINARY</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -270,6 +363,11 @@ fi
 
 echo ""
 echo "Installation complete!"
-echo ""
-echo "To start Scribe:"
-echo "  scribe"
+
+# Open the Scribe window (give the service a moment to start)
+sleep 1
+if [ "$OS" = "Darwin" ]; then
+    open "agenthub://show" 2>/dev/null || true
+elif [ "$OS" = "Linux" ]; then
+    xdg-open "agenthub://show" 2>/dev/null || true
+fi

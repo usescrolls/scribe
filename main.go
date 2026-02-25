@@ -135,6 +135,15 @@ func runGUIMode() {
 		urlString := event.Context().URL()
 		scribe.Logger.Info("received URL via Wails event", "url", urlString)
 
+		// Handle "show" action: just bring the window to front
+		if strings.Contains(urlString, "agenthub://show") {
+			if mainWindow != nil {
+				mainWindow.Show()
+				mainWindow.Focus()
+			}
+			return
+		}
+
 		// Run installation in background to not block the event handler
 		go func() {
 			result := scribe.HandleInstallURL(urlString)

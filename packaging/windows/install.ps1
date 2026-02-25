@@ -148,6 +148,9 @@ Write-Host "To run at login, add a shortcut to:" -ForegroundColor Cyan
 Write-Host "  $env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
 Write-Host ""
 
+# Open the Scribe window
+Start-Process "agenthub://show" -ErrorAction SilentlyContinue
+
 # Offer to create startup shortcut
 $CreateStartup = Read-Host "Create startup shortcut? (y/N)"
 if ($CreateStartup -eq 'y' -or $CreateStartup -eq 'Y') {
