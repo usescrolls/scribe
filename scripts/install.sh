@@ -226,6 +226,8 @@ if [ "$OS" = "Darwin" ]; then
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>scribe</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>dev.scribe</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -263,6 +265,11 @@ if [ "$OS" = "Darwin" ]; then
 </plist>
 PLISTEOF
 
+    # Download app icon
+    ICON_URL="https://raw.githubusercontent.com/$REPO/main/icons/AppIcon.icns"
+    mkdir -p "$APP_BUNDLE/Contents/Resources"
+    curl -fsSL "$ICON_URL" -o "$APP_BUNDLE/Contents/Resources/AppIcon.icns" 2>/dev/null || true
+
     # Register with Launch Services so macOS knows about agenthub://
     /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_BUNDLE" 2>/dev/null || true
     echo "  Registered: agenthub:// URL scheme"
@@ -290,7 +297,10 @@ PLISTEOF
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
     <key>StandardOutPath</key>
     <string>/tmp/scribe.log</string>
     <key>StandardErrorPath</key>
@@ -304,6 +314,12 @@ EOF
 fi
 
 if [ "$OS" = "Linux" ]; then
+    # --- App icon ---
+    ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+    ICON_URL="https://raw.githubusercontent.com/$REPO/main/icons/icon.png"
+    mkdir -p "$ICON_DIR"
+    curl -fsSL "$ICON_URL" -o "$ICON_DIR/scribe.png" 2>/dev/null || true
+
     # --- URL scheme handler ---
     DESKTOP_DIR="$HOME/.local/share/applications"
     echo ""
@@ -347,7 +363,7 @@ After=network.target
 
 [Service]
 ExecStart=$BINARY_PATH
-Restart=always
+Restart=on-failure
 RestartSec=5
 
 [Install]
