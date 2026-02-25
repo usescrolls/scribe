@@ -5,22 +5,32 @@
 
 A skill distribution tool that syncs AI coding skills to 39 coding agents.
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+```
+
 ## Overview
 
 Scribe lets you install AI coding skills once and automatically distributes them to all your coding agents (Claude Code, Cursor, Copilot, Cline, etc.) via symlinks. Instead of manually copying skills to each agent's directory, Scribe maintains a central skill library and keeps all your agents in sync.
 
 On first launch, Scribe runs an onboarding wizard that detects your installed agents, optionally imports existing skills, and installs a demo skill to get you started.
 
-### Key Features
+### Why Scribe?
 
-- **Install Once, Use Everywhere**: Skills are automatically symlinked to all detected agents
-- **39 Agents Supported**: Claude Code, Cursor, GitHub Copilot, Cline, Windsurf, Continue, and more
-- **Workspaces**: Organize skills into named sets and switch between them
-- **Private Repositories**: Automatic credential resolution via git credential helpers and SSH agent
-- **Multiple Sources**: GitHub, GitLab, Bitbucket, local paths, zip URLs, SSH URLs
-- **Desktop GUI**: Vue 3 frontend with workspace management, skill browser, and multi-step install wizard (you can paste CLI commands like `npx skills add owner/repo` directly into the Install tab)
-- **Version Tracking**: Git commit hash and date tracking for installed skills with update detection
-- **Local Cache**: Git clone cache for fast installs, checks, and updates
+If you've seen `npx skills add`, you might wonder why Scribe exists. Both tools install the same `SKILL.md` files to coding agents, but they make different trade-offs:
+
+- **No runtime dependency**: Scribe is a standalone Go binary — no Node.js required. Install once via `brew` or `curl`, runs offline after that
+- **Fast**: Native binary + local git clone cache. No npm registry roundtrip on every invocation
+- **Workspaces**: Organize skills into named sets (e.g. `web-dev`, `data-eng`) and switch between them
+- **Desktop GUI**: Vue 3 app with skill browser, workspace manager, and install wizard. You can paste `npx skills add owner/repo` commands directly into the Install tab — Scribe parses them automatically
+- **Guided onboarding**: First-run wizard detects your agents, imports existing skills, and installs a demo skill
+- **39 agents supported**: Claude Code, Cursor, GitHub Copilot, Cline, Windsurf, Continue, and more
+- **Private repositories**: Automatic credential resolution via git credential helpers and SSH agent
+- **Multiple sources**: GitHub, GitLab, Bitbucket, local paths, zip URLs, SSH URLs
+- **Version tracking**: Git commit hash and date tracking with update detection
+- **No telemetry**: Scribe collects nothing
+
+Scribe is fully compatible with the [Agent Skills specification](https://agentskills.io) and installs the same skills that `npx skills` does.
 
 ## Supported Agents
 
@@ -49,27 +59,11 @@ Scribe distributes skills to 39 coding agents (when installed):
 
 Scribe detects which agents you have installed (by checking for their config directories) and only creates symlinks for those agents. See [Configuration](docs/configuration.md) for the full agent list.
 
-## Quick Start
+## Other Installation Methods
 
-### macOS (Homebrew)
+On macOS you can also use Homebrew: `brew install usescrolls/tap/scribe`
 
-```bash
-brew install usescrolls/tap/scribe
-```
-
-### macOS (DMG)
-
-Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
-
-### macOS, Linux & WSL
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
-```
-
-### Other Platforms
-
-For Windows, building from source, and other options, see [Installation](docs/installation.md).
+For Windows, DMG installer, and building from source, see [Installation](docs/installation.md).
 
 ## CLI Usage
 
