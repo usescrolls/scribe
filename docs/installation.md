@@ -18,7 +18,15 @@ Download the DMG from the [latest GitHub release](https://github.com/usescrolls/
 curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
 ```
 
-This detects your OS and architecture, downloads the latest binary to `/usr/local/bin`, sets up a background service (launchd on macOS, systemd on Linux), and on Linux also registers the `agenthub://` URL scheme.
+This detects your OS and architecture, downloads the latest binary to `~/.local/bin`, adds it to your PATH if needed, sets up a background service (launchd on macOS, systemd on Linux), and on Linux also registers the `agenthub://` URL scheme.
+
+To uninstall:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash -s -- --uninstall
+```
+
+This stops the background service, removes the binary, cleans up `~/.scribe`, and removes platform-specific registrations.
 
 > **Note (macOS):** The standalone binary does not support URL scheme handling (`agenthub://`). For full functionality, use the DMG installer or Homebrew which provide a proper `.app` bundle.
 
@@ -60,15 +68,14 @@ The installer:
 
 ## Option 5: Build from Source
 
+Requires Go 1.26+, Node.js 20+, pnpm, and Wails v3. See [Development](development.md) for full setup instructions.
+
 ```bash
-# Clone the repo
 git clone https://github.com/usescrolls/scribe.git
 cd scribe
-
-# Requires Go 1.25+ and Wails v3
 make deps
 make build
-./build/scribe
+./build/bin/scribe
 ```
 
 ---

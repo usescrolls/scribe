@@ -3,21 +3,76 @@
 # Scribe Installer (macOS, Linux & WSL)
 #
 # Downloads the latest release from GitHub and installs it.
-# Sets up the background service and URL scheme handler.
+# Sets up the background service, PATH, and URL scheme handler.
 #
-# Usage:
+# Install:
 #   curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+#
+# Uninstall:
+#   curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash -s -- --uninstall
 #
 
 set -e
 
-REPO="usescrolls/scribe"
 BINARY_NAME="scribe"
-INSTALL_DIR="/usr/local/bin"
+INSTALL_DIR="$HOME/.local/bin"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
-
-# Detect OS and architecture
 OS=$(uname -s)
+
+# --- Uninstall ---
+
+if [ "${1:-}" = "--uninstall" ]; then
+    echo "Scribe Uninstaller"
+    echo "=================="
+    echo ""
+
+    # Stop and remove background service
+    if [ "$OS" = "Darwin" ]; then
+        PLIST="$HOME/Library/LaunchAgents/dev.scribe.plist"
+        launchctl bootout "gui/$(id -u)/dev.scribe" 2>/dev/null || true
+        rm -f "$PLIST"
+        echo "  Removed: launchd service"
+    fi
+
+    if [ "$OS" = "Linux" ]; then
+        if command -v systemctl &> /dev/null; then
+            systemctl --user stop scribe 2>/dev/null || true
+            systemctl --user disable scribe 2>/dev/null || true
+            rm -f "$HOME/.config/systemd/user/scribe.service"
+            systemctl --user daemon-reload 2>/dev/null || true
+            echo "  Removed: systemd service"
+        fi
+
+        rm -f "$HOME/.local/share/applications/scribe.desktop"
+        if command -v update-desktop-database &> /dev/null; then
+            update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+        fi
+        echo "  Removed: desktop entry"
+    fi
+
+    # Remove binary
+    rm -f "$BINARY_PATH"
+    echo "  Removed: $BINARY_PATH"
+
+    # Remove skills and symlinks
+    if [ -d "$HOME/.scribe" ]; then
+        # Remove symlinks from agent directories before deleting data
+        if [ -f "$BINARY_PATH" ] || command -v scribe &> /dev/null; then
+            scribe uninstall --all --yes 2>/dev/null || true
+        fi
+        rm -rf "$HOME/.scribe"
+        echo "  Removed: ~/.scribe"
+    fi
+
+    echo ""
+    echo "Scribe has been uninstalled."
+    echo "Note: the PATH entry in your shell rc file was left in place (harmless)."
+    exit 0
+fi
+
+# --- Install ---
+
+REPO="usescrolls/scribe"
 ARCH=$(uname -m)
 
 case "$OS" in
@@ -57,15 +112,40 @@ fi
 chmod +x "$TMP_FILE"
 
 # Install binary
-if [ -w "$INSTALL_DIR" ]; then
-    echo "Installing to $BINARY_PATH..."
-    mv "$TMP_FILE" "$BINARY_PATH"
-else
-    echo "Installing to $INSTALL_DIR requires sudo..."
-    sudo mv "$TMP_FILE" "$BINARY_PATH"
-    sudo chmod +x "$BINARY_PATH"
-fi
+mkdir -p "$INSTALL_DIR"
+echo "Installing to $BINARY_PATH..."
+mv "$TMP_FILE" "$BINARY_PATH"
 echo "  Binary installed: $BINARY_PATH"
+
+# --- Add to PATH if needed ---
+
+add_to_path() {
+    local rc_file="$1"
+    local line='export PATH="$HOME/.local/bin:$PATH"'
+
+    if [ -f "$rc_file" ] && grep -qF '.local/bin' "$rc_file"; then
+        return
+    fi
+
+    echo "" >> "$rc_file"
+    echo "# Added by Scribe installer" >> "$rc_file"
+    echo "$line" >> "$rc_file"
+    echo "  Updated: $rc_file"
+}
+
+if ! echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.local/bin"; then
+    echo ""
+    echo "Adding ~/.local/bin to PATH..."
+
+    case "$(basename "$SHELL")" in
+        zsh)  add_to_path "$HOME/.zshrc" ;;
+        bash) add_to_path "$HOME/.bashrc" ;;
+        *)    add_to_path "$HOME/.profile" ;;
+    esac
+
+    export PATH="$HOME/.local/bin:$PATH"
+    echo "  Note: restart your shell or run 'source ~/.zshrc' (or ~/.bashrc) for PATH to take effect"
+fi
 
 # --- Background service ---
 
