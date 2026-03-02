@@ -31,8 +31,18 @@ if [ "${1:-}" = "--uninstall" ]; then
         if command -v scribe &> /dev/null; then
             scribe uninstall --all --yes 2>/dev/null || true
         fi
-        rm -rf "$HOME/.scribe"
-        echo "  Removed: ~/.scribe"
+
+        printf "Would you like to remove the Scribe config folder (~/.scribe)? [y/N] "
+        read -r answer
+        case "$answer" in
+            [yY]|[yY][eE][sS])
+                rm -rf "$HOME/.scribe"
+                echo "  Removed: ~/.scribe"
+                ;;
+            *)
+                echo "  Kept: ~/.scribe"
+                ;;
+        esac
     fi
 
     # Stop and remove background service
