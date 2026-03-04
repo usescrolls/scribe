@@ -108,7 +108,14 @@ case "$OS" in
     Darwin)
         case "$ARCH" in
             arm64)  ASSET_NAME="scribe-darwin-arm64" ;;
-            x86_64) ASSET_NAME="scribe-darwin-amd64" ;;
+            x86_64)
+                # Detect Rosetta 2: use arm64 binary on Apple Silicon
+                if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
+                    ASSET_NAME="scribe-darwin-arm64"
+                else
+                    ASSET_NAME="scribe-darwin-amd64"
+                fi
+                ;;
             *)      echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
         esac
         ;;
