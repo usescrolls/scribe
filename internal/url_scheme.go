@@ -28,58 +28,65 @@ func HandleInstallURL(urlString string) *InstallResult {
 
 	Logger.Info("installing from URL scheme", "source", source.Type, "repo", source.Owner+"/"+source.Repo)
 
-	// Fetch and discover skills
-	skills, fetchResult, err := FetchAndDiscoverSkills(source)
+	skills, fetchResult, err := fetchAndFilterURLSkills(source, skillFilter)
 	if fetchResult != nil {
 		defer fetchResult.Cleanup()
 	}
 	if err != nil {
-		result.ErrorMessage = fmt.Sprintf("Failed to fetch skills: %v", err)
+		result.ErrorMessage = err.Error()
 		return result
+	}
+
+	// Filter out already-installed skills and resolve name conflicts
+	newSkills, alreadyInstalled, err := FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		Logger.Error("failed to resolve name conflicts", "error", err)
+	}
+
+	if len(newSkills) == 0 {
+		result.ErrorMessage = alreadyInstalledMessage(alreadyInstalled)
+		return result
+	}
+
+	// Install each skill
+	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
+	opts := InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate}
+	installSkillBatch(newSkills, source, opts, gitInfo, result)
+
+	return result
+}
+
+// fetchAndFilterURLSkills fetches skills from a source and optionally filters by name.
+func fetchAndFilterURLSkills(source *SourceInfo, skillFilter string) ([]*Skill, *FetchResult, error) {
+	skills, fetchResult, err := FetchAndDiscoverSkills(source)
+	if err != nil {
+		return nil, fetchResult, fmt.Errorf("failed to fetch skills: %w", err)
 	}
 
 	if len(skills) == 0 {
-		result.ErrorMessage = "No skills found in source"
-		return result
+		return nil, fetchResult, fmt.Errorf("no skills found in source")
 	}
 
-	// Filter skills if a specific skill was requested
 	if skillFilter != "" {
 		skills = filterSkillsByName(skills, skillFilter)
 		if len(skills) == 0 {
-			result.ErrorMessage = fmt.Sprintf("Skill '%s' not found in source", skillFilter)
-			return result
+			return nil, fetchResult, fmt.Errorf("skill '%s' not found in source", skillFilter)
 		}
 	}
 
-	// Ensure directories exist
 	if err := EnsureScribeDirs(); err != nil {
-		result.ErrorMessage = fmt.Sprintf("Failed to create directories: %v", err)
-		return result
+		return nil, fetchResult, fmt.Errorf("failed to create directories: %w", err)
 	}
-
-	// Ensure default workspace exists
 	if err := EnsureDefaultWorkspace(); err != nil {
 		Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
-	// Filter out already-installed skills
-	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
-	if len(newSkills) == 0 {
-		if len(alreadyInstalled) == 1 {
-			result.ErrorMessage = fmt.Sprintf("Skill '%s' is already installed", alreadyInstalled[0])
-		} else {
-			result.ErrorMessage = fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
-		}
-		return result
-	}
+	return skills, fetchResult, nil
+}
 
-	// Extract git commit info from fetched repo
-	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
-
-	// Install each skill
-	opts := InstallOptions{Yes: true, IsPrivate: fetchResult.IsPrivate} // Auto-confirm for URL scheme installs
-	for _, skill := range newSkills {
+// installSkillBatch installs a batch of skills and populates the result.
+func installSkillBatch(skills []*Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo, result *InstallResult) {
+	for _, skill := range skills {
 		Logger.Info("installing skill", "name", skill.Name)
 
 		if err := InstallSkill(skill, source, opts, gitInfo); err != nil {
@@ -87,7 +94,6 @@ func HandleInstallURL(urlString string) *InstallResult {
 			continue
 		}
 
-		// Add to workspaces
 		if err := AddSkillToActiveAndDefaultWorkspace(skill.Name); err != nil {
 			Logger.Warn("failed to add to workspace", "skill", skill.Name, "error", err)
 		}
@@ -101,8 +107,14 @@ func HandleInstallURL(urlString string) *InstallResult {
 	if !result.Success && result.ErrorMessage == "" {
 		result.ErrorMessage = "Failed to install any skills"
 	}
+}
 
-	return result
+// alreadyInstalledMessage returns a user-facing message for already-installed skills.
+func alreadyInstalledMessage(names []string) string {
+	if len(names) == 1 {
+		return fmt.Sprintf("Skill '%s' is already installed", names[0])
+	}
+	return fmt.Sprintf("All %d skill(s) from this source are already installed", len(names))
 }
 
 // ParseInstallURL parses an agenthub:// URL into a SourceInfo

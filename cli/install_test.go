@@ -474,10 +474,7 @@ func TestRunInstallDuplicateSkill(t *testing.T) {
 	// Create agent config dir
 	_ = os.MkdirAll(filepath.Join(homeDir, ".claude"), 0o755)
 
-	// Pre-install the skill
-	installFakeSkill(t, "already-here", "Already installed", "github", "owner/repo")
-
-	// Create source with same skill name
+	// Create source directory with the skill
 	tmpSrc, err := os.MkdirTemp("", "scribe-dup-install-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -486,11 +483,14 @@ func TestRunInstallDuplicateSkill(t *testing.T) {
 
 	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte("---\nname: already-here\ndescription: Duplicate\n---\n\nDup\n"), 0o644)
 
+	// Pre-install the skill with local source matching the tmpSrc path
+	installFakeSkill(t, "already-here", "Already installed", "local", tmpSrc)
+
 	captureStdout(t, func() {
 		err = runInstall(installCmd, []string{tmpSrc})
 	})
 
-	// Should fail early because the skill is already installed
+	// Should fail early because the skill is already installed (same source)
 	if err == nil {
 		t.Fatal("expected error when all skills are already installed")
 	}
@@ -512,9 +512,6 @@ func TestRunInstallDuplicateSkillCaseInsensitive(t *testing.T) {
 	// Create agent config dir
 	_ = os.MkdirAll(filepath.Join(homeDir, ".claude"), 0o755)
 
-	// Pre-install with lowercase name
-	installFakeSkill(t, "my-skill", "Already installed", "github", "owner/repo")
-
 	// Create source with different casing in frontmatter
 	tmpSrc, err := os.MkdirTemp("", "scribe-dup-case-*")
 	if err != nil {
@@ -524,11 +521,14 @@ func TestRunInstallDuplicateSkillCaseInsensitive(t *testing.T) {
 
 	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte("---\nname: My-Skill\ndescription: Same skill different case\n---\n\nDup\n"), 0o644)
 
+	// Pre-install with lowercase name using same local source
+	installFakeSkill(t, "my-skill", "Already installed", "local", tmpSrc)
+
 	captureStdout(t, func() {
 		err = runInstall(installCmd, []string{tmpSrc})
 	})
 
-	// Should fail - "My-Skill" normalizes to "my-skill" which is already installed
+	// Should fail - "My-Skill" normalizes to "my-skill" which is already installed (same source)
 	if err == nil {
 		t.Fatal("expected error when skill with different casing is already installed")
 	}

@@ -127,7 +127,8 @@ type SourceInfo struct {
 
 // SkillInfo is the frontend-friendly representation of a skill
 type SkillInfo struct {
-	Name        string   `json:"name"`
+	Name        string   `json:"name"`                  // Storage/directory name (possibly source-qualified)
+	DisplayName string   `json:"displayName,omitempty"` // Frontmatter name (always simple, e.g. "commit")
 	Description string   `json:"description"`
 	Source      string   `json:"source"`              // Human-readable source
 	SourceType  string   `json:"sourceType"`          // github, local, url, etc.

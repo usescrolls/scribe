@@ -130,8 +130,11 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		scribe.Logger.Warn("failed to ensure default workspace", "error", err)
 	}
 
-	// Check which skills are already installed (case-insensitive) and filter them out
-	newSkills, alreadyInstalled := scribe.FilterAlreadyInstalled(skills)
+	// Check which skills are already installed and resolve name conflicts
+	newSkills, alreadyInstalled, err := scribe.FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		return fmt.Errorf("failed to resolve name conflicts: %w", err)
+	}
 
 	if len(newSkills) == 0 {
 		if len(alreadyInstalled) == 1 {
@@ -172,6 +175,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		// Add to workspaces
 		if err := scribe.AddSkillToActiveAndDefaultWorkspace(skill.Name); err != nil {
 			scribe.Logger.Warn("failed to add to workspace", "skill", skill.Name, "error", err)
+			if !quiet {
+				fmt.Printf("  Note: %s installed but not added to workspace (%v)\n", skill.Name, err)
+			}
 		}
 
 		emit(scribe.ProgressEvent{

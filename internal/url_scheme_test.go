@@ -355,8 +355,8 @@ func TestBoost_HandleInstallURL_FetchFails(t *testing.T) {
 	if result.Success {
 		t.Error("expected failure when fetch fails")
 	}
-	if !strings.Contains(result.ErrorMessage, "Failed to fetch skills") {
-		t.Errorf("ErrorMessage = %q, want it to contain 'Failed to fetch skills'", result.ErrorMessage)
+	if !strings.Contains(result.ErrorMessage, "failed to fetch skills") {
+		t.Errorf("ErrorMessage = %q, want it to contain 'failed to fetch skills'", result.ErrorMessage)
 	}
 }
 
@@ -607,12 +607,15 @@ func TestHandleInstallURL_AlreadyInstalled(t *testing.T) {
 		_ = AddSkillToActiveAndDefaultWorkspace(skill.Name)
 	}
 
-	// Now FilterAlreadyInstalled should catch it
-	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	// Now FilterAlreadyInstalled should catch it (same source)
+	newSkills, alreadyInstalled, conflicts := FilterAlreadyInstalled(skills, source)
 	if len(newSkills) != 0 {
 		t.Errorf("expected 0 new skills, got %d", len(newSkills))
 	}
 	if len(alreadyInstalled) != 1 {
 		t.Errorf("expected 1 already installed, got %d", len(alreadyInstalled))
+	}
+	if len(conflicts) != 0 {
+		t.Errorf("expected 0 conflicts, got %d", len(conflicts))
 	}
 }

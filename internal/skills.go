@@ -399,6 +399,7 @@ func GetAllSkillInfo() ([]SkillInfo, error) {
 		info := GetSkillInfo(skill)
 		// Use the directory name as the canonical identifier for API operations.
 		// The frontmatter "name" field may differ from the directory name.
+		info.DisplayName = skill.Name
 		info.Name = dirName
 		info.Agents = getAgentsWithSkill(dirName)
 		infos = append(infos, info)

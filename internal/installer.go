@@ -21,12 +21,9 @@ func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo
 
 	skillDir := filepath.Join(scrollsDir, skill.Name)
 
-	// Check if skill already exists (case-insensitive)
-	installed, _ := ListInstalledSkills()
-	for _, name := range installed {
-		if strings.EqualFold(name, skill.Name) {
-			return fmt.Errorf("skill '%s' already exists", name)
-		}
+	// Check if a directory with this exact storage name already exists
+	if _, err := os.Stat(skillDir); err == nil {
+		return fmt.Errorf("skill '%s' already exists", skill.Name)
 	}
 
 	// Copy skill to canonical location
@@ -226,23 +223,190 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-// FilterAlreadyInstalled partitions discovered skills into new and already-installed.
-// Comparisons are case-insensitive. Returns (newSkills, alreadyInstalledNames).
-func FilterAlreadyInstalled(skills []*Skill) (newSkills []*Skill, alreadyInstalledNames []string) {
+// installedSkillIndex maps frontmatter names to storage info for conflict detection.
+type installedSkillIndex struct {
+	fmToStorage   map[string][]string // lowercase frontmatter name → [storage names]
+	storageSource map[string]string   // storage name → source string
+}
+
+// buildInstalledIndex reads all installed skills and builds lookup maps.
+func buildInstalledIndex() *installedSkillIndex {
 	installed, _ := ListInstalledSkills()
-	installedSet := make(map[string]bool, len(installed))
-	for _, name := range installed {
-		installedSet[strings.ToLower(name)] = true
+	idx := &installedSkillIndex{
+		fmToStorage:   make(map[string][]string, len(installed)),
+		storageSource: make(map[string]string, len(installed)),
 	}
+	for _, storageName := range installed {
+		skill, err := ReadSkill(storageName)
+		if err != nil {
+			continue
+		}
+		fmKey := strings.ToLower(skill.Name)
+		idx.fmToStorage[fmKey] = append(idx.fmToStorage[fmKey], storageName)
+		if skill.Meta != nil {
+			idx.storageSource[storageName] = skill.Meta.Source
+		}
+	}
+	return idx
+}
+
+// FilterAlreadyInstalled partitions discovered skills into new, already-installed,
+// and conflicts (same frontmatter name from a different source).
+// Comparisons are case-insensitive.
+func FilterAlreadyInstalled(skills []*Skill, source *SourceInfo) (newSkills []*Skill, alreadyInstalledNames []string, conflicts []*Skill) {
+	idx := buildInstalledIndex()
+	newSource := formatSource(source)
 
 	for _, skill := range skills {
-		if installedSet[strings.ToLower(skill.Name)] {
+		fmKey := strings.ToLower(skill.Name)
+		existingNames := idx.fmToStorage[fmKey]
+
+		if len(existingNames) == 0 {
+			newSkills = append(newSkills, skill)
+			continue
+		}
+
+		if hasSourceMatch(idx.storageSource, existingNames, newSource) {
 			alreadyInstalledNames = append(alreadyInstalledNames, skill.Name)
 		} else {
-			newSkills = append(newSkills, skill)
+			conflicts = append(conflicts, skill)
 		}
 	}
 	return
+}
+
+// hasSourceMatch checks if any of the storage names have a matching source string.
+func hasSourceMatch(storageSource map[string]string, storageNames []string, targetSource string) bool {
+	for _, sn := range storageNames {
+		if storageSource[sn] == targetSource {
+			return true
+		}
+	}
+	return false
+}
+
+// RenameInstalledSkill renames an already-installed skill's storage directory
+// and updates all workspace references and agent symlinks.
+func RenameInstalledSkill(oldName, newName string) error {
+	scrollsDir, err := GetScrollsDir()
+	if err != nil {
+		return err
+	}
+
+	oldDir := filepath.Join(scrollsDir, oldName)
+	newDir := filepath.Join(scrollsDir, newName)
+
+	if _, err := os.Stat(oldDir); os.IsNotExist(err) {
+		return fmt.Errorf("skill '%s' not found", oldName)
+	}
+	if _, err := os.Stat(newDir); err == nil {
+		return fmt.Errorf("target name '%s' already exists", newName)
+	}
+
+	// Rename the directory
+	if err := os.Rename(oldDir, newDir); err != nil {
+		return fmt.Errorf("failed to rename skill directory: %w", err)
+	}
+
+	// Update all workspace references
+	if err := renameSkillInAllWorkspaces(oldName, newName); err != nil {
+		Logger.Warn("failed to update workspace references", "old", oldName, "new", newName, "error", err)
+	}
+
+	// Update agent symlinks
+	agentIDs := AgentIDs(DetectInstalledAgents())
+	_ = RemoveSkillFromAgents(oldName, agentIDs)
+	_ = SyncSkillToAgents(newName, agentIDs)
+
+	return nil
+}
+
+// renameSkillInAllWorkspaces replaces oldName with newName in all workspace definitions.
+func renameSkillInAllWorkspaces(oldName, newName string) error {
+	workspaces, err := ListWorkspaces()
+	if err != nil {
+		return err
+	}
+
+	for _, ws := range workspaces {
+		changed := false
+		for i, s := range ws.Skills {
+			if strings.EqualFold(s, oldName) {
+				ws.Skills[i] = newName
+				changed = true
+			}
+		}
+		if changed {
+			if err := saveWorkspace(ws); err != nil {
+				Logger.Warn("failed to save workspace after rename", "workspace", ws.Name, "error", err)
+			}
+		}
+	}
+	return nil
+}
+
+// HandleNameConflicts processes skills that have the same frontmatter name as
+// existing installed skills from a different source. It renames the existing
+// skill(s) to source-qualified names and returns the new skills with qualified
+// names ready for installation.
+func HandleNameConflicts(conflicts []*Skill, source *SourceInfo) ([]*Skill, error) {
+	idx := buildInstalledIndex()
+	newQualifier := SourceQualifier(source)
+
+	var qualified []*Skill
+	for _, skill := range conflicts {
+		fmKey := strings.ToLower(skill.Name)
+		existingNames := idx.fmToStorage[fmKey]
+
+		// Rename each existing skill that still uses its simple (unqualified) name
+		for _, storageName := range existingNames {
+			if IsQualifiedName(storageName) {
+				continue // Already qualified from a previous conflict
+			}
+			existingMeta, _ := ReadSkillMeta(mustGetMetaPath(storageName))
+			existingQualifier := SourceQualifierFromMeta(existingMeta)
+			qualifiedExisting := QualifiedName(existingQualifier, storageName)
+
+			if err := RenameInstalledSkill(storageName, qualifiedExisting); err != nil {
+				return nil, fmt.Errorf("failed to rename existing skill '%s' to '%s': %w", storageName, qualifiedExisting, err)
+			}
+			Logger.Info("renamed existing skill for conflict resolution", "old", storageName, "new", qualifiedExisting)
+		}
+
+		// Set the new skill's storage name to its qualified form
+		qualifiedNew := QualifiedName(newQualifier, skill.Name)
+		skill.Name = qualifiedNew
+		qualified = append(qualified, skill)
+	}
+
+	return qualified, nil
+}
+
+// mustGetMetaPath returns the meta path or empty string on error.
+func mustGetMetaPath(skillName string) string {
+	p, _ := GetMetaPath(skillName)
+	return p
+}
+
+// FilterAndResolveConflicts is the high-level entry point used by all install
+// paths (CLI, Wails, URL scheme).  It filters out already-installed skills,
+// detects frontmatter-name conflicts from different sources, resolves them
+// (renaming existing skills + qualifying new ones), and returns the final
+// list of skills ready for InstallSkill.
+//
+// Returns (toInstall, alreadyInstalledNames, error).
+func FilterAndResolveConflicts(skills []*Skill, source *SourceInfo) ([]*Skill, []string, error) {
+	newSkills, alreadyInstalled, conflicts := FilterAlreadyInstalled(skills, source)
+
+	if len(conflicts) > 0 {
+		qualified, err := HandleNameConflicts(conflicts, source)
+		if err != nil {
+			return newSkills, alreadyInstalled, err
+		}
+		newSkills = append(newSkills, qualified...)
+	}
+
+	return newSkills, alreadyInstalled, nil
 }
 
 // SyncAllSkillsToAgents syncs all installed skills to all detected agents

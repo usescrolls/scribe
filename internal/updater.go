@@ -49,9 +49,12 @@ func CheckSkillForUpdate(skillName string) CheckResult {
 		defer fetchResult.Cleanup()
 	}
 
+	// Match by frontmatter name — for qualified storage names like
+	// "alice-skills--commit", we need to match against "commit".
+	matchName := FrontmatterNameFromStorage(skillName)
 	var remoteSkill *Skill
 	for _, s := range skills {
-		if s.Name == skillName {
+		if s.Name == matchName || filepath.Base(s.Path) == matchName {
 			remoteSkill = s
 			break
 		}
@@ -134,7 +137,8 @@ func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult 
 
 		r.CurrentHash = skill.Meta.ContentHash
 
-		remote := remoteByName[skillName]
+		// Look up by frontmatter name for qualified storage names
+		remote := remoteByName[FrontmatterNameFromStorage(skillName)]
 		if remote == nil {
 			r.Error = "skill not found in remote source"
 			results = append(results, r)
@@ -261,10 +265,13 @@ func UpdateSkill(skillName string, force bool) (*UpdateResult, error) {
 
 	gitInfo := GetHeadCommitInfo(fetchResult.ContentDir)
 
-	// Find the specific skill — match by name or directory basename
+	// Find the specific skill — match by frontmatter name, which may differ
+	// from the storage name for qualified skills (e.g. "alice-skills--commit"
+	// needs to match remote skill "commit").
+	updateMatchName := FrontmatterNameFromStorage(skillName)
 	var newSkill *Skill
 	for _, s := range skills {
-		if s.Name == skillName || filepath.Base(s.Path) == skillName {
+		if s.Name == updateMatchName || filepath.Base(s.Path) == updateMatchName {
 			newSkill = s
 			break
 		}

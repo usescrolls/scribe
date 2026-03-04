@@ -1,6 +1,7 @@
 package scribe
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -572,58 +573,66 @@ func TestFilterAlreadyInstalled_AllNew(t *testing.T) {
 	_ = setupTempHome(t)
 	_ = EnsureScribeDirs()
 
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
 	skills := []*Skill{
 		{Name: "new-a", Description: "A"},
 		{Name: "new-b", Description: "B"},
 	}
-	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	newSkills, alreadyInstalled, conflicts := FilterAlreadyInstalled(skills, source)
 	if len(newSkills) != 2 {
 		t.Errorf("expected 2 new skills, got %d", len(newSkills))
 	}
 	if len(alreadyInstalled) != 0 {
 		t.Errorf("expected 0 already installed, got %d", len(alreadyInstalled))
 	}
+	if len(conflicts) != 0 {
+		t.Errorf("expected 0 conflicts, got %d", len(conflicts))
+	}
 }
 
 func TestFilterAlreadyInstalled_AllExisting(t *testing.T) {
 	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
 
-	// Pre-install skills
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
+
+	// Pre-install skills with matching source metadata
 	for _, name := range []string{"existing-a", "existing-b"} {
-		skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", name)
-		_ = os.MkdirAll(skillDir, 0o755)
-		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# skill"), 0o644)
+		installTestSkillWithMeta(t, tmpDir, name, name, source)
 	}
 
 	skills := []*Skill{
 		{Name: "existing-a", Description: "A"},
 		{Name: "existing-b", Description: "B"},
 	}
-	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	newSkills, alreadyInstalled, conflicts := FilterAlreadyInstalled(skills, source)
 	if len(newSkills) != 0 {
 		t.Errorf("expected 0 new skills, got %d", len(newSkills))
 	}
 	if len(alreadyInstalled) != 2 {
 		t.Errorf("expected 2 already installed, got %d", len(alreadyInstalled))
 	}
+	if len(conflicts) != 0 {
+		t.Errorf("expected 0 conflicts, got %d", len(conflicts))
+	}
 }
 
 func TestFilterAlreadyInstalled_CaseInsensitive(t *testing.T) {
 	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
 
-	// Pre-install with lowercase
-	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", "my-skill")
-	_ = os.MkdirAll(skillDir, 0o755)
-	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# skill"), 0o644)
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
 
-	// Try to install with different casing (already normalized by SanitizeName, but test the check itself)
+	// Pre-install with lowercase and matching source
+	installTestSkillWithMeta(t, tmpDir, "my-skill", "my-skill", source)
+
 	skills := []*Skill{
 		{Name: "my-skill", Description: "Same name"},
 		{Name: "brand-new", Description: "New"},
 	}
-	newSkills, alreadyInstalled := FilterAlreadyInstalled(skills)
+	newSkills, alreadyInstalled, _ := FilterAlreadyInstalled(skills, source)
 	if len(newSkills) != 1 {
 		t.Errorf("expected 1 new skill, got %d", len(newSkills))
 	}
@@ -633,4 +642,203 @@ func TestFilterAlreadyInstalled_CaseInsensitive(t *testing.T) {
 	if len(newSkills) > 0 && newSkills[0].Name != "brand-new" {
 		t.Errorf("expected new skill 'brand-new', got %q", newSkills[0].Name)
 	}
+}
+
+func TestFilterAlreadyInstalled_DifferentSourceConflict(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	existingSource := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills"}
+	installTestSkillWithMeta(t, tmpDir, "commit", "commit", existingSource)
+
+	// New source has a skill with the same frontmatter name
+	newSource := &SourceInfo{Type: "github", Owner: "bob", Repo: "tools"}
+	skills := []*Skill{{Name: "commit", Description: "Bob's commit skill"}}
+
+	newSkills, alreadyInstalled, conflicts := FilterAlreadyInstalled(skills, newSource)
+	if len(newSkills) != 0 {
+		t.Errorf("expected 0 new skills, got %d", len(newSkills))
+	}
+	if len(alreadyInstalled) != 0 {
+		t.Errorf("expected 0 already installed, got %d", len(alreadyInstalled))
+	}
+	if len(conflicts) != 1 {
+		t.Errorf("expected 1 conflict, got %d", len(conflicts))
+	}
+}
+
+func TestRenameInstalledSkill(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create a skill
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	oldDir := filepath.Join(scrollsDir, "commit")
+	_ = os.MkdirAll(oldDir, 0o755)
+	_ = os.WriteFile(filepath.Join(oldDir, "SKILL.md"),
+		[]byte("---\nname: commit\ndescription: test\n---\n# Commit\n"), 0o644)
+
+	// Create a workspace referencing it
+	_ = EnsureDefaultWorkspace()
+	_ = AddSkillToWorkspace("commit", DefaultWorkspaceName)
+
+	// Rename
+	err := RenameInstalledSkill("commit", "alice-skills--commit")
+	if err != nil {
+		t.Fatalf("RenameInstalledSkill() error: %v", err)
+	}
+
+	// Old directory should not exist
+	if _, err := os.Stat(oldDir); !os.IsNotExist(err) {
+		t.Error("old directory still exists after rename")
+	}
+
+	// New directory should exist
+	newDir := filepath.Join(scrollsDir, "alice-skills--commit")
+	if _, err := os.Stat(filepath.Join(newDir, "SKILL.md")); err != nil {
+		t.Error("new directory missing SKILL.md after rename")
+	}
+
+	// Workspace should reference the new name
+	ws, _ := GetWorkspace(DefaultWorkspaceName)
+	if !slicesContainsFold(ws.Skills, "alice-skills--commit") {
+		t.Errorf("workspace should contain 'alice-skills--commit', skills: %v", ws.Skills)
+	}
+	if slicesContainsFold(ws.Skills, "commit") {
+		t.Errorf("workspace should not contain old name 'commit', skills: %v", ws.Skills)
+	}
+}
+
+func TestHandleNameConflicts(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	existingSource := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills"}
+	installTestSkillWithMeta(t, tmpDir, "commit", "commit", existingSource)
+
+	// Add to default workspace
+	_ = EnsureDefaultWorkspace()
+	_ = AddSkillToWorkspace("commit", DefaultWorkspaceName)
+
+	// Handle conflict for a new source
+	newSource := &SourceInfo{Type: "github", Owner: "bob", Repo: "tools"}
+	conflicts := []*Skill{{Name: "commit", Description: "Bob's commit"}}
+
+	qualified, err := HandleNameConflicts(conflicts, newSource)
+	if err != nil {
+		t.Fatalf("HandleNameConflicts() error: %v", err)
+	}
+
+	// New skill should have qualified name
+	if len(qualified) != 1 {
+		t.Fatalf("expected 1 qualified skill, got %d", len(qualified))
+	}
+	if qualified[0].Name != "bob-tools--commit" {
+		t.Errorf("qualified name = %q, want %q", qualified[0].Name, "bob-tools--commit")
+	}
+
+	// Existing skill should have been renamed
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	if _, err := os.Stat(filepath.Join(scrollsDir, "commit")); !os.IsNotExist(err) {
+		t.Error("original 'commit' directory should have been renamed")
+	}
+	if _, err := os.Stat(filepath.Join(scrollsDir, "alice-skills--commit", "SKILL.md")); err != nil {
+		t.Error("existing skill should have been renamed to 'alice-skills--commit'")
+	}
+}
+
+// ============================================================================
+// FilterAndResolveConflicts (installer.go)
+// ============================================================================
+
+func TestFilterAndResolveConflicts_NewSkills(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	source := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills", URL: "https://github.com/alice/skills"}
+	skills := []*Skill{{Name: "brand-new", Description: "test", Path: "/tmp"}}
+
+	toInstall, already, err := FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		t.Fatalf("FilterAndResolveConflicts() error: %v", err)
+	}
+	if len(toInstall) != 1 {
+		t.Errorf("expected 1 new skill, got %d", len(toInstall))
+	}
+	if len(already) != 0 {
+		t.Errorf("expected 0 already installed, got %d", len(already))
+	}
+}
+
+func TestFilterAndResolveConflicts_AlreadyInstalled(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	source := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills", URL: "https://github.com/alice/skills"}
+	installTestSkillWithMeta(t, tmpDir, "commit", "commit", source)
+
+	skills := []*Skill{{Name: "commit", Description: "test", Path: "/tmp"}}
+	toInstall, already, err := FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		t.Fatalf("FilterAndResolveConflicts() error: %v", err)
+	}
+	if len(toInstall) != 0 {
+		t.Errorf("expected 0 new skills, got %d", len(toInstall))
+	}
+	if len(already) != 1 {
+		t.Errorf("expected 1 already installed, got %d", len(already))
+	}
+}
+
+func TestFilterAndResolveConflicts_Conflict(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Install "commit" from alice
+	aliceSource := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills", URL: "https://github.com/alice/skills"}
+	installTestSkillWithMeta(t, tmpDir, "commit", "commit", aliceSource)
+
+	// Try installing "commit" from bob — should trigger conflict resolution
+	bobSource := &SourceInfo{Type: "github", Owner: "bob", Repo: "tools", URL: "https://github.com/bob/tools"}
+	skills := []*Skill{{Name: "commit", Description: "test", Path: filepath.Join(tmpDir, ".scribe", "scrolls", "commit")}}
+
+	toInstall, already, err := FilterAndResolveConflicts(skills, bobSource)
+	if err != nil {
+		t.Fatalf("FilterAndResolveConflicts() error: %v", err)
+	}
+	if len(already) != 0 {
+		t.Errorf("expected 0 already installed, got %d", len(already))
+	}
+	if len(toInstall) != 1 {
+		t.Fatalf("expected 1 skill to install, got %d", len(toInstall))
+	}
+	// New skill should be qualified
+	if toInstall[0].Name != "bob-tools--commit" {
+		t.Errorf("expected qualified name 'bob-tools--commit', got %q", toInstall[0].Name)
+	}
+	// Existing skill should have been renamed
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	if _, err := os.Stat(filepath.Join(scrollsDir, "alice-skills--commit", "SKILL.md")); err != nil {
+		t.Error("existing skill should have been renamed to 'alice-skills--commit'")
+	}
+}
+
+// installTestSkillWithMeta is a test helper that creates an installed skill
+// with proper SKILL.md frontmatter and .scribe-meta.json metadata.
+func installTestSkillWithMeta(t *testing.T, homeDir, storageName, fmName string, source *SourceInfo) {
+	t.Helper()
+	skillDir := filepath.Join(homeDir, ".scribe", "scrolls", storageName)
+	_ = os.MkdirAll(skillDir, 0o755)
+
+	content := fmt.Sprintf("---\nname: %s\ndescription: test skill\n---\n# %s\n", fmName, fmName)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(content), 0o644)
+
+	meta := NewSkillMeta(source, "", content, nil)
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
 }

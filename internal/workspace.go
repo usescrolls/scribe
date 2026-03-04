@@ -257,7 +257,9 @@ func isSymlinkEntry(path string) bool {
 	return info.Mode()&os.ModeSymlink != 0
 }
 
-// AddSkillToWorkspace adds a skill to a workspace
+// AddSkillToWorkspace adds a skill to a workspace.
+// It rejects the addition if another skill in the workspace has the same
+// frontmatter name (e.g. two qualified skills that both resolve to "commit").
 func AddSkillToWorkspace(skillName, workspaceName string) error {
 	ws, err := GetWorkspace(workspaceName)
 	if err != nil {
@@ -267,6 +269,11 @@ func AddSkillToWorkspace(skillName, workspaceName string) error {
 	// Check if already in workspace (case-insensitive)
 	if slicesContainsFold(ws.Skills, skillName) {
 		return nil // Already present
+	}
+
+	// Validate: no other skill in the workspace shares the same frontmatter name
+	if err := checkFrontmatterConflict(skillName, ws.Skills); err != nil {
+		return err
 	}
 
 	ws.Skills = append(ws.Skills, skillName)
@@ -421,13 +428,14 @@ func saveWorkspace(ws *Workspace) error {
 	return os.WriteFile(wsPath, data, 0o644)
 }
 
-// createDefaultWorkspace creates a default workspace with all installed skills
+// createDefaultWorkspace creates a default workspace with all installed skills.
+// Skills with duplicate frontmatter names are deduplicated (first wins).
 func createDefaultWorkspace() *Workspace {
 	skills, _ := ListInstalledSkills()
 	return &Workspace{
 		Name:        DefaultWorkspaceName,
 		Description: "All installed skills",
-		Skills:      injectSystemSkills(skills),
+		Skills:      injectSystemSkills(deduplicateByFrontmatter(skills)),
 	}
 }
 
@@ -454,6 +462,55 @@ func skillDiff(a, b []string) []string {
 		}
 	}
 	return diff
+}
+
+// deduplicateByFrontmatter filters a skill list so that no two skills share
+// the same frontmatter name. When duplicates exist, the first occurrence wins.
+func deduplicateByFrontmatter(skills []string) []string {
+	seen := make(map[string]bool, len(skills))
+	var out []string
+	for _, s := range skills {
+		fm, err := GetFrontmatterName(s)
+		if err != nil {
+			// Can't read frontmatter (system skill, missing file) — keep it
+			out = append(out, s)
+			continue
+		}
+		key := strings.ToLower(fm)
+		if seen[key] {
+			Logger.Info("skipping duplicate frontmatter name in workspace", "skill", s, "frontmatter", fm)
+			continue
+		}
+		seen[key] = true
+		out = append(out, s)
+	}
+	return out
+}
+
+// checkFrontmatterConflict returns an error if any skill already in the
+// workspace has the same frontmatter name as the skill being added.
+func checkFrontmatterConflict(newSkillStorage string, existingSkills []string) error {
+	newFM, err := GetFrontmatterName(newSkillStorage)
+	if err != nil {
+		return nil // Can't read → skip validation (e.g. system skill)
+	}
+
+	for _, existing := range existingSkills {
+		if strings.EqualFold(existing, newSkillStorage) {
+			continue // Same storage name, already handled by caller
+		}
+		existingFM, err := GetFrontmatterName(existing)
+		if err != nil {
+			continue
+		}
+		if strings.EqualFold(newFM, existingFM) {
+			return fmt.Errorf(
+				"cannot add '%s': workspace already has skill '%s' with the same name '%s'. Remove it first",
+				newSkillStorage, existing, existingFM,
+			)
+		}
+	}
+	return nil
 }
 
 // slicesContainsFold checks if a string slice contains a value (case-insensitive)
@@ -503,7 +560,8 @@ func RemoveSkillFromAllWorkspaces(skillName string) error {
 	return nil
 }
 
-// RebuildDefaultWorkspace rebuilds the default workspace to include all installed skills
+// RebuildDefaultWorkspace rebuilds the default workspace to include all installed skills.
+// Skills with duplicate frontmatter names are deduplicated (first wins).
 func RebuildDefaultWorkspace() error {
 	skills, err := ListInstalledSkills()
 	if err != nil {
@@ -513,7 +571,7 @@ func RebuildDefaultWorkspace() error {
 	ws := &Workspace{
 		Name:        DefaultWorkspaceName,
 		Description: "All installed skills",
-		Skills:      skills,
+		Skills:      deduplicateByFrontmatter(skills),
 	}
 
 	return saveWorkspace(ws)

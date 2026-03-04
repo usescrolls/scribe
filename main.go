@@ -633,8 +633,11 @@ func (a *AppService) InstallFromSource(sourceStr string) (*scribe.InstallResult,
 		return &scribe.InstallResult{ErrorMessage: "No skills found in source"}, nil
 	}
 
-	// Filter out already-installed skills
-	newSkills, alreadyInstalled := scribe.FilterAlreadyInstalled(skills)
+	// Filter out already-installed skills and resolve name conflicts
+	newSkills, alreadyInstalled, err := scribe.FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		scribe.Logger.Error("failed to resolve name conflicts", "error", err)
+	}
 	if len(newSkills) == 0 {
 		msg := fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
 		if len(alreadyInstalled) == 1 {
@@ -794,8 +797,11 @@ func (a *AppService) ConfirmInstall(skillNames, workspaceNames []string) (*scrib
 		}
 	}
 
-	// Filter out already-installed skills
-	newToInstall, alreadyInstalled := scribe.FilterAlreadyInstalled(toInstall)
+	// Filter out already-installed skills and resolve name conflicts
+	newToInstall, alreadyInstalled, err := scribe.FilterAndResolveConflicts(toInstall, a.pendingSource)
+	if err != nil {
+		scribe.Logger.Error("failed to resolve name conflicts", "error", err)
+	}
 	if len(newToInstall) == 0 {
 		msg := fmt.Sprintf("All %d skill(s) from this source are already installed", len(alreadyInstalled))
 		if len(alreadyInstalled) == 1 {

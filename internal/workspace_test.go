@@ -1074,3 +1074,70 @@ func TestBoost_GetWorkspace_InvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON workspace")
 	}
 }
+
+// ============================================================================
+// AddSkillToWorkspace — frontmatter name conflict (workspace.go)
+// ============================================================================
+
+func TestAddSkillToWorkspaceFrontmatterConflict(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+
+	// Create two skills with the same frontmatter name but different storage names
+	for _, info := range []struct{ storage, fm string }{
+		{"alice-skills--commit", "commit"},
+		{"bob-tools--commit", "commit"},
+	} {
+		dir := filepath.Join(scrollsDir, info.storage)
+		_ = os.MkdirAll(dir, 0o755)
+		content := "---\nname: " + info.fm + "\ndescription: test\n---\n# Test\n"
+		_ = os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0o644)
+	}
+
+	// Add the first one — should succeed
+	err := AddSkillToWorkspace("alice-skills--commit", DefaultWorkspaceName)
+	if err != nil {
+		t.Fatalf("first AddSkillToWorkspace() error: %v", err)
+	}
+
+	// Add the second one — should fail because same frontmatter name
+	err = AddSkillToWorkspace("bob-tools--commit", DefaultWorkspaceName)
+	if err == nil {
+		t.Fatal("expected error when adding skill with duplicate frontmatter name")
+	}
+	if !strings.Contains(err.Error(), "same name") {
+		t.Errorf("error = %q, want message about same name conflict", err.Error())
+	}
+}
+
+func TestAddSkillToWorkspaceNoConflictDifferentFrontmatter(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+
+	// Two skills with different frontmatter names
+	for _, info := range []struct{ storage, fm string }{
+		{"skill-a", "commit"},
+		{"skill-b", "review"},
+	} {
+		dir := filepath.Join(scrollsDir, info.storage)
+		_ = os.MkdirAll(dir, 0o755)
+		content := "---\nname: " + info.fm + "\ndescription: test\n---\n# Test\n"
+		_ = os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(content), 0o644)
+	}
+
+	// Both should succeed
+	if err := AddSkillToWorkspace("skill-a", DefaultWorkspaceName); err != nil {
+		t.Fatalf("AddSkillToWorkspace(skill-a) error: %v", err)
+	}
+	if err := AddSkillToWorkspace("skill-b", DefaultWorkspaceName); err != nil {
+		t.Fatalf("AddSkillToWorkspace(skill-b) error: %v", err)
+	}
+}
