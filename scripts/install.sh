@@ -129,12 +129,9 @@ fi
 # Get latest version tag from GitHub
 LATEST_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's|.*/v||')
 
-SKIP_DOWNLOAD=false
-
 if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
     echo "Scribe v$INSTALLED_VERSION is already installed and up to date."
-    echo "  Verifying setup..."
-    SKIP_DOWNLOAD=true
+    exit 0
 elif [ -n "$INSTALLED_VERSION" ]; then
     echo "Scribe Installer"
     echo "================"
@@ -147,37 +144,35 @@ else
     echo "Downloading $ASSET_NAME..."
 fi
 
-if [ "$SKIP_DOWNLOAD" = false ]; then
-    TMP_FILE=$(mktemp)
-    trap 'rm -f "$TMP_FILE"' EXIT
+TMP_FILE=$(mktemp)
+trap 'rm -f "$TMP_FILE"' EXIT
 
-    if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
-        echo "Error: failed to download from $DOWNLOAD_URL"
-        exit 1
-    fi
-    chmod +x "$TMP_FILE"
+if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
+    echo "Error: failed to download from $DOWNLOAD_URL"
+    exit 1
+fi
+chmod +x "$TMP_FILE"
 
-    # Install binary
-    if [ "$OS" = "Darwin" ]; then
-        # Create a minimal .app bundle so macOS registers the agenthub:// URL scheme
-        APP_BUNDLE="$HOME/Applications/Scribe.app"
-        APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
-        mkdir -p "$APP_BUNDLE/Contents/MacOS"
+# Install binary
+if [ "$OS" = "Darwin" ]; then
+    # Create a minimal .app bundle so macOS registers the agenthub:// URL scheme
+    APP_BUNDLE="$HOME/Applications/Scribe.app"
+    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
+    mkdir -p "$APP_BUNDLE/Contents/MacOS"
 
-        echo "Installing to $APP_BUNDLE..."
-        mv "$TMP_FILE" "$APP_BINARY"
+    echo "Installing to $APP_BUNDLE..."
+    mv "$TMP_FILE" "$APP_BINARY"
 
-        # Symlink CLI binary into PATH
-        mkdir -p "$INSTALL_DIR"
-        ln -sf "$APP_BINARY" "$BINARY_PATH"
-        echo "  App bundle: $APP_BUNDLE"
-        echo "  CLI symlink: $BINARY_PATH"
-    else
-        mkdir -p "$INSTALL_DIR"
-        echo "Installing to $BINARY_PATH..."
-        mv "$TMP_FILE" "$BINARY_PATH"
-        echo "  Binary installed: $BINARY_PATH"
-    fi
+    # Symlink CLI binary into PATH
+    mkdir -p "$INSTALL_DIR"
+    ln -sf "$APP_BINARY" "$BINARY_PATH"
+    echo "  App bundle: $APP_BUNDLE"
+    echo "  CLI symlink: $BINARY_PATH"
+else
+    mkdir -p "$INSTALL_DIR"
+    echo "Installing to $BINARY_PATH..."
+    mv "$TMP_FILE" "$BINARY_PATH"
+    echo "  Binary installed: $BINARY_PATH"
 fi
 
 # Migrate: if macOS binary is not in .app bundle yet, move it there
@@ -394,6 +389,7 @@ if [ "$OS" = "Darwin" ]; then
     sleep 1
     open "agenthub://show" 2>/dev/null || true
 elif [ "$OS" = "Linux" ]; then
-    # Launch Scribe directly (XDG autostart handles future logins)
+    # Kill any existing instance before launching
+    pkill -x "$BINARY_NAME" 2>/dev/null || true
     nohup "$BINARY_PATH" > /dev/null 2>&1 &
 fi
