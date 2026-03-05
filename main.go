@@ -61,6 +61,9 @@ func main() {
 }
 
 func isCLICommand(arg string) bool {
+	if arg == "--help" || arg == "-h" {
+		return true
+	}
 	if strings.HasPrefix(arg, "-") {
 		return false
 	}
