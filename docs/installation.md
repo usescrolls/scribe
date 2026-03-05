@@ -23,7 +23,7 @@ This detects your OS and architecture, downloads the latest binary to `~/.local/
 To uninstall:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/uninstall.sh | bash
 ```
 
 This stops the background service, removes the binary, cleans up `~/.scribe`, and removes platform-specific registrations.
