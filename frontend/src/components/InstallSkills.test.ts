@@ -356,6 +356,86 @@ describe("InstallSkills", () => {
       expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false)
     })
 
+    it("shows select all toggle", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      const selectAll = wrapper.find(".select-all-item")
+      expect(selectAll.exists()).toBe(true)
+      expect(selectAll.find(".select-all-label").text()).toBe("Deselect all")
+    })
+
+    it("deselects all skills when select all is unchecked", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      // All skills start checked, so the toggle says "Deselect all"
+      const selectAllCheckbox = wrapper.find(
+        '.select-all-item input[type="checkbox"]',
+      )
+      await selectAllCheckbox.trigger("change")
+
+      const checkboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false)
+      expect((checkboxes[1].element as HTMLInputElement).checked).toBe(false)
+      expect(wrapper.find(".select-all-label").text()).toBe("Select all")
+    })
+
+    it("reselects all skills when select all is checked after deselect", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      const selectAllCheckbox = wrapper.find(
+        '.select-all-item input[type="checkbox"]',
+      )
+      // Deselect all
+      await selectAllCheckbox.trigger("change")
+      // Reselect all
+      await selectAllCheckbox.trigger("change")
+
+      const checkboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      expect((checkboxes[0].element as HTMLInputElement).checked).toBe(true)
+      expect((checkboxes[1].element as HTMLInputElement).checked).toBe(true)
+      expect(wrapper.find(".select-all-label").text()).toBe("Deselect all")
+    })
+
+    it("select all updates to 'Select all' when one skill is unchecked", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      // Uncheck one skill
+      const skillCheckboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      await skillCheckboxes[0].trigger("change")
+
+      // Label should change since not all are selected
+      expect(wrapper.find(".select-all-label").text()).toBe("Select all")
+
+      // The select-all checkbox should be unchecked
+      const selectAllCheckbox = wrapper.find(
+        '.select-all-item input[type="checkbox"]',
+      )
+      expect((selectAllCheckbox.element as HTMLInputElement).checked).toBe(
+        false,
+      )
+    })
+
+    it("select all re-checks when manually checking all skills back", async () => {
+      const wrapper = await mountAtReviewStep()
+
+      const skillCheckboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      // Uncheck first skill
+      await skillCheckboxes[0].trigger("change")
+      expect(wrapper.find(".select-all-label").text()).toBe("Select all")
+
+      // Re-check first skill
+      await skillCheckboxes[0].trigger("change")
+      expect(wrapper.find(".select-all-label").text()).toBe("Deselect all")
+    })
+
     it("disables continue when no skills selected", async () => {
       const wrapper = await mountAtReviewStep()
 

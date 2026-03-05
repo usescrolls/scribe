@@ -107,6 +107,34 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no coding agents detected. Please install at least one agent (Claude Code, Cursor, etc.)")
 	}
 
+	// Interactive skill selection when multiple skills found and no flags override
+	if len(skills) > 1 && installSkills == "" && !installYes && !quiet {
+		fmt.Printf("\nFound %d skill(s). Select which to install:\n", len(skills))
+		items := make([]selectableItem, len(skills))
+		for i, skill := range skills {
+			items[i] = selectableItem{
+				Label:       skill.Name,
+				Description: skill.Description,
+				Selected:    true,
+			}
+		}
+
+		selected, err := promptMultiSelect(items)
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+		if len(selected) == 0 {
+			fmt.Println("No skills selected.")
+			return nil
+		}
+
+		filtered := make([]*scribe.Skill, len(selected))
+		for i, idx := range selected {
+			filtered[i] = skills[idx]
+		}
+		skills = filtered
+	}
+
 	if !quiet {
 		fmt.Printf("\nFound %d skill(s) to install:\n", len(skills))
 		for _, skill := range skills {

@@ -130,6 +130,14 @@
         Select which ones to install:
       </p>
       <div class="skill-checklist">
+        <label class="select-all-item">
+          <input
+            type="checkbox"
+            :checked="allSkillsSelected"
+            @change="toggleAllSkills"
+          />
+          <span class="select-all-label">{{ allSkillsSelected ? 'Deselect all' : 'Select all' }}</span>
+        </label>
         <label
           v-for="skill in discoverResult!.skills"
           :key="skill.name"
@@ -275,7 +283,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import SourceAvatar from './SourceAvatar.vue'
 import { AppService } from '../bindings/scribe'
 import { Events } from '@wailsio/runtime'
@@ -417,6 +425,22 @@ async function handleDiscover() {
     error.value = parseDiscoverError(e)
   } finally {
     discovering.value = false
+  }
+}
+
+const allSkillsSelected = computed(() => {
+  if (!discoverResult.value) return false
+  return discoverResult.value.skills.every(s => selectedSkills.has(s.name))
+})
+
+function toggleAllSkills() {
+  if (!discoverResult.value) return
+  if (allSkillsSelected.value) {
+    selectedSkills.clear()
+  } else {
+    for (const skill of discoverResult.value.skills) {
+      selectedSkills.add(skill.name)
+    }
   }
 }
 
@@ -818,6 +842,28 @@ function isAuthError(msg: string): boolean {
   flex-direction: column;
   gap: 0.25rem;
   margin-bottom: 1rem;
+}
+
+.select-all-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.75rem;
+  cursor: pointer;
+  margin-bottom: 0.125rem;
+}
+
+.select-all-item input[type="checkbox"] {
+  width: 0.875rem;
+  height: 0.875rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.select-all-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .skill-check-item {
