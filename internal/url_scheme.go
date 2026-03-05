@@ -154,7 +154,11 @@ func ParseInstallURL(urlString string) (*SourceInfo, string, error) {
 		source.Owner = parts[0]
 		source.Repo = parts[1]
 		if len(parts) > 2 {
-			source.Subpath = strings.Join(parts[2:], "/")
+			sp, err := SanitizeSubpath(strings.Join(parts[2:], "/"))
+			if err != nil {
+				return nil, "", err
+			}
+			source.Subpath = sp
 		}
 		source.URL = fmt.Sprintf("https://github.com/%s/%s", source.Owner, source.Repo)
 

@@ -2,9 +2,33 @@ package scribe
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
+
+// SanitizeSubpath validates that a subpath does not contain ".." segments
+// that could escape the repository root directory.
+func SanitizeSubpath(subpath string) (string, error) {
+	// Normalize backslashes for consistent handling
+	normalized := strings.ReplaceAll(subpath, "\\", "/")
+
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return "", fmt.Errorf("unsafe subpath: %q contains path traversal segments", subpath)
+		}
+	}
+	return subpath, nil
+}
+
+// IsSubpathSafe validates that a resolved subpath stays within the base directory.
+func IsSubpathSafe(basePath, subpath string) bool {
+	normalizedBase := filepath.Clean(basePath)
+	normalizedTarget := filepath.Clean(filepath.Join(basePath, subpath))
+
+	return normalizedTarget == normalizedBase ||
+		strings.HasPrefix(normalizedTarget, normalizedBase+string(os.PathSeparator))
+}
 
 // ParseSourceString parses a source string into a SourceInfo.
 // Supported formats:
@@ -84,7 +108,11 @@ func parseGitHubShorthand(arg string) (*SourceInfo, error) {
 	source.Repo = parts[1]
 
 	if len(parts) > 2 {
-		source.Subpath = strings.Join(parts[2:], "/")
+		sp, err := SanitizeSubpath(strings.Join(parts[2:], "/"))
+		if err != nil {
+			return nil, err
+		}
+		source.Subpath = sp
 	}
 
 	source.URL = fmt.Sprintf("https://github.com/%s/%s", source.Owner, source.Repo)
@@ -110,7 +138,11 @@ func parseGitHubURL(url string) (*SourceInfo, error) {
 		afterParts := strings.SplitN(afterTree, "/", 2)
 		source.Ref = afterParts[0]
 		if len(afterParts) > 1 {
-			source.Subpath = afterParts[1]
+			sp, err := SanitizeSubpath(afterParts[1])
+			if err != nil {
+				return nil, err
+			}
+			source.Subpath = sp
 		}
 	} else {
 		parts := strings.Split(path, "/")
@@ -119,7 +151,11 @@ func parseGitHubURL(url string) (*SourceInfo, error) {
 			source.Repo = strings.TrimSuffix(parts[1], ".git")
 		}
 		if len(parts) > 2 {
-			source.Subpath = strings.Join(parts[2:], "/")
+			sp, err := SanitizeSubpath(strings.Join(parts[2:], "/"))
+			if err != nil {
+				return nil, err
+			}
+			source.Subpath = sp
 		}
 	}
 
@@ -254,7 +290,11 @@ func parseSSHURL(arg string) (*SourceInfo, error) {
 		source.Owner = parts[0]
 		source.Repo = parts[1]
 		if len(parts) > 2 {
-			source.Subpath = strings.Join(parts[2:], "/")
+			sp, err := SanitizeSubpath(strings.Join(parts[2:], "/"))
+			if err != nil {
+				return nil, err
+			}
+			source.Subpath = sp
 		}
 	case "gitlab.com":
 		// GitLab supports nested groups: group/subgroup/project
@@ -266,7 +306,11 @@ func parseSSHURL(arg string) (*SourceInfo, error) {
 		source.Owner = parts[0]
 		source.Repo = parts[1]
 		if len(parts) > 2 {
-			source.Subpath = strings.Join(parts[2:], "/")
+			sp, err := SanitizeSubpath(strings.Join(parts[2:], "/"))
+			if err != nil {
+				return nil, err
+			}
+			source.Subpath = sp
 		}
 	default:
 		// Self-hosted git instance — last component is repo, rest is owner/group

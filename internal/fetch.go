@@ -41,6 +41,9 @@ func FetchAndDiscoverSkills(source *SourceInfo, emit ...ProgressEmitter) ([]*Ski
 	case "local":
 		result.SkillsDir = source.LocalPath
 		if source.Subpath != "" {
+			if !IsSubpathSafe(result.SkillsDir, source.Subpath) {
+				return nil, nil, fmt.Errorf("invalid subpath: %q resolves outside the base directory", source.Subpath)
+			}
 			result.SkillsDir = filepath.Join(result.SkillsDir, source.Subpath)
 		}
 
@@ -54,6 +57,9 @@ func FetchAndDiscoverSkills(source *SourceInfo, emit ...ProgressEmitter) ([]*Ski
 		result.IsPrivate = authRequired
 		result.SkillsDir = repoDir
 		if source.Subpath != "" {
+			if !IsSubpathSafe(repoDir, source.Subpath) {
+				return nil, nil, fmt.Errorf("invalid subpath: %q resolves outside the repository directory", source.Subpath)
+			}
 			result.SkillsDir = filepath.Join(repoDir, source.Subpath)
 		}
 
