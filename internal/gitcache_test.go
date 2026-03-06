@@ -2,6 +2,7 @@ package scribe
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -565,7 +566,7 @@ func TestFetchRepo_AlreadyUpToDate(t *testing.T) {
 
 	// Fetch again (should be already up to date = no error)
 	source := &SourceInfo{Type: "local", URL: remoteDir}
-	_, err = fetchRepo(repo, source)
+	_, err = fetchRepo(cloneDir, repo, source)
 	if err != nil {
 		t.Errorf("fetchRepo() after fresh clone should return nil, got: %v", err)
 	}
@@ -829,6 +830,124 @@ func TestCloneOrUpdateRepo_SSHURLMarksAuthRequired(t *testing.T) {
 	}
 }
 
+func TestGitCLIFetch_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a remote repo and clone it using system git
+	remoteDir := filepath.Join(tmpDir, "remote")
+	createTestGitRepo(t, remoteDir, map[string]string{"file.txt": "hello"})
+
+	cloneDir := filepath.Join(tmpDir, "clone")
+	cmd := exec.Command("git", "clone", "--depth=1", remoteDir, cloneDir)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git clone: %v", err)
+	}
+
+	// gitCLIFetch should succeed (already up to date)
+	if err := gitCLIFetch(cloneDir); err != nil {
+		t.Errorf("gitCLIFetch() error: %v", err)
+	}
+}
+
+func TestGitCLIFetch_InvalidPath(t *testing.T) {
+	err := gitCLIFetch("/nonexistent/path")
+	if err == nil {
+		t.Error("expected error for invalid path")
+	}
+}
+
+func TestGitCLIClone_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	remoteDir := filepath.Join(tmpDir, "remote")
+	createTestGitRepo(t, remoteDir, map[string]string{"file.txt": "hello"})
+
+	cloneDir := filepath.Join(tmpDir, "clone")
+	if err := gitCLIClone(cloneDir, remoteDir, ""); err != nil {
+		t.Fatalf("gitCLIClone() error: %v", err)
+	}
+
+	// Verify file exists in clone
+	content, err := os.ReadFile(filepath.Join(cloneDir, "file.txt"))
+	if err != nil {
+		t.Fatalf("read cloned file: %v", err)
+	}
+	if string(content) != "hello" {
+		t.Errorf("file content = %q, want 'hello'", string(content))
+	}
+}
+
+func TestGitCLIClone_InvalidURL(t *testing.T) {
+	cloneDir := filepath.Join(t.TempDir(), "clone")
+	err := gitCLIClone(cloneDir, "git@invalid.host:no/repo", "")
+	if err == nil {
+		t.Error("expected error for invalid URL")
+	}
+}
+
+func TestFetchRepo_SSHFallbackToSystemGit(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+
+	// Create a remote repo and clone it
+	remoteDir := filepath.Join(tmpDir, "remote")
+	createTestGitRepo(t, remoteDir, map[string]string{"file.txt": "hello"})
+
+	cloneDir := filepath.Join(tmpDir, "clone")
+	repo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{
+		URL:   remoteDir,
+		Depth: 1,
+	})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	// Use an SSH-style URL so fetchRepo takes the SSH path.
+	// go-git will fail (no real SSH remote), but system git should
+	// succeed since the origin remote still points to the local dir.
+	source := &SourceInfo{Type: "github", URL: "git@fake:owner/repo"}
+	_, fetchErr := fetchRepo(cloneDir, repo, source)
+
+	// The go-git SSH fetch fails, then gitCLIFetch runs against
+	// the real local origin and succeeds — so no error expected.
+	if fetchErr != nil {
+		t.Errorf("expected system git fallback to succeed, got: %v", fetchErr)
+	}
+}
+
+func TestCloneToCache_SSHFallbackToSystemGit(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	// Create a local repo to use as the real remote
+	remoteDir := filepath.Join(tmpDir, "remote")
+	createTestGitRepo(t, remoteDir, map[string]string{"file.txt": "hello"})
+
+	cacheDir, _ := GetCacheDir()
+	repoPath := filepath.Join(cacheDir, "test-ssh-fallback")
+
+	// Source has SSH URL (go-git will fail), but cloneURL points to local dir
+	// so system git fallback should succeed.
+	source := &SourceInfo{
+		Type:  "github",
+		Owner: "test",
+		Repo:  "ssh-fallback",
+		URL:   "git@fake:test/ssh-fallback",
+	}
+
+	// cloneToCache will try go-git (fails with SSH) then system git.
+	// We override cloneURL via buildCloneURL which adds .git suffix,
+	// so system git will also fail (can't resolve fake SSH host).
+	_, _, _, err := cloneToCache(repoPath, source)
+	if err == nil {
+		t.Fatal("expected error — both go-git and system git should fail for fake SSH URL")
+	}
+	if !strings.Contains(err.Error(), "system git") {
+		t.Errorf("error should mention system git fallback, got: %v", err)
+	}
+}
+
 func TestCloneToTempDir_PublicHTTPS_AuthNotRequired(t *testing.T) {
 	_ = setupTempHome(t)
 	InitLoggerCLI(false)
@@ -871,7 +990,7 @@ func TestFetchRepo_PublicHTTPS_AuthNotRequired(t *testing.T) {
 	}
 
 	source := &SourceInfo{Type: "local", URL: remoteDir}
-	authRequired, err := fetchRepo(repo, source)
+	authRequired, err := fetchRepo(cloneDir, repo, source)
 	if err != nil {
 		t.Fatalf("fetchRepo() error: %v", err)
 	}

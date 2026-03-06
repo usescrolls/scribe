@@ -3,6 +3,7 @@ package scribe
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -71,7 +72,7 @@ func CloneOrUpdateRepo(source *SourceInfo, emit ...ProgressEmitter) (repoDir str
 	if err == nil {
 		// Cached repo exists -- fetch updates
 		emitProgress(emit, "discover", "fetching", "Fetching latest changes...", "")
-		authNeeded, fetchErr := fetchRepo(repo, source, emit...)
+		authNeeded, fetchErr := fetchRepo(repoPath, repo, source, emit...)
 		if fetchErr != nil {
 			Logger.Warn("fetch failed, re-cloning", "path", repoPath, "error", fetchErr)
 			_ = os.RemoveAll(repoPath)
@@ -105,7 +106,13 @@ func cloneToCache(repoPath string, source *SourceInfo, emit ...ProgressEmitter) 
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
 		if err := cloneWithRefFallback(repoPath, cloneURL, source, authForSource(source)); err != nil {
-			return "", false, false, fmt.Errorf("git clone failed: %w", err)
+			// go-git SSH failed — fall back to system git which handles
+			// macOS keychain and SSH agent integration better.
+			Logger.Debug("go-git ssh clone failed, trying system git", "error", err)
+			_ = os.RemoveAll(repoPath)
+			if gitErr := gitCLIClone(repoPath, cloneURL, source.Ref); gitErr != nil {
+				return "", false, false, fmt.Errorf("git clone failed: %w (system git: %v)", err, gitErr)
+			}
 		}
 		return repoPath, true, true, nil
 	}
@@ -171,7 +178,17 @@ func cloneToTempDir(source *SourceInfo, emit ...ProgressEmitter) (tempDir string
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
 		if err := cloneWithRefFallback(tempDir, cloneURL, source, authForSource(source)); err != nil {
-			return "", false, false, fmt.Errorf("git clone failed: %w", err)
+			// go-git SSH failed — fall back to system git
+			Logger.Debug("go-git ssh clone failed, trying system git", "error", err)
+			_ = os.RemoveAll(tempDir)
+			tempDir, tmpErr := os.MkdirTemp("", "scribe-clone-*")
+			if tmpErr != nil {
+				return "", false, false, fmt.Errorf("git clone failed: %w", err)
+			}
+			if gitErr := gitCLIClone(tempDir, cloneURL, source.Ref); gitErr != nil {
+				_ = os.RemoveAll(tempDir)
+				return "", false, false, fmt.Errorf("git clone failed: %w (system git: %v)", err, gitErr)
+			}
 		}
 		return tempDir, false, true, nil
 	}
@@ -203,7 +220,7 @@ func cloneToTempDir(source *SourceInfo, emit ...ProgressEmitter) (tempDir string
 
 // fetchRepo fetches the latest changes for a cached repo.
 // Returns whether authentication was required.
-func fetchRepo(repo *git.Repository, source *SourceInfo, emit ...ProgressEmitter) (authRequired bool, err error) {
+func fetchRepo(repoPath string, repo *git.Repository, source *SourceInfo, emit ...ProgressEmitter) (authRequired bool, err error) {
 	// For SSH URLs, always use auth
 	if isSSHURL(source.URL) {
 		err := repo.Fetch(&git.FetchOptions{
@@ -211,7 +228,13 @@ func fetchRepo(repo *git.Repository, source *SourceInfo, emit ...ProgressEmitter
 			Force: true,
 			Auth:  authForSource(source),
 		})
-		if err == git.NoErrAlreadyUpToDate {
+		if err == nil || err == git.NoErrAlreadyUpToDate {
+			return true, nil
+		}
+		// go-git SSH failed — fall back to system git which handles
+		// macOS keychain and SSH agent integration better.
+		Logger.Debug("go-git ssh fetch failed, trying system git", "error", err)
+		if gitErr := gitCLIFetch(repoPath); gitErr == nil {
 			return true, nil
 		}
 		return true, err
@@ -294,6 +317,25 @@ func resetToRemote(repo *git.Repository, ref string) error {
 		Commit: targetHash,
 		Mode:   git.HardReset,
 	})
+}
+
+// gitCLIFetch runs system git to fetch updates for a cached repo.
+// This handles SSH agent/keychain integration better than go-git on macOS.
+func gitCLIFetch(repoPath string) error {
+	cmd := exec.Command("git", "-C", repoPath, "fetch", "--depth=1", "origin")
+	return cmd.Run()
+}
+
+// gitCLIClone runs system git to clone a repository.
+// This handles SSH agent/keychain integration better than go-git on macOS.
+func gitCLIClone(repoPath, url, ref string) error {
+	args := []string{"clone", "--depth=1"}
+	if ref != "" {
+		args = append(args, "--branch", ref)
+	}
+	args = append(args, url, repoPath)
+	cmd := exec.Command("git", args...)
+	return cmd.Run()
 }
 
 // buildCloneURL constructs the clone URL from a SourceInfo.
