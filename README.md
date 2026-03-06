@@ -9,6 +9,8 @@ A skill distribution tool that syncs AI coding skills to 39 coding agents.
 curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
 ```
 
+![Scribe Demo](https://cdn.usescrolls.com/images/demo_scribe.gif)
+
 ## Overview
 
 Scribe lets you install AI coding skills once and automatically distributes them to all your coding agents (Claude Code, Cursor, Copilot, Cline, etc.) via symlinks. Instead of manually copying skills to each agent's directory, Scribe maintains a central skill library and keeps all your agents in sync.
