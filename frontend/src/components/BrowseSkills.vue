@@ -103,6 +103,13 @@
           >
             Uninstall all
           </button>
+          <button
+            v-if="getNewAvailableCount(group) > 0"
+            class="new-skills-btn"
+            @click="handleInstallNewSkills(group)"
+          >
+            {{ getNewAvailableCount(group) }} other skill{{ getNewAvailableCount(group) !== 1 ? 's' : '' }} available
+          </button>
         </div>
         <div class="skills-list">
           <SkillCard
@@ -167,6 +174,10 @@ import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
 import { useSkillUpdateChecker } from '../composables/useSkillUpdateChecker'
 import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
+
+const emit = defineEmits<{
+  'install-from-source': [source: string]
+}>()
 
 const { hasUpdates: sourceHasUpdates, getUpdateInfo, clearUpdate } = useSkillUpdateChecker()
 
@@ -269,6 +280,15 @@ function isGroupUpdatable(group: SourceGroup): boolean {
 
 function groupHasUpdate(group: SourceGroup): boolean {
   return sourceHasUpdates(group.source)
+}
+
+function getNewAvailableCount(group: SourceGroup): number {
+  const info = getUpdateInfo(group.source)
+  return info?.newAvailableSkills?.length ?? 0
+}
+
+function handleInstallNewSkills(group: SourceGroup) {
+  emit('install-from-source', group.source)
 }
 
 function getUpdateTooltip(group: SourceGroup): string {
@@ -776,6 +796,23 @@ onUnmounted(() => {
 .group-uninstall-btn:hover {
   background-color: var(--danger-color);
   color: white;
+}
+
+.new-skills-btn {
+  padding: 0.125rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background-color: rgba(52, 199, 89, 0.12);
+  color: var(--success-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.new-skills-btn:hover {
+  background-color: rgba(52, 199, 89, 0.22);
 }
 
 .skills-list {

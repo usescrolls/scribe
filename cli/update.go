@@ -93,6 +93,14 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	if !quiet {
 		fmt.Printf("\n%d/%d skill(s) updated\n", successCount, len(skillsToUpdate))
+
+		// Check for new available skills across all sources
+		sourceResults := scribe.CheckAllSourcesForUpdates()
+		for source, r := range sourceResults {
+			if len(r.NewAvailableSkills) > 0 {
+				fmt.Printf("\n%d other skill(s) available from %s — run `scribe install %s` to review\n", len(r.NewAvailableSkills), source, source)
+			}
+		}
 	}
 
 	return nil

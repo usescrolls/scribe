@@ -55,7 +55,7 @@
     <main class="main">
       <Transition name="fade" mode="out-in">
         <SkillList v-if="activeTab === 'workspace'" key="workspace" />
-        <BrowseSkills v-else-if="activeTab === 'browse'" key="browse" />
+        <BrowseSkills v-else-if="activeTab === 'browse'" key="browse" @install-from-source="handleMarketplaceInstall" />
         <InstallSkills v-else-if="activeTab === 'install'" key="install" :initial-source="pendingInstallSource" @consumed="pendingInstallSource = null" />
         <MarketplaceSkills v-else-if="activeTab === 'marketplace'" key="marketplace" @install-from-source="handleMarketplaceInstall" />
       </Transition>

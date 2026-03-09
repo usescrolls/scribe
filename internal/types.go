@@ -154,11 +154,12 @@ type CheckResult struct {
 
 // SourceGroupCheckResult summarizes an update check for all skills from a single source.
 type SourceGroupCheckResult struct {
-	Source            string   `json:"source"`
-	HasUpdates        bool     `json:"hasUpdates"`
-	UpdatedSkillNames []string `json:"updatedSkillNames"`
-	CheckedAt         string   `json:"checkedAt"`
-	Error             string   `json:"error,omitempty"`
+	Source             string            `json:"source"`
+	HasUpdates         bool              `json:"hasUpdates"`
+	UpdatedSkillNames  []string          `json:"updatedSkillNames"`
+	NewAvailableSkills []DiscoveredSkill `json:"newAvailableSkills,omitempty"` // New skills in source not yet installed
+	CheckedAt          string            `json:"checkedAt"`
+	Error              string            `json:"error,omitempty"`
 }
 
 // UpdateResult contains the outcome of a skill update operation

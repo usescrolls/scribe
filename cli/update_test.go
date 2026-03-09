@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -222,6 +223,133 @@ func TestRunUpdateForceVerbose(t *testing.T) {
 	// Force mode should show "Updating N skill(s)"
 	if !strings.Contains(output, "Updating 1 skill(s)") {
 		t.Errorf("expected 'Updating 1 skill(s)', got: %s", output)
+	}
+}
+
+func TestRunUpdateShowsNewSkillsNotice(t *testing.T) {
+	tmpDir, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	updateForce = true
+
+	// Create a local git repo with 2 skills (skill-a and skill-b)
+	repoDir := filepath.Join(tmpDir, "remote-repo.git")
+	skillADir := filepath.Join(repoDir, "skill-a")
+	skillBDir := filepath.Join(repoDir, "skill-b")
+	_ = os.MkdirAll(skillADir, 0o755)
+	_ = os.MkdirAll(skillBDir, 0o755)
+
+	contentA := "---\nname: skill-a\ndescription: Skill A\n---\n\n# Skill A\n\nTest skill content.\n"
+	contentB := "---\nname: skill-b\ndescription: Skill B\n---\n\n# Skill B\n\nTest skill content.\n"
+	_ = os.WriteFile(filepath.Join(skillADir, "SKILL.md"), []byte(contentA), 0o644)
+	_ = os.WriteFile(filepath.Join(skillBDir, "SKILL.md"), []byte(contentB), 0o644)
+
+	// Initialize git repo and commit
+	cmds := [][]string{
+		{"git", "init", repoDir},
+		{"git", "-C", repoDir, "add", "."},
+		{"git", "-C", repoDir, "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "-m", "init"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command(args[0], args[1:]...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git command %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	// Install only skill-a, pointing its source to the local git repo
+	scrollsDir, _ := scribe.GetScrollsDir()
+	skillDir := filepath.Join(scrollsDir, "skill-a")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+
+	meta := scribe.NewSkillMeta(&scribe.SourceInfo{
+		Type:  "github",
+		Owner: "testowner",
+		Repo:  "remote-repo",
+		URL:   repoDir,
+	}, "", contentA, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	meta.SourceURL = repoDir
+	metaPath := filepath.Join(skillDir, ".scribe-meta.json")
+	_ = scribe.WriteSkillMeta(metaPath, meta)
+
+	output := captureStdout(t, func() {
+		err := runUpdate(updateCmd, []string{})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "other skill(s) available") {
+		t.Errorf("expected 'other skill(s) available' notice, got: %s", output)
+	}
+	if !strings.Contains(output, "testowner/remote-repo") {
+		t.Errorf("expected source name in notice, got: %s", output)
+	}
+}
+
+func TestRunUpdateNewSkillsNoticeQuiet(t *testing.T) {
+	tmpDir, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = true
+	updateForce = true
+
+	// Create a local git repo with 2 skills (skill-a and skill-b)
+	repoDir := filepath.Join(tmpDir, "remote-repo.git")
+	skillADir := filepath.Join(repoDir, "skill-a")
+	skillBDir := filepath.Join(repoDir, "skill-b")
+	_ = os.MkdirAll(skillADir, 0o755)
+	_ = os.MkdirAll(skillBDir, 0o755)
+
+	contentA := "---\nname: skill-a\ndescription: Skill A\n---\n\n# Skill A\n\nTest skill content.\n"
+	contentB := "---\nname: skill-b\ndescription: Skill B\n---\n\n# Skill B\n\nTest skill content.\n"
+	_ = os.WriteFile(filepath.Join(skillADir, "SKILL.md"), []byte(contentA), 0o644)
+	_ = os.WriteFile(filepath.Join(skillBDir, "SKILL.md"), []byte(contentB), 0o644)
+
+	// Initialize git repo and commit
+	cmds := [][]string{
+		{"git", "init", repoDir},
+		{"git", "-C", repoDir, "add", "."},
+		{"git", "-C", repoDir, "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "-m", "init"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command(args[0], args[1:]...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git command %v failed: %v\n%s", args, err, out)
+		}
+	}
+
+	// Install only skill-a, pointing its source to the local git repo
+	scrollsDir, _ := scribe.GetScrollsDir()
+	skillDir := filepath.Join(scrollsDir, "skill-a")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+
+	meta := scribe.NewSkillMeta(&scribe.SourceInfo{
+		Type:  "github",
+		Owner: "testowner",
+		Repo:  "remote-repo",
+		URL:   repoDir,
+	}, "", contentA, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	meta.SourceURL = repoDir
+	metaPath := filepath.Join(skillDir, ".scribe-meta.json")
+	_ = scribe.WriteSkillMeta(metaPath, meta)
+
+	output := captureStdout(t, func() {
+		err := runUpdate(updateCmd, []string{})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if strings.Contains(output, "other skill(s) available") {
+		t.Error("quiet mode should suppress new skills notice")
 	}
 }
 

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
 import BrowseSkills from "./BrowseSkills.vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
 import SkillDetailModal from "./SkillDetailModal.vue"
 import { mockAppService, mockBrowser, mockEvents } from "../test/setup"
+import { useSkillUpdateChecker } from "../composables/useSkillUpdateChecker"
 import type { SkillInfo, WorkspaceInfo } from "../types/skill"
 
 describe("BrowseSkills", () => {
@@ -1533,6 +1534,100 @@ describe("BrowseSkills", () => {
       // No link should exist to click
       expect(wrapper.find(".group-source-link").exists()).toBe(false)
       expect(mockBrowser.OpenURL).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("new available skills CTA", () => {
+    const { sourceUpdates } = useSkillUpdateChecker()
+
+    afterEach(() => {
+      sourceUpdates.value = {}
+    })
+
+    it("does not show CTA when no new skills available", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      expect(wrapper.find(".new-skills-btn").exists()).toBe(false)
+    })
+
+    it("shows CTA with correct count when new skills available", async () => {
+      sourceUpdates.value = {
+        "vercel-labs/skills": {
+          source: "vercel-labs/skills",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [
+            {
+              name: "new-skill-1",
+              description: "New 1",
+              alreadyInstalled: false,
+            },
+            {
+              name: "new-skill-2",
+              description: "New 2",
+              alreadyInstalled: false,
+            },
+          ],
+          checkedAt: "2025-01-30T10:00:00Z",
+        },
+      }
+
+      const wrapper = await mountBrowseSkills()
+
+      const btn = wrapper.find(".new-skills-btn")
+      expect(btn.exists()).toBe(true)
+      expect(btn.text()).toBe("2 other skills available")
+    })
+
+    it("uses singular 'skill' for count of 1", async () => {
+      sourceUpdates.value = {
+        "vercel-labs/skills": {
+          source: "vercel-labs/skills",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [
+            {
+              name: "new-skill-1",
+              description: "New 1",
+              alreadyInstalled: false,
+            },
+          ],
+          checkedAt: "2025-01-30T10:00:00Z",
+        },
+      }
+
+      const wrapper = await mountBrowseSkills()
+
+      const btn = wrapper.find(".new-skills-btn")
+      expect(btn.exists()).toBe(true)
+      expect(btn.text()).toBe("1 other skill available")
+    })
+
+    it("emits install-from-source when CTA clicked", async () => {
+      sourceUpdates.value = {
+        "vercel-labs/skills": {
+          source: "vercel-labs/skills",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [
+            {
+              name: "new-skill-1",
+              description: "New 1",
+              alreadyInstalled: false,
+            },
+          ],
+          checkedAt: "2025-01-30T10:00:00Z",
+        },
+      }
+
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".new-skills-btn").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.emitted("install-from-source")).toEqual([
+        ["vercel-labs/skills"],
+      ])
     })
   })
 })

@@ -214,7 +214,7 @@ func TestCheckSourceForUpdates_EmptyList(t *testing.T) {
 	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
 
-	results := CheckSourceForUpdates("owner/repo", nil)
+	results, _ := CheckSourceForUpdates("owner/repo", nil)
 	if results != nil {
 		t.Errorf("expected nil for empty skill list, got %v", results)
 	}
@@ -225,7 +225,7 @@ func TestCheckSourceForUpdates_NonexistentSkill(t *testing.T) {
 	InitLoggerCLI(false)
 	_ = EnsureScribeDirs()
 
-	results := CheckSourceForUpdates("owner/repo", []string{"nonexistent"})
+	results, _ := CheckSourceForUpdates("owner/repo", []string{"nonexistent"})
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
@@ -242,7 +242,7 @@ func TestCheckSourceForUpdates_FetchFailure(t *testing.T) {
 	installFakeSkill(t, "batch-fail-a", "Batch fail A", "github", "nonexistent-owner/nonexistent-repo")
 	installFakeSkill(t, "batch-fail-b", "Batch fail B", "github", "nonexistent-owner/nonexistent-repo")
 
-	results := CheckSourceForUpdates("nonexistent-owner/nonexistent-repo", []string{"batch-fail-a", "batch-fail-b"})
+	results, _ := CheckSourceForUpdates("nonexistent-owner/nonexistent-repo", []string{"batch-fail-a", "batch-fail-b"})
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -286,7 +286,7 @@ func TestCheckSourceForUpdates_BatchUpToDate(t *testing.T) {
 		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
 	}
 
-	results := CheckSourceForUpdates("testowner/remote-repo", []string{"batch-a", "batch-b"})
+	results, _ := CheckSourceForUpdates("testowner/remote-repo", []string{"batch-a", "batch-b"})
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -341,7 +341,7 @@ func TestCheckSourceForUpdates_BatchMixed(t *testing.T) {
 		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
 	}
 
-	results := CheckSourceForUpdates("testowner/remote-repo", []string{"mix-a", "mix-b"})
+	results, _ := CheckSourceForUpdates("testowner/remote-repo", []string{"mix-a", "mix-b"})
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -401,7 +401,7 @@ func TestCheckSourceForUpdates_SkillNotInRemote(t *testing.T) {
 		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
 	}
 
-	results := CheckSourceForUpdates("testowner/remote-repo", []string{"exists-remote", "ghost"})
+	results, _ := CheckSourceForUpdates("testowner/remote-repo", []string{"exists-remote", "ghost"})
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -461,7 +461,7 @@ func TestCheckSourceForUpdates_SkillNoMeta(t *testing.T) {
 		// No WriteSkillMeta — deliberately missing
 	}
 
-	results := CheckSourceForUpdates("testowner/remote-repo", []string{"has-meta", "no-meta"})
+	results, _ := CheckSourceForUpdates("testowner/remote-repo", []string{"has-meta", "no-meta"})
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
@@ -1069,5 +1069,241 @@ func TestCheckResult_JSONOmitsEmptyError(t *testing.T) {
 	data, _ := json.Marshal(result)
 	if strings.Contains(string(data), "error") {
 		t.Error("expected empty error to be omitted from JSON")
+	}
+}
+
+// ============================================================================
+// NewAvailableSkills — CheckSourceForUpdates discovers uninstalled skills
+// ============================================================================
+
+func TestCheckSourceForUpdates_NewAvailableSkills(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: new-avail-a\ndescription: Skill A\n---\n# Skill A\n"
+	contentB := "---\nname: new-avail-b\ndescription: Skill B\n---\n# Skill B\n"
+	contentC := "---\nname: new-avail-c\ndescription: Skill C\n---\n# Skill C\n"
+
+	// Remote repo has three skills
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"new-avail-a/SKILL.md": contentA,
+		"new-avail-b/SKILL.md": contentB,
+		"new-avail-c/SKILL.md": contentC,
+	})
+
+	// Only install skill A locally
+	scrollsDir, _ := GetScrollsDir()
+	skillDir := filepath.Join(scrollsDir, "new-avail-a")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+	meta := NewSkillMeta(&SourceInfo{
+		Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+	}, "", contentA, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+
+	results, newSkills := CheckSourceForUpdates("testowner/remote-repo", []string{"new-avail-a"})
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Error != "" {
+		t.Errorf("unexpected error: %s", results[0].Error)
+	}
+
+	if len(newSkills) != 2 {
+		t.Fatalf("expected 2 new skills, got %d", len(newSkills))
+	}
+
+	// Collect new skill names into a set for order-independent comparison
+	newNames := make(map[string]bool)
+	for _, s := range newSkills {
+		newNames[s.Name] = true
+	}
+	if !newNames["new-avail-b"] {
+		t.Error("expected new-avail-b in new available skills")
+	}
+	if !newNames["new-avail-c"] {
+		t.Error("expected new-avail-c in new available skills")
+	}
+
+	// Verify descriptions are populated
+	for _, s := range newSkills {
+		if s.Description == "" {
+			t.Errorf("expected description for skill %s", s.Name)
+		}
+	}
+}
+
+func TestCheckSourceForUpdates_NoNewSkills(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: all-inst-a\ndescription: All installed A\n---\n# A\n"
+	contentB := "---\nname: all-inst-b\ndescription: All installed B\n---\n# B\n"
+
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"all-inst-a/SKILL.md": contentA,
+		"all-inst-b/SKILL.md": contentB,
+	})
+
+	// Install both skills locally
+	scrollsDir, _ := GetScrollsDir()
+	for _, tc := range []struct{ name, content string }{
+		{"all-inst-a", contentA},
+		{"all-inst-b", contentB},
+	} {
+		skillDir := filepath.Join(scrollsDir, tc.name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(tc.content), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+		}, "", tc.content, nil)
+		meta.Source = "testowner/remote-repo"
+		meta.SourceType = "github"
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results, newSkills := CheckSourceForUpdates("testowner/remote-repo", []string{"all-inst-a", "all-inst-b"})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	for _, r := range results {
+		if r.Error != "" {
+			t.Errorf("unexpected error for %s: %s", r.Name, r.Error)
+		}
+	}
+
+	if len(newSkills) != 0 {
+		names := make([]string, 0, len(newSkills))
+		for _, s := range newSkills {
+			names = append(names, s.Name)
+		}
+		t.Errorf("expected 0 new skills, got %d: %v", len(newSkills), names)
+	}
+}
+
+// ============================================================================
+// NewAvailableSkills — CheckAllSourcesForUpdates populates the field
+// ============================================================================
+
+func TestCheckAllSourcesForUpdates_PopulatesNewAvailableSkills(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	contentA := "---\nname: pop-a\ndescription: Pop A\n---\n# Pop A\n"
+	contentB := "---\nname: pop-b\ndescription: Pop B\n---\n# Pop B\n"
+	contentC := "---\nname: pop-c\ndescription: Pop C\n---\n# Pop C\n"
+
+	// Remote repo has three skills
+	repoDir := filepath.Join(tmpDir, "remote-repo")
+	repoURL := createTestGitRepo(t, repoDir, map[string]string{
+		"pop-a/SKILL.md": contentA,
+		"pop-b/SKILL.md": contentB,
+		"pop-c/SKILL.md": contentC,
+	})
+
+	// Only install skill A locally
+	scrollsDir, _ := GetScrollsDir()
+	skillDir := filepath.Join(scrollsDir, "pop-a")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(contentA), 0o644)
+	meta := NewSkillMeta(&SourceInfo{
+		Type: "github", Owner: "testowner", Repo: "remote-repo", URL: repoURL,
+	}, "", contentA, nil)
+	meta.Source = "testowner/remote-repo"
+	meta.SourceType = "github"
+	_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+
+	allResults := CheckAllSourcesForUpdates()
+	if len(allResults) != 1 {
+		t.Fatalf("expected 1 source group, got %d", len(allResults))
+	}
+
+	sgr, ok := allResults["testowner/remote-repo"]
+	if !ok {
+		t.Fatal("expected result for 'testowner/remote-repo'")
+	}
+
+	if len(sgr.NewAvailableSkills) != 2 {
+		t.Fatalf("expected 2 new available skills, got %d", len(sgr.NewAvailableSkills))
+	}
+
+	newNames := make(map[string]bool)
+	for _, s := range sgr.NewAvailableSkills {
+		newNames[s.Name] = true
+	}
+	if !newNames["pop-b"] {
+		t.Error("expected pop-b in NewAvailableSkills")
+	}
+	if !newNames["pop-c"] {
+		t.Error("expected pop-c in NewAvailableSkills")
+	}
+}
+
+// ============================================================================
+// NewAvailableSkills — SourceGroupCheckResult JSON serialization
+// ============================================================================
+
+func TestSourceGroupCheckResult_JSONWithNewAvailableSkills(t *testing.T) {
+	original := SourceGroupCheckResult{
+		Source:     "owner/repo",
+		HasUpdates: false,
+		NewAvailableSkills: []DiscoveredSkill{
+			{Name: "new-skill-x", Description: "Skill X"},
+			{Name: "new-skill-y", Description: "Skill Y"},
+		},
+		CheckedAt: "2025-06-01T00:00:00Z",
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	jsonStr := string(data)
+
+	// Verify the JSON contains the newAvailableSkills key
+	if !strings.Contains(jsonStr, `"newAvailableSkills"`) {
+		t.Error("expected JSON to contain newAvailableSkills key")
+	}
+	if !strings.Contains(jsonStr, `"new-skill-x"`) {
+		t.Error("expected JSON to contain new-skill-x")
+	}
+	if !strings.Contains(jsonStr, `"new-skill-y"`) {
+		t.Error("expected JSON to contain new-skill-y")
+	}
+
+	// Round-trip: unmarshal and verify
+	var decoded SourceGroupCheckResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+
+	if len(decoded.NewAvailableSkills) != 2 {
+		t.Fatalf("expected 2 NewAvailableSkills after round-trip, got %d", len(decoded.NewAvailableSkills))
+	}
+
+	decodedNames := make(map[string]string)
+	for _, s := range decoded.NewAvailableSkills {
+		decodedNames[s.Name] = s.Description
+	}
+	if decodedNames["new-skill-x"] != "Skill X" {
+		t.Errorf("new-skill-x description = %q, want %q", decodedNames["new-skill-x"], "Skill X")
+	}
+	if decodedNames["new-skill-y"] != "Skill Y" {
+		t.Errorf("new-skill-y description = %q, want %q", decodedNames["new-skill-y"], "Skill Y")
+	}
+
+	// Verify omitempty: when NewAvailableSkills is nil, it should be omitted
+	empty := SourceGroupCheckResult{Source: "test", HasUpdates: false}
+	emptyData, _ := json.Marshal(empty)
+	if strings.Contains(string(emptyData), `"newAvailableSkills"`) {
+		t.Error("expected newAvailableSkills to be omitted when nil")
 	}
 }

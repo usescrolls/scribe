@@ -18,6 +18,7 @@ export interface SourceGroupCheckResult {
   source: string
   hasUpdates: boolean
   updatedSkillNames: string[]
+  newAvailableSkills?: DiscoveredSkill[]
   checkedAt: string
   error?: string
 }

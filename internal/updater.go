@@ -80,9 +80,10 @@ func CheckSkillForUpdate(skillName string) CheckResult {
 // CheckSourceForUpdates fetches a source repo once and checks all given skills
 // against their installed content hashes. This is much more efficient than
 // calling CheckSkillForUpdate per-skill when multiple skills share a source.
-func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult {
+// It also returns any new skills discovered in the source that aren't installed.
+func CheckSourceForUpdates(sourceStr string, skillNames []string) ([]CheckResult, []DiscoveredSkill) {
 	if len(skillNames) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Read the first skill to reconstruct the source info
@@ -92,7 +93,7 @@ func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult 
 		for _, name := range skillNames {
 			results = append(results, CheckResult{Name: name, Error: fmt.Sprintf("failed to read skill: %v", err)})
 		}
-		return results
+		return results, nil
 	}
 
 	source := ReconstructSource(firstSkill.Meta)
@@ -107,7 +108,7 @@ func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult 
 		for _, name := range skillNames {
 			results = append(results, CheckResult{Name: name, Error: errMsg})
 		}
-		return results
+		return results, nil
 	}
 	if fetchResult != nil {
 		defer fetchResult.Cleanup()
@@ -117,6 +118,12 @@ func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult 
 	remoteByName := make(map[string]*Skill, len(remoteSkills))
 	for _, s := range remoteSkills {
 		remoteByName[s.Name] = s
+	}
+
+	// Build set of installed frontmatter names for new-skill detection
+	installedFM := make(map[string]bool, len(skillNames))
+	for _, name := range skillNames {
+		installedFM[FrontmatterNameFromStorage(name)] = true
 	}
 
 	var results []CheckResult
@@ -157,7 +164,18 @@ func CheckSourceForUpdates(sourceStr string, skillNames []string) []CheckResult 
 		results = append(results, r)
 	}
 
-	return results
+	// Discover new skills in the source that aren't installed
+	var newSkills []DiscoveredSkill
+	for _, s := range remoteSkills {
+		if !installedFM[s.Name] {
+			newSkills = append(newSkills, DiscoveredSkill{
+				Name:        s.Name,
+				Description: s.Description,
+			})
+		}
+	}
+
+	return results, newSkills
 }
 
 // CheckAllSourcesForUpdates checks every installed source group for updates,
@@ -204,11 +222,12 @@ func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
 	results := make(map[string]SourceGroupCheckResult, len(groups))
 
 	for key, g := range groups {
-		checkResults := CheckSourceForUpdates(g.source, g.skills)
+		checkResults, newSkills := CheckSourceForUpdates(g.source, g.skills)
 
 		sgr := SourceGroupCheckResult{
-			Source:    key,
-			CheckedAt: now,
+			Source:             key,
+			CheckedAt:          now,
+			NewAvailableSkills: newSkills,
 		}
 
 		for _, cr := range checkResults {
