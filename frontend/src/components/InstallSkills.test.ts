@@ -695,6 +695,157 @@ describe("InstallSkills", () => {
     })
   })
 
+  describe("already installed skills", () => {
+    async function mountWithMixedSkills() {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [
+          {
+            name: "skill-alpha",
+            description: "Alpha desc",
+            alreadyInstalled: true,
+          },
+          {
+            name: "skill-beta",
+            description: "Beta desc",
+            alreadyInstalled: false,
+          },
+          {
+            name: "skill-gamma",
+            description: "Gamma desc",
+            alreadyInstalled: false,
+          },
+        ],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+      return wrapper
+    }
+
+    async function mountAllInstalled() {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [
+          {
+            name: "skill-alpha",
+            description: "Alpha desc",
+            alreadyInstalled: true,
+          },
+          {
+            name: "skill-beta",
+            description: "Beta desc",
+            alreadyInstalled: true,
+          },
+        ],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+      return wrapper
+    }
+
+    it("shows already-installed badge instead of description", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      const items = wrapper.findAll(".skill-check-item")
+      expect(items[0].find(".already-installed-badge").exists()).toBe(true)
+      expect(items[0].find(".already-installed-badge").text()).toBe(
+        "already installed",
+      )
+      expect(items[0].find(".skill-check-desc").exists()).toBe(false)
+    })
+
+    it("shows description for non-installed skills", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      const items = wrapper.findAll(".skill-check-item")
+      expect(items[1].find(".skill-check-desc").text()).toBe("Beta desc")
+      expect(items[1].find(".already-installed-badge").exists()).toBe(false)
+    })
+
+    it("disables checkbox for already-installed skills", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      const checkboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      expect((checkboxes[0].element as HTMLInputElement).disabled).toBe(true)
+      expect((checkboxes[1].element as HTMLInputElement).disabled).toBe(false)
+    })
+
+    it("does not select already-installed skills by default", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      const checkboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false)
+      expect((checkboxes[1].element as HTMLInputElement).checked).toBe(true)
+      expect((checkboxes[2].element as HTMLInputElement).checked).toBe(true)
+    })
+
+    it("applies skill-already-installed class", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      const items = wrapper.findAll(".skill-check-item")
+      expect(items[0].classes()).toContain("skill-already-installed")
+      expect(items[1].classes()).not.toContain("skill-already-installed")
+    })
+
+    it("select all only toggles selectable skills", async () => {
+      const wrapper = await mountWithMixedSkills()
+
+      // Deselect all
+      const selectAllCheckbox = wrapper.find(
+        '.select-all-item input[type="checkbox"]',
+      )
+      await selectAllCheckbox.trigger("change")
+
+      const checkboxes = wrapper.findAll(
+        '.skill-check-item input[type="checkbox"]',
+      )
+      // Already-installed still unchecked
+      expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false)
+      // Selectable skills now unchecked
+      expect((checkboxes[1].element as HTMLInputElement).checked).toBe(false)
+      expect((checkboxes[2].element as HTMLInputElement).checked).toBe(false)
+
+      // Re-select all
+      await selectAllCheckbox.trigger("change")
+      expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false)
+      expect((checkboxes[1].element as HTMLInputElement).checked).toBe(true)
+      expect((checkboxes[2].element as HTMLInputElement).checked).toBe(true)
+    })
+
+    it("shows 'all already installed' message when no selectable skills", async () => {
+      const wrapper = await mountAllInstalled()
+
+      expect(wrapper.find(".step-description").text()).toContain(
+        "All skills from this source are already installed",
+      )
+    })
+
+    it("hides select all when no selectable skills", async () => {
+      const wrapper = await mountAllInstalled()
+
+      expect(wrapper.find(".select-all-item").exists()).toBe(false)
+    })
+
+    it("disables continue when all skills are already installed", async () => {
+      const wrapper = await mountAllInstalled()
+
+      const continueBtn = wrapper.find(".btn-primary")
+      expect((continueBtn.element as HTMLButtonElement).disabled).toBe(true)
+    })
+  })
+
   describe("skill toggle re-add", () => {
     it("can uncheck and re-check a skill", async () => {
       mockAppService.DiscoverFromSource.mockResolvedValue({

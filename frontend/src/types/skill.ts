@@ -82,6 +82,7 @@ export interface DiscoverResult {
 export interface DiscoveredSkill {
   name: string
   description: string
+  alreadyInstalled: boolean
 }
 
 export interface MarketplaceRepo {

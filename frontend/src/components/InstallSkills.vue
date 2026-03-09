@@ -127,10 +127,15 @@
       </div>
       <p class="step-description">
         Found {{ discoverResult!.skills.length }} skill{{ discoverResult!.skills.length !== 1 ? 's' : '' }}.
-        Select which ones to install:
+        <template v-if="selectableSkills.length > 0">
+          Select which ones to install:
+        </template>
+        <template v-else>
+          All skills from this source are already installed.
+        </template>
       </p>
       <div class="skill-checklist">
-        <label class="select-all-item">
+        <label v-if="selectableSkills.length > 0" class="select-all-item">
           <input
             type="checkbox"
             :checked="allSkillsSelected"
@@ -142,15 +147,18 @@
           v-for="skill in discoverResult!.skills"
           :key="skill.name"
           class="skill-check-item"
+          :class="{ 'skill-already-installed': skill.alreadyInstalled }"
         >
           <input
             type="checkbox"
             :checked="selectedSkills.has(skill.name)"
+            :disabled="skill.alreadyInstalled"
             @change="toggleSkill(skill.name)"
           />
           <div class="skill-check-info">
             <span class="skill-check-name">{{ skill.name }}</span>
-            <span v-if="skill.description" class="skill-check-desc">{{ skill.description }}</span>
+            <span v-if="skill.alreadyInstalled" class="already-installed-badge">already installed</span>
+            <span v-else-if="skill.description" class="skill-check-desc">{{ skill.description }}</span>
           </div>
         </label>
       </div>
@@ -408,10 +416,12 @@ async function handleDiscover() {
     const res = await AppService.DiscoverFromSource(source)
     discoverResult.value = res as DiscoverResult
 
-    // Select all skills by default
+    // Select only new (not already installed) skills by default
     selectedSkills.clear()
     for (const skill of discoverResult.value.skills) {
-      selectedSkills.add(skill.name)
+      if (!skill.alreadyInstalled) {
+        selectedSkills.add(skill.name)
+      }
     }
 
     // No workspaces pre-selected — user opts in via checkboxes
@@ -428,17 +438,23 @@ async function handleDiscover() {
   }
 }
 
+const selectableSkills = computed(() => {
+  if (!discoverResult.value) return []
+  return discoverResult.value.skills.filter(s => !s.alreadyInstalled)
+})
+
 const allSkillsSelected = computed(() => {
-  if (!discoverResult.value) return false
-  return discoverResult.value.skills.every(s => selectedSkills.has(s.name))
+  if (selectableSkills.value.length === 0) return false
+  return selectableSkills.value.every(s => selectedSkills.has(s.name))
 })
 
 function toggleAllSkills() {
-  if (!discoverResult.value) return
   if (allSkillsSelected.value) {
-    selectedSkills.clear()
+    for (const skill of selectableSkills.value) {
+      selectedSkills.delete(skill.name)
+    }
   } else {
-    for (const skill of discoverResult.value.skills) {
+    for (const skill of selectableSkills.value) {
       selectedSkills.add(skill.name)
     }
   }
@@ -908,6 +924,25 @@ function isAuthError(msg: string): boolean {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.skill-check-item.skill-already-installed {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.skill-check-item.skill-already-installed:hover {
+  border-color: var(--border-color);
+}
+
+.skill-check-item.skill-already-installed input[type="checkbox"] {
+  cursor: default;
+}
+
+.already-installed-badge {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 /* Workspace checklist */

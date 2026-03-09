@@ -738,6 +738,13 @@ func (a *AppService) DiscoverFromSource(sourceStr string) (*scribe.DiscoverResul
 	a.pendingSkills = skills
 	a.pendingFetch = fetchResult
 
+	// Check which skills are already installed from this source
+	_, alreadyInstalledNames, _ := scribe.FilterAlreadyInstalled(skills, source)
+	alreadySet := make(map[string]bool, len(alreadyInstalledNames))
+	for _, name := range alreadyInstalledNames {
+		alreadySet[strings.ToLower(name)] = true
+	}
+
 	// Build result
 	result := &scribe.DiscoverResult{
 		Source:     sourceStr,
@@ -745,8 +752,9 @@ func (a *AppService) DiscoverFromSource(sourceStr string) (*scribe.DiscoverResul
 	}
 	for _, skill := range skills {
 		result.Skills = append(result.Skills, scribe.DiscoveredSkill{
-			Name:        skill.Name,
-			Description: skill.Description,
+			Name:             skill.Name,
+			Description:      skill.Description,
+			AlreadyInstalled: alreadySet[strings.ToLower(skill.Name)],
 		})
 	}
 

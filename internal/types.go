@@ -230,6 +230,7 @@ type DiscoverResult struct {
 
 // DiscoveredSkill represents a skill found during source discovery (before install)
 type DiscoveredSkill struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	AlreadyInstalled bool   `json:"alreadyInstalled"`
 }
