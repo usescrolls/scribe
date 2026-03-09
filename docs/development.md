@@ -16,7 +16,7 @@ sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
 ```
 
-**Node.js 20+ and pnpm**
+**Node.js 20+ and pnpm 10.30.0+**
 
 ```bash
 # macOS
@@ -41,14 +41,11 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
 # Install Go and frontend dependencies
 make deps
 
-# Run in development mode with hot reload
-wails3 dev
+# Build the macOS .app bundle (includes frontend + Go binary)
+make app
 
-# Run tests
-go test ./...
-
-# Build for current platform
-make build
+# Launch the app
+make app-run
 ```
 
 ---
@@ -57,74 +54,116 @@ make build
 
 ```
 scribe/
-├── main.go                     # Wails app entry, bindings
+├── main.go                     # Entry point — dual-mode (CLI + GUI)
 ├── internal/                   # Core business logic
-│   ├── types.go                # Data structures (Skill, Agent, Workspace)
+│   ├── types.go                # All core data structures
 │   ├── agents.go               # 39 agent definitions with detection
-│   ├── skills.go               # SKILL.md parsing and discovery
+│   ├── skills.go               # Skill discovery, listing, querying
 │   ├── installer.go            # Symlink-based installation
 │   ├── workspace.go            # Workspace CRUD and switching
+│   ├── storage.go              # Persistent storage (JSON-based)
 │   ├── meta.go                 # Sidecar .scribe-meta.json management
-│   ├── storage.go              # Canonical storage paths
-│   ├── fetcher.go              # Git clone and source fetching (go-git)
-│   ├── source.go               # Source string parsing
+│   ├── naming.go               # Skill naming conventions
+│   ├── source.go               # Source string parsing (GitHub, GitLab, etc.)
+│   ├── fetch.go                # Git clone, source fetching, ZIP extraction
+│   ├── gitauth.go              # Git authentication (SSH, HTTPS, credentials)
+│   ├── gitcache.go             # Git clone/fetch caching
+│   ├── marketplace.go          # Marketplace interface
+│   ├── marketplace_github.go   # GitHub marketplace search
+│   ├── onboarding.go           # Onboarding wizard logic
+│   ├── system_skill.go         # Built-in agent detection skill
 │   ├── url_scheme.go           # agenthub:// URL scheme handler
-│   ├── onboarding.go           # Onboarding logic (agent detection, skill import)
-│   └── *_test.go               # Backend unit tests (per-file)
-├── cli/                        # CLI commands
-│   ├── root.go                 # Root command setup
-│   ├── install.go              # Install command
-│   ├── uninstall.go            # Uninstall command
-│   ├── list.go                 # List command
-│   ├── info.go                 # Info command
-│   ├── check.go                # Check for updates
-│   ├── update.go               # Update skills
-│   ├── workspace.go            # Workspace commands
-│   ├── cache.go                # Cache management commands
-│   ├── onboarding.go           # CLI onboarding/setup wizard
+│   ├── update_checker.go       # Check for skill updates
+│   ├── update_config.go        # Update configuration
+│   ├── updater.go              # Perform skill updates
+│   ├── self_update.go          # Self-update (binary upgrade)
+│   ├── config.go               # Logger initialization
+│   ├── logwriter.go            # Rotating log writer
+│   └── *_test.go               # Unit tests (per-file)
+├── cli/                        # CLI commands (Cobra)
+│   ├── root.go                 # Root command, global flags (--debug, --json, --quiet)
+│   ├── install.go              # scribe install
+│   ├── uninstall.go            # scribe uninstall (aliases: remove, rm)
+│   ├── list.go                 # scribe list (alias: ls)
+│   ├── info.go                 # scribe info
+│   ├── check.go                # scribe check
+│   ├── update.go               # scribe update
+│   ├── upgrade.go              # scribe upgrade (alias for update)
+│   ├── version.go              # scribe version
+│   ├── workspace.go            # scribe workspace subcommands
+│   ├── cache.go                # scribe cache subcommands
+│   ├── onboarding.go           # First-run onboarding flow
+│   ├── prompt.go               # Interactive prompts and user input
+│   ├── format.go               # Output formatting (tables, JSON)
+│   ├── exitcodes.go            # Exit code constants
 │   └── *_test.go               # CLI tests (per-file)
-├── frontend/                   # Vue 3 frontend
+├── frontend/                   # Vue 3 + TypeScript + Tailwind CSS
 │   ├── src/
+│   │   ├── main.ts             # Vue app entry with Wails runtime
 │   │   ├── App.vue             # Main layout with onboarding gate
 │   │   ├── components/
-│   │   │   ├── SkillList.vue           # Workspace skills list
-│   │   │   ├── SkillCard.vue           # Skill display card
-│   │   │   ├── BrowseSkills.vue        # All skills browser with update support
-│   │   │   ├── InstallSkills.vue       # Multi-step install wizard
-│   │   │   ├── WorkspaceDropdown.vue   # Workspace selector
-│   │   │   ├── AgentStatusPanel.vue    # Agent status display
-│   │   │   ├── OnboardingWizard.vue    # First-run onboarding
-│   │   │   ├── SettingsModal.vue       # Settings panel
-│   │   │   ├── ToastNotification.vue   # Notification system
-│   │   │   ├── ConfirmDialog.vue       # Confirmation dialogs
-│   │   │   └── onboarding/             # Onboarding step components
+│   │   │   ├── SkillList.vue              # Workspace skills list
+│   │   │   ├── SkillCard.vue              # Skill display card
+│   │   │   ├── SkillDetailModal.vue       # Skill detail modal
+│   │   │   ├── BrowseSkills.vue           # All skills browser
+│   │   │   ├── MarketplaceSkills.vue      # GitHub marketplace browser
+│   │   │   ├── InstallSkills.vue          # Multi-step install wizard
+│   │   │   ├── SidebarWorkspaceList.vue   # Workspace list in sidebar
+│   │   │   ├── WorkspaceSelector.vue      # Workspace selector
+│   │   │   ├── WorkspaceDropdown.vue      # Workspace dropdown menu
+│   │   │   ├── WorkspaceSwitchInfoModal.vue # Workspace switch info
+│   │   │   ├── AgentStatusPanel.vue       # Agent status display
+│   │   │   ├── OnboardingWizard.vue       # First-run onboarding
+│   │   │   ├── SettingsModal.vue          # Settings panel
+│   │   │   ├── RepoReadmeModal.vue        # Repository README display
+│   │   │   ├── ConfirmDialog.vue          # Confirmation dialogs
+│   │   │   ├── ToastNotification.vue      # Notification system
+│   │   │   ├── EmptyState.vue             # Empty state placeholder
+│   │   │   ├── SourceAvatar.vue           # Source icon/avatar
+│   │   │   └── onboarding/               # Onboarding step components
 │   │   │       ├── WelcomeStep.vue
 │   │   │       ├── AgentDetectionStep.vue
 │   │   │       ├── ExistingSkillsStep.vue
 │   │   │       ├── InstallDemoStep.vue
+│   │   │       ├── TermsStep.vue
 │   │   │       └── CompleteStep.vue
 │   │   ├── composables/
 │   │   │   ├── useSkills.ts
 │   │   │   ├── useWorkspaces.ts
 │   │   │   ├── useAgents.ts
-│   │   │   └── useOnboarding.ts
-│   │   └── types/
-│   │       └── skill.ts
-│   └── src/**/*.test.ts        # Frontend tests (Vitest)
-├── docs/                       # Documentation
-├── packaging/                  # Platform installers
-└── build/                      # Build outputs
+│   │   │   ├── useOnboarding.ts
+│   │   │   ├── useLogger.ts
+│   │   │   ├── useUpdateChecker.ts
+│   │   │   └── useSkillUpdateChecker.ts
+│   │   ├── types/
+│   │   │   └── skill.ts
+│   │   └── bindings/
+│   │       └── scribe.ts         # Auto-generated Wails bindings
+│   └── **/*.test.ts              # Frontend tests (Vitest)
+├── docs/                        # Documentation
+├── packaging/                   # Platform installers
+│   ├── macos/                   # create-app.sh, create-dmg.sh, Info.plist
+│   ├── linux/                   # scribe.desktop
+│   └── windows/                 # install.ps1, uninstall.ps1, agenthub.reg
+├── scripts/
+│   ├── install.sh               # Universal installer (macOS, Linux, WSL)
+│   ├── uninstall.sh             # Universal uninstaller
+│   └── hooks/                   # Git hooks (pre-commit, commit-msg)
+├── icons/                       # App icons (SVG, PNG, ICO, ICNS)
+├── assets/                      # Badge assets for documentation
+├── .github/workflows/           # CI/CD (release.yml)
+└── build/                       # Build outputs (generated)
 ```
 
 ---
 
 ## Testing
 
-### Local Testing
+### Go Tests
 
 ```bash
 # Run all tests
-go test ./...
+make test
 
 # Run tests with verbose output
 make test-verbose
@@ -134,17 +173,10 @@ make coverage
 
 # Generate HTML coverage report
 make coverage-html
-```
-
-### Test Coverage
-
-```bash
-# HTML report
-make coverage-html
 open build/coverage.html
 ```
 
-### Frontend Testing
+### Frontend Tests
 
 ```bash
 cd frontend
@@ -152,11 +184,11 @@ cd frontend
 # Run Vitest tests
 pnpm test
 
+# Run tests once (no watch)
+pnpm test:run
+
 # Run with coverage
 pnpm test:coverage
-
-# Run in watch mode
-pnpm test:watch
 ```
 
 ---
@@ -167,42 +199,47 @@ pnpm test:watch
 
 ```bash
 # Run with Wails dev server (hot reload)
-wails3 dev
-
-# Or build once
-wails3 build
+make dev
 ```
 
 ### Production Build
 
 ```bash
-# Build for current platform
+# Build binary for current platform
 make build
 
-# Build for all platforms
-make build-all
+# Build macOS .app bundle
+make app
 
-# Build macOS DMG installer
-make dmg
+# Launch the .app bundle
+make app-run
+
+# Build and install to ~/.local/bin
+make install
 ```
 
-### Building the macOS DMG Installer
+### Makefile Targets
 
-```bash
-# Prerequisites
-brew install create-dmg
-
-# Build the DMG (requires a binary in build/)
-make app    # Creates Scribe.app bundle
-make dmg    # Creates Scribe-Installer.dmg
-
-# Or build everything at once
-make release
-```
-
-The DMG will be created at `build/Scribe-Installer.dmg`.
-
-**Note:** Building the DMG requires granting Finder automation permissions to your terminal app (System Settings > Privacy & Security > Automation).
+| Target | Description |
+|--------|-------------|
+| `deps` | Install wails3, download Go modules, install frontend packages |
+| `build` | Build frontend + Go binary for current platform |
+| `build-frontend` | Build Vue frontend only (generates bindings if missing) |
+| `dev` | Development mode with hot reload (`wails3 dev`) |
+| `run` | Quick test: `go run . list` |
+| `clean` | Remove build artifacts, node_modules, coverage |
+| `install` | Build and install to `~/.local/bin` |
+| `app` | Create macOS `.app` bundle (runs `build` first) |
+| `app-run` | Launch the `.app` bundle |
+| `test` | Run Go tests |
+| `test-verbose` | Run Go tests with verbose output |
+| `coverage` | Run tests with coverage stats |
+| `coverage-html` | Generate HTML coverage report |
+| `lint` | Run `golangci-lint` |
+| `lint-fix` | Run `golangci-lint` with auto-fixes |
+| `wails-generate` | Force regenerate Wails v3 bindings |
+| `wails-ensure-bindings` | Generate bindings only if missing |
+| `install-hooks` | Install pre-commit and commit-msg git hooks |
 
 ---
 
@@ -212,37 +249,57 @@ The DMG will be created at `build/Scribe-Installer.dmg`.
 
 ```go
 type Skill struct {
-    Name        string
-    Description string
-    Path        string         // Local path to SKILL.md directory
-    Content     string         // Raw SKILL.md content
-    Metadata    map[string]any // Additional frontmatter fields
-    Meta        *SkillMeta     // Source tracking (from .scribe-meta.json)
+    Name        string         `json:"name"`
+    Description string         `json:"description"`
+    Path        string         `json:"path,omitempty"`
+    Content     string         `json:"content,omitempty"`
+    Metadata    map[string]any `json:"metadata,omitempty"`
+    Meta        *SkillMeta     `json:"meta,omitempty"`
 }
 
 type SkillMeta struct {
     Source      string `json:"source"`
     SourceType  string `json:"sourceType"`
-    SourceURL   string `json:"sourceUrl"`
+    SourceURL   string `json:"sourceUrl,omitempty"`
     SkillPath   string `json:"skillPath,omitempty"`
     ContentHash string `json:"contentHash"`
     CommitHash  string `json:"commitHash,omitempty"`
     CommitDate  string `json:"commitDate,omitempty"`
+    IsPrivate   bool   `json:"isPrivate,omitempty"`
     InstalledAt string `json:"installedAt"`
     UpdatedAt   string `json:"updatedAt"`
 }
 
 type Agent struct {
-    ID              string
-    DisplayName     string
-    GlobalSkillsDir string // e.g., "~/.claude/skills"
-    GlobalConfigDir string // For detection, e.g., "~/.claude"
+    ID              string `json:"id"`
+    DisplayName     string `json:"displayName"`
+    GlobalSkillsDir string `json:"globalSkillsDir"`
+    GlobalConfigDir string `json:"globalConfigDir"`
 }
 
 type Workspace struct {
     Name        string   `json:"name"`
-    Description string   `json:"description"`
+    Description string   `json:"description,omitempty"`
     Skills      []string `json:"skills"`
+}
+
+type SourceInfo struct {
+    Type      string // github, gitlab, bitbucket, git, local, url, well-known, zip
+    Owner     string
+    Repo      string
+    Ref       string
+    Subpath   string
+    URL       string
+    LocalPath string
+}
+
+type Config struct {
+    ActiveWorkspace             string `json:"activeWorkspace"`
+    OnboardingCompleted         bool   `json:"onboardingCompleted"`
+    TermsAcceptedAt             string `json:"termsAcceptedAt,omitempty"`
+    TermsAcceptedVersion        int    `json:"termsAcceptedVersion,omitempty"`
+    UpdateNotificationsDisabled bool   `json:"updateNotificationsDisabled,omitempty"`
+    LastUpdateCheck             string `json:"lastUpdateCheck,omitempty"`
 }
 ```
 
