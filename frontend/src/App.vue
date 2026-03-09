@@ -203,6 +203,7 @@ function handleMarketplaceInstall(source: string) {
 .header h1 {
   font-size: 1.125rem;
   font-weight: 600;
+  user-select: none;
 }
 
 .version {
@@ -211,6 +212,7 @@ function handleMarketplaceInstall(source: string) {
   padding: 0.125rem 0.4375rem;
   background-color: var(--bg-primary);
   border-radius: 4px;
+  user-select: none;
 }
 
 .settings-btn {
