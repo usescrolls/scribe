@@ -367,6 +367,83 @@ func TestRunInstallSyncsToDetectedAgents(t *testing.T) {
 	if !exists {
 		t.Error("expected skill to be installed")
 	}
+
+	// Verify skill was added to the active workspace (default in this case)
+	activeWs, err := scribe.GetActiveWorkspace()
+	if err != nil {
+		t.Fatalf("GetActiveWorkspace error: %v", err)
+	}
+	found := false
+	for _, s := range activeWs.Skills {
+		if s == "agent-sync-skill" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("skill not added to active workspace")
+	}
+}
+
+func TestRunInstallAddsToActiveWorkspaceNotDefault(t *testing.T) {
+	homeDir, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = true
+	installYes = true
+	installListOnly = false
+	installSkills = ""
+	installAll = false
+
+	// Create agent config dir
+	_ = os.MkdirAll(filepath.Join(homeDir, ".claude"), 0o755)
+
+	// Create and activate a custom workspace
+	_ = scribe.CreateWorkspace(&scribe.Workspace{Name: "custom", Skills: []string{}})
+	_ = scribe.SetActiveWorkspace("custom")
+
+	// Create a local skill source
+	tmpSrc, err := os.MkdirTemp("", "scribe-install-ws-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpSrc) }()
+
+	skillContent := "---\nname: ws-test-skill\ndescription: Test workspace targeting\n---\n\n# Test\n"
+	_ = os.WriteFile(filepath.Join(tmpSrc, "SKILL.md"), []byte(skillContent), 0o644)
+
+	captureStdout(t, func() {
+		err = runInstall(installCmd, []string{tmpSrc})
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify skill is in the custom (active) workspace
+	customWs, err := scribe.GetWorkspace("custom")
+	if err != nil {
+		t.Fatalf("GetWorkspace error: %v", err)
+	}
+	foundInCustom := false
+	for _, s := range customWs.Skills {
+		if s == "ws-test-skill" {
+			foundInCustom = true
+		}
+	}
+	if !foundInCustom {
+		t.Error("skill not added to custom (active) workspace")
+	}
+
+	// Verify skill is NOT in default workspace
+	defaultWs, err := scribe.GetWorkspace(scribe.DefaultWorkspaceName)
+	if err != nil {
+		t.Fatalf("GetWorkspace error: %v", err)
+	}
+	for _, s := range defaultWs.Skills {
+		if s == "ws-test-skill" {
+			t.Error("skill should not be in default workspace when custom is active")
+		}
+	}
 }
 
 func TestRunInstallLocalWithMultipleSkills(t *testing.T) {

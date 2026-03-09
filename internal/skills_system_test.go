@@ -2770,42 +2770,27 @@ func TestIntegration_InstallRespectsActiveWorkspace(t *testing.T) {
 		_ = AddSkillToActiveAndDefaultWorkspace(name)
 	}
 
-	// Verify: skills should be in the default workspace
-	defaultWs, _ := GetWorkspace("default")
-	for _, name := range skillNames {
-		if !slices.Contains(defaultWs.Skills, name) {
-			t.Errorf("skill %q should be in default workspace", name)
-		}
-	}
-
-	// Verify: skills should NOT be in the active custom workspace
+	// Verify: skills should be in the active custom workspace
 	customWs, _ := GetWorkspace("my-project")
 	for _, name := range skillNames {
-		if slices.Contains(customWs.Skills, name) {
-			t.Errorf("skill %q should NOT be in custom active workspace", name)
+		if !slices.Contains(customWs.Skills, name) {
+			t.Errorf("skill %q should be in custom active workspace", name)
 		}
 	}
 
-	// Verify: skills should NOT have symlinks in agent folders
+	// Verify: skills should NOT be in the default workspace
+	defaultWs, _ := GetWorkspace("default")
+	for _, name := range skillNames {
+		if slices.Contains(defaultWs.Skills, name) {
+			t.Errorf("skill %q should NOT be in default workspace when custom is active", name)
+		}
+	}
+
+	// Verify: skills should have symlinks in agent folders (active workspace)
 	for _, name := range skillNames {
 		linkPath := filepath.Join(claudeSkillsDir, name)
-		if _, err := os.Lstat(linkPath); err == nil {
-			t.Errorf("skill %q should NOT be symlinked in agent folder when custom workspace is active", name)
-		}
-	}
-
-	// Now explicitly add one skill to the custom workspace
-	_ = AddSkillToWorkspace("frontend-utils", "my-project")
-
-	// Verify: only that skill should appear in agent folders
-	linkPath := filepath.Join(claudeSkillsDir, "frontend-utils")
-	if _, err := os.Lstat(linkPath); err != nil {
-		t.Error("skill 'frontend-utils' should be symlinked after explicitly adding to active workspace")
-	}
-	for _, name := range []string{"backend-patterns", "devops-tools"} {
-		linkPath := filepath.Join(claudeSkillsDir, name)
-		if _, err := os.Lstat(linkPath); err == nil {
-			t.Errorf("skill %q should still NOT be symlinked", name)
+		if _, err := os.Lstat(linkPath); err != nil {
+			t.Errorf("skill %q should be symlinked in agent folder when in active workspace", name)
 		}
 	}
 }

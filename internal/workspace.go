@@ -523,13 +523,16 @@ func slicesContainsFold(slice []string, val string) bool {
 	return false
 }
 
-// AddSkillToActiveAndDefaultWorkspace adds a skill to the default workspace.
-// If the default workspace is active, the skill is also synced to agents.
-// If a different workspace is active, the skill is stored but not synced —
-// the user must explicitly add it to their active workspace.
+// AddSkillToActiveAndDefaultWorkspace adds a skill to the currently active workspace.
+// If the active workspace is the default, the skill is also synced to agents.
+// This respects which workspace the user is currently working in.
 func AddSkillToActiveAndDefaultWorkspace(skillName string) error {
-	// Only add to default workspace — respect the user's active workspace
-	return AddSkillToWorkspace(skillName, DefaultWorkspaceName)
+	activeWs, err := GetActiveWorkspace()
+	if err != nil {
+		// Fallback to default if we can't determine the active workspace
+		return AddSkillToWorkspace(skillName, DefaultWorkspaceName)
+	}
+	return AddSkillToWorkspace(skillName, activeWs.Name)
 }
 
 // RemoveSkillFromAllWorkspaces removes a skill from all workspaces

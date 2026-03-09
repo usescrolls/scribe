@@ -438,25 +438,54 @@ func TestBoost_AddSkillToActiveAndDefaultWorkspace_DifferentActive(t *testing.T)
 		t.Fatalf("AddSkillToActiveAndDefaultWorkspace() error: %v", err)
 	}
 
-	// Verify in default
-	defaultWs, _ := GetWorkspace(DefaultWorkspaceName)
-	foundInDefault := false
-	for _, s := range defaultWs.Skills {
-		if s == "dual-skill" {
-			foundInDefault = true
-		}
-	}
-	if !foundInDefault {
-		t.Error("skill not added to default workspace")
-	}
-
-	// Verify NOT in custom — skills should only go to default,
-	// respecting the user's active workspace boundaries
+	// Verify in custom (active workspace) — skills should go to the active workspace
 	customWs, _ := GetWorkspace("custom")
+	foundInCustom := false
 	for _, s := range customWs.Skills {
 		if s == "dual-skill" {
-			t.Error("skill should not be added to custom (active) workspace — install should only add to default")
+			foundInCustom = true
 		}
+	}
+	if !foundInCustom {
+		t.Error("skill not added to custom (active) workspace")
+	}
+
+	// Verify NOT in default — should respect the user's active workspace
+	defaultWs, _ := GetWorkspace(DefaultWorkspaceName)
+	for _, s := range defaultWs.Skills {
+		if s == "dual-skill" {
+			t.Error("skill should not be added to default workspace when custom is active")
+		}
+	}
+}
+
+func TestBoost_AddSkillToActiveAndDefaultWorkspace_FallbackToDefault(t *testing.T) {
+	_ = setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureDefaultWorkspace()
+
+	// Point config to a non-existent active workspace so GetActiveWorkspace fails
+	_ = SaveConfig(&Config{ActiveWorkspace: "nonexistent-ws"})
+
+	err := AddSkillToActiveAndDefaultWorkspace("fallback-skill")
+	if err != nil {
+		t.Fatalf("AddSkillToActiveAndDefaultWorkspace() error: %v", err)
+	}
+
+	// Verify skill falls back to default workspace
+	defaultWs, err := GetWorkspace(DefaultWorkspaceName)
+	if err != nil {
+		t.Fatalf("GetWorkspace error: %v", err)
+	}
+	found := false
+	for _, s := range defaultWs.Skills {
+		if s == "fallback-skill" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("skill not added to default workspace as fallback")
 	}
 }
 
