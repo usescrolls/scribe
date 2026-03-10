@@ -40,7 +40,7 @@
                     <div v-if="updateInfo?.updateAvailable" class="update-available">
                       <span class="update-badge">Update available</span>
 
-                      <template v-if="installMethod === 'binary'">
+                      <template v-if="installMethod === 'binary' || installMethod === 'app-bundle'">
                         <button
                           class="upgrade-btn"
                           :disabled="upgrading"
