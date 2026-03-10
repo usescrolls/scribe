@@ -761,12 +761,15 @@ func (a *AppService) SetUpdateNotificationsDisabled(disabled bool) error {
 
 // GetInstallMethod returns how Scribe was installed ("homebrew", "app-bundle", "binary", "dev", "unknown").
 func (a *AppService) GetInstallMethod() string {
-	return scribe.DetectInstallMethod()
+	method := scribe.DetectInstallMethod()
+	scribe.Logger.Info("AppService.GetInstallMethod called", "method", method)
+	return method
 }
 
 // UpgradeApp performs a self-update of the Scribe binary.
 func (a *AppService) UpgradeApp() (*scribe.SelfUpdateResult, error) {
-	scribe.Logger.Info("AppService.UpgradeApp called")
+	method := scribe.DetectInstallMethod()
+	scribe.Logger.Info("AppService.UpgradeApp called", "installMethod", method)
 	result, err := scribe.SelfUpdate("")
 	if err != nil {
 		scribe.Logger.Error("self-update failed", "error", err)
