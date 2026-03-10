@@ -122,8 +122,8 @@ No Scribe-specific token or credential configuration is needed. If authenticatio
 When fetching from a source, Scribe discovers skills by:
 
 1. Looking for `SKILL.md` in root (single-skill repo)
-2. Searching common directories: `skills/`, `.claude/skills/`, etc.
-3. Recursive search (max depth 5, excludes: `node_modules`, `.git`, `dist`, `build`)
+2. Searching common directories: `skills/`, `.claude/skills/`, `.cursor/skills/`, `.github/skills/`
+3. Recursive search (max depth 5, excludes: `node_modules`, `.git`, `dist`, `build`, `vendor`, `__pycache__`, `.venv`, `venv`, `.tox`, `target`)
 
 A valid skill is a directory containing a `SKILL.md` file with valid frontmatter (name + description).
 
@@ -202,7 +202,7 @@ Scribe distributes skills by creating symlinks in each agent's skills directory.
 | iFlow CLI | `~/.iflow` | `~/.iflow/skills/` |
 | Junie | `~/.junie` | `~/.junie/skills/` |
 | Kilo Code | `~/.kilocode` | `~/.kilocode/skills/` |
-| Kimi CLI | `~/.kimi` | `~/.config/agents/skills/` |
+| Kimi Code CLI | `~/.kimi` | `~/.config/agents/skills/` |
 | Kiro CLI | `~/.kiro` | `~/.kiro/skills/` |
 | Kode | `~/.kode` | `~/.kode/skills/` |
 | MCPJam | `~/.mcpjam` | `~/.mcpjam/skills/` |

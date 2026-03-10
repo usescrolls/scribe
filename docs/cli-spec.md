@@ -211,6 +211,19 @@ scribe update react-patterns     # Update specific skill
 scribe update --force            # Force update all skills
 ```
 
+### `scribe upgrade`
+
+Upgrade the Scribe binary to the latest GitHub release. Detects the install method (Homebrew, `.app` bundle, or standalone binary) and handles each accordingly.
+
+```bash
+scribe upgrade
+```
+
+**Examples:**
+```bash
+scribe upgrade
+```
+
 ### `scribe workspace`
 
 Manage workspaces for organizing skills.
@@ -238,8 +251,13 @@ backend     2       Backend development skills
 Create a new workspace.
 
 ```bash
-scribe workspace create <name> [--description "..."]
+scribe workspace create <name> [flags]
 ```
+
+**Flags:**
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--description` | `-d` | Description for the workspace |
 
 **Examples:**
 ```bash
