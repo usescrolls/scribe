@@ -1629,5 +1629,46 @@ describe("BrowseSkills", () => {
         ["vercel-labs/skills"],
       ])
     })
+
+    it("emits sourceUrl instead of source when available (SSH private repos)", async () => {
+      const sshSkills: SkillInfo[] = [
+        {
+          name: "private-skill",
+          description: "A private skill",
+          source: "my-org/private-repo",
+          sourceType: "github",
+          sourceUrl: "git@github.com:my-org/private-repo.git",
+          isPrivate: true,
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ]
+      mockAppService.GetSkills.mockResolvedValue(sshSkills)
+
+      sourceUpdates.value = {
+        "my-org/private-repo": {
+          source: "my-org/private-repo",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [
+            {
+              name: "new-private-skill",
+              description: "New private skill",
+              alreadyInstalled: false,
+            },
+          ],
+          checkedAt: "2025-01-30T10:00:00Z",
+        },
+      }
+
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".new-skills-btn").trigger("click")
+      await flushPromises()
+
+      expect(wrapper.emitted("install-from-source")).toEqual([
+        ["git@github.com:my-org/private-repo.git"],
+      ])
+    })
   })
 })

@@ -288,7 +288,7 @@ function getNewAvailableCount(group: SourceGroup): number {
 }
 
 function handleInstallNewSkills(group: SourceGroup) {
-  emit('install-from-source', group.source)
+  emit('install-from-source', group.sourceUrl || group.source)
 }
 
 function getUpdateTooltip(group: SourceGroup): string {
