@@ -50,7 +50,12 @@ function clearUpdate(source: string) {
   if (current) {
     sourceUpdates.value = {
       ...sourceUpdates.value,
-      [source]: { ...current, hasUpdates: false, updatedSkillNames: [] },
+      [source]: {
+        ...current,
+        hasUpdates: false,
+        updatedSkillNames: [],
+        newAvailableSkills: [],
+      },
     }
   }
 }

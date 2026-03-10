@@ -1476,6 +1476,44 @@ describe("BrowseSkills", () => {
 
       vi.useRealTimers()
     })
+
+    it("checks for source updates on mount", async () => {
+      mockAppService.CheckSourceGroupUpdates.mockResolvedValue({})
+
+      await mountBrowseSkills()
+
+      expect(mockAppService.CheckSourceGroupUpdates).toHaveBeenCalledTimes(1)
+    })
+
+    it("triggers checkForSourceUpdates on skills-updated event", async () => {
+      vi.useFakeTimers()
+
+      const eventHandlers: Record<string, Function> = {}
+      ;(mockEvents.On as ReturnType<typeof vi.fn>).mockImplementation(
+        (event: string, handler: Function) => {
+          eventHandlers[event] = handler
+          return vi.fn()
+        },
+      )
+
+      mockAppService.GetSkills.mockResolvedValue(mockSkills)
+      mockAppService.GetWorkspaces.mockResolvedValue(mockWorkspaces)
+      mockAppService.CheckSourceGroupUpdates.mockResolvedValue({})
+
+      mount(BrowseSkills)
+      await flushPromises()
+
+      mockAppService.CheckSourceGroupUpdates.mockClear()
+
+      // Fire the skills-updated event
+      eventHandlers["skills-updated"]?.()
+      await flushPromises()
+
+      // checkForSourceUpdates should have been called
+      expect(mockAppService.CheckSourceGroupUpdates).toHaveBeenCalledTimes(1)
+
+      vi.useRealTimers()
+    })
   })
 
   describe("source URL validation", () => {
@@ -1539,6 +1577,11 @@ describe("BrowseSkills", () => {
 
   describe("new available skills CTA", () => {
     const { sourceUpdates } = useSkillUpdateChecker()
+
+    beforeEach(() => {
+      // Ensure checkForSourceUpdates() on mount doesn't overwrite test data
+      mockAppService.CheckSourceGroupUpdates.mockReset()
+    })
 
     afterEach(() => {
       sourceUpdates.value = {}
@@ -1628,6 +1671,46 @@ describe("BrowseSkills", () => {
       expect(wrapper.emitted("install-from-source")).toEqual([
         ["vercel-labs/skills"],
       ])
+    })
+
+    it("CTA disappears when re-check shows skills are now installed", async () => {
+      // Simulate stale sourceUpdates showing 2 new skills available
+      sourceUpdates.value = {
+        "vercel-labs/skills": {
+          source: "vercel-labs/skills",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [
+            {
+              name: "new-skill-1",
+              description: "New 1",
+              alreadyInstalled: false,
+            },
+            {
+              name: "new-skill-2",
+              description: "New 2",
+              alreadyInstalled: false,
+            },
+          ],
+          checkedAt: "2025-01-30T10:00:00Z",
+        },
+      }
+
+      // Backend re-check returns no new skills (they were just installed)
+      mockAppService.CheckSourceGroupUpdates.mockResolvedValue({
+        "vercel-labs/skills": {
+          source: "vercel-labs/skills",
+          hasUpdates: false,
+          updatedSkillNames: [],
+          newAvailableSkills: [],
+          checkedAt: "2025-01-30T10:05:00Z",
+        },
+      })
+
+      const wrapper = await mountBrowseSkills()
+
+      // checkForSourceUpdates() on mount overwrites stale data with fresh backend response
+      expect(wrapper.find(".new-skills-btn").exists()).toBe(false)
     })
 
     it("emits sourceUrl instead of source when available (SSH private repos)", async () => {

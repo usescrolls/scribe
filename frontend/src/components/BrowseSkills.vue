@@ -179,7 +179,7 @@ const emit = defineEmits<{
   'install-from-source': [source: string]
 }>()
 
-const { hasUpdates: sourceHasUpdates, getUpdateInfo, clearUpdate } = useSkillUpdateChecker()
+const { hasUpdates: sourceHasUpdates, getUpdateInfo, clearUpdate, checkForSourceUpdates } = useSkillUpdateChecker()
 
 const allSkillsRaw = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
@@ -577,7 +577,11 @@ async function bulkRemoveFromWorkspace() {
 
 onMounted(() => {
   fetchAll()
-  unsubscribeSkills = Events.On('skills-updated', debouncedFetchAll)
+  checkForSourceUpdates()
+  unsubscribeSkills = Events.On('skills-updated', () => {
+    debouncedFetchAll()
+    checkForSourceUpdates()
+  })
   unsubscribeWorkspace = Events.On('workspace-changed', debouncedFetchAll)
 })
 
