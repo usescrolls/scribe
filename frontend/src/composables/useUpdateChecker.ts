@@ -111,7 +111,6 @@ async function upgradeApp() {
     const result = await AppService.UpgradeApp()
     if (result?.updated) {
       upgradeSuccess.value = true
-      await checkForUpdate()
       log.info(`upgrade complete: ${result.oldVersion} -> ${result.newVersion}`)
     } else {
       log.info("already up to date")
@@ -121,6 +120,14 @@ async function upgradeApp() {
     log.error(`upgrade failed: ${upgradeError.value}`)
   } finally {
     upgrading.value = false
+  }
+}
+
+async function restartApp() {
+  try {
+    await AppService.RestartApp()
+  } catch (e) {
+    log.error(`restart failed: ${e instanceof Error ? e.message : e}`)
   }
 }
 
@@ -158,6 +165,7 @@ export function useUpdateChecker() {
     dismissToast,
     openReleasePage,
     upgradeApp,
+    restartApp,
     startPolling,
     stopPolling,
   }

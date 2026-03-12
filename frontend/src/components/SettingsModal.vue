@@ -37,7 +37,13 @@
                       <span class="version-label">Latest version</span>
                       <span class="version-value">{{ updateInfo?.latestVersion ?? '...' }}</span>
                     </div>
-                    <div v-if="updateInfo?.updateAvailable" class="update-available">
+                    <div v-if="upgradeSuccess" class="update-available">
+                      <span class="upgrade-success">Upgraded successfully!</span>
+                      <button class="upgrade-btn" @click="restartApp">
+                        Restart Scribe
+                      </button>
+                    </div>
+                    <div v-else-if="updateInfo?.updateAvailable" class="update-available">
                       <span class="update-badge">Update available</span>
 
                       <template v-if="installMethod === 'binary' || installMethod === 'app-bundle'">
@@ -48,9 +54,6 @@
                         >
                           {{ upgrading ? 'Upgrading...' : 'Upgrade now' }}
                         </button>
-                        <span v-if="upgradeSuccess" class="upgrade-success">
-                          Upgraded! Restart Scribe to use the new version.
-                        </span>
                         <span v-if="upgradeError" class="upgrade-error">
                           {{ upgradeError }}
                         </span>
@@ -240,6 +243,7 @@ const {
   setNotificationsDisabled,
   openReleasePage,
   upgradeApp,
+  restartApp,
 } = useUpdateChecker()
 
 const sections = [

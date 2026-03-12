@@ -253,6 +253,19 @@ describe("useUpdateChecker", () => {
       expect(checker.upgradeSuccess.value).toBe(false)
     })
 
+    it("does not call checkForUpdate after successful upgrade", async () => {
+      mockAppService.UpgradeApp.mockResolvedValue({
+        updated: true,
+        oldVersion: "1.0.0",
+        newVersion: "v1.1.0",
+        installMethod: "binary",
+        message: "upgraded",
+      })
+      mockAppService.CheckForAppUpdate.mockClear()
+      await checker.upgradeApp()
+      expect(mockAppService.CheckForAppUpdate).not.toHaveBeenCalled()
+    })
+
     it("sets upgrading flag during operation", async () => {
       let resolve: (v: unknown) => void
       mockAppService.UpgradeApp.mockReturnValue(
@@ -266,6 +279,20 @@ describe("useUpdateChecker", () => {
       resolve!({ updated: false })
       await promise
       expect(checker.upgrading.value).toBe(false)
+    })
+  })
+
+  describe("restartApp", () => {
+    it("calls RestartApp on the backend", async () => {
+      mockAppService.RestartApp.mockResolvedValue(undefined)
+      await checker.restartApp()
+      expect(mockAppService.RestartApp).toHaveBeenCalled()
+    })
+
+    it("handles restart errors gracefully", async () => {
+      mockAppService.RestartApp.mockRejectedValue(new Error("restart failed"))
+      await checker.restartApp()
+      // Should not throw
     })
   })
 })

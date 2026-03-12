@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	scribe "github.com/usescrolls/scribe/internal"
 )
@@ -786,4 +789,31 @@ func (a *AppService) UpgradeApp() (*scribe.SelfUpdateResult, error) {
 		"oldVersion", result.OldVersion,
 		"newVersion", result.NewVersion)
 	return result, nil
+}
+
+// RestartApp relaunches the Scribe application and quits the current instance.
+func (a *AppService) RestartApp() error {
+	exe, err := os.Executable()
+	if err != nil {
+		scribe.Logger.Error("failed to get executable path", "error", err)
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	scribe.Logger.Info("restarting app", "executable", exe)
+
+	cmd := exec.Command(exe)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		scribe.Logger.Error("failed to start new instance", "error", err)
+		return fmt.Errorf("failed to restart: %w", err)
+	}
+
+	// Give the new instance a moment to start, then quit
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		wailsApp.Quit()
+	}()
+
+	return nil
 }
