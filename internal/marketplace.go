@@ -32,6 +32,18 @@ type MarketplaceResult struct {
 	TotalCount int               `json:"totalCount"`
 }
 
+// SkillAudit represents a single security audit result for a marketplace skill
+type SkillAudit struct {
+	Provider string `json:"provider"` // Audit tool provider name (e.g., "vibesafe")
+	Label    string `json:"label"`    // Human-readable audit label
+	Result   string `json:"result"`   // Result status: "Pass", "Warn", "Fail", etc.
+}
+
+// SkillAuditResult is the response from fetching audits for a skill
+type SkillAuditResult struct {
+	Audits []SkillAudit `json:"audits"`
+}
+
 // MarketplaceProviderInfo is the frontend-friendly representation of a provider
 type MarketplaceProviderInfo struct {
 	ID          string `json:"id"`
@@ -69,4 +81,17 @@ func SearchMarketplace(providerID, query string, page int) (*MarketplaceResult, 
 		return nil, fmt.Errorf("unknown marketplace provider: %s", providerID)
 	}
 	return p.Search(query, page)
+}
+
+// GetSkillAudits fetches vulnerability audits for an AgentHub skill.
+func GetSkillAudits(authorName, repoSlug, name string) (*SkillAuditResult, error) {
+	p, ok := marketplaceProviders["agenthub"]
+	if !ok {
+		return nil, fmt.Errorf("agenthub provider not registered")
+	}
+	ah, ok := p.(*AgentHubMarketplace)
+	if !ok {
+		return nil, fmt.Errorf("agenthub provider has unexpected type")
+	}
+	return ah.GetSkillAudits(authorName, repoSlug, name)
 }

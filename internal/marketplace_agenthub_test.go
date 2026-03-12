@@ -229,6 +229,85 @@ func TestAgentHubMarketplace_InvalidJSON(t *testing.T) {
 	}
 }
 
+// --- GetSkillAudits tests ---
+
+func TestAgentHubMarketplace_GetSkillAudits_ParsesResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/plugins/alice/repo/my-skill/audits" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"audits": []map[string]string{
+				{"provider": "vibesafe", "label": "VibeSafe Audit", "result": "Pass"},
+				{"provider": "snyk", "label": "Snyk", "result": "Warn"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	a := &AgentHubMarketplace{baseURL: server.URL}
+	result, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err != nil {
+		t.Fatalf("GetSkillAudits returned error: %v", err)
+	}
+	if len(result.Audits) != 2 {
+		t.Fatalf("expected 2 audits, got %d", len(result.Audits))
+	}
+	if result.Audits[0].Provider != "vibesafe" {
+		t.Errorf("audit[0].Provider = %q, want 'vibesafe'", result.Audits[0].Provider)
+	}
+	if result.Audits[0].Result != "Pass" {
+		t.Errorf("audit[0].Result = %q, want 'Pass'", result.Audits[0].Result)
+	}
+	if result.Audits[1].Result != "Warn" {
+		t.Errorf("audit[1].Result = %q, want 'Warn'", result.Audits[1].Result)
+	}
+}
+
+func TestAgentHubMarketplace_GetSkillAudits_404ReturnsEmpty(t *testing.T) {
+	a, cleanup := newTestAgentHubStatus(t, http.StatusNotFound)
+	defer cleanup()
+
+	result, err := a.GetSkillAudits("alice", "repo", "nonexistent")
+	if err != nil {
+		t.Fatalf("expected no error for 404, got: %v", err)
+	}
+	if len(result.Audits) != 0 {
+		t.Errorf("expected empty audits for 404, got %d", len(result.Audits))
+	}
+}
+
+func TestAgentHubMarketplace_GetSkillAudits_ServerError(t *testing.T) {
+	a, cleanup := newTestAgentHubStatus(t, http.StatusInternalServerError)
+	defer cleanup()
+
+	_, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err == nil {
+		t.Fatal("expected error for 500 response")
+	}
+}
+
+func TestAgentHubMarketplace_GetSkillAudits_NullAuditsReturnsEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"audits": null}`))
+	}))
+	defer server.Close()
+
+	a := &AgentHubMarketplace{baseURL: server.URL}
+	result, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Audits == nil {
+		t.Fatal("expected non-nil Audits slice")
+	}
+	if len(result.Audits) != 0 {
+		t.Errorf("expected 0 audits, got %d", len(result.Audits))
+	}
+}
+
 func TestGetMarketplaceProviders_ContainsAgentHub(t *testing.T) {
 	providers := GetMarketplaceProviders()
 

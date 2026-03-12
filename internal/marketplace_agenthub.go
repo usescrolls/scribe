@@ -92,6 +92,55 @@ func (a *AgentHubMarketplace) Search(query string, page int) (*MarketplaceResult
 	}, nil
 }
 
+// GetSkillAudits fetches vulnerability audit results for a specific AgentHub skill.
+func (a *AgentHubMarketplace) GetSkillAudits(authorName, repoSlug, name string) (*SkillAuditResult, error) {
+	base := a.baseURL
+	if base == "" {
+		base = "https://usescrolls.com/api"
+	}
+
+	apiURL := fmt.Sprintf("%s/plugins/%s/%s/%s/audits",
+		base,
+		url.PathEscape(authorName),
+		url.PathEscape(repoSlug),
+		url.PathEscape(name),
+	)
+
+	req, err := http.NewRequest("GET", apiURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build audits request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Scribe-Skills-Manager")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("AgentHub audits request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return &SkillAuditResult{Audits: []SkillAudit{}}, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("AgentHub audits API returned status %d", resp.StatusCode)
+	}
+
+	var auditsResp struct {
+		Audits []SkillAudit `json:"audits"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&auditsResp); err != nil {
+		return nil, fmt.Errorf("failed to parse audits response: %w", err)
+	}
+
+	if auditsResp.Audits == nil {
+		auditsResp.Audits = []SkillAudit{}
+	}
+
+	return &SkillAuditResult{Audits: auditsResp.Audits}, nil
+}
+
 // AgentHub API response types (unexported)
 
 type agentHubPluginsResponse struct {

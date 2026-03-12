@@ -110,3 +110,13 @@ export interface MarketplaceProviderInfo {
   id: string
   displayName: string
 }
+
+export interface SkillAudit {
+  provider: string
+  label: string
+  result: string
+}
+
+export interface SkillAuditResult {
+  audits: SkillAudit[]
+}

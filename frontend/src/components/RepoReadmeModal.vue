@@ -16,6 +16,31 @@
             </button>
           </div>
           <p v-if="repo.description" class="detail-description">{{ repo.description }}</p>
+          <!-- Security Audits (AgentHub only) -->
+          <div v-if="repo.provider === 'agenthub'" class="audits-section">
+            <div v-if="auditsLoading" class="audits-loading">
+              <div class="spinner-sm"></div>
+              <span>Loading audits...</span>
+            </div>
+            <div v-else-if="audits.length > 0" class="audits-list">
+              <span class="audits-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                Security Audits
+              </span>
+              <div class="audit-badges">
+                <span
+                  v-for="audit in audits"
+                  :key="audit.provider"
+                  :class="['audit-badge', `audit-${audit.result.toLowerCase()}`]"
+                  :title="`${audit.label}: ${audit.result}`"
+                >
+                  {{ audit.label }} <strong>{{ audit.result }}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
           <div class="detail-body">
             <div v-if="loading" class="loading">
               <div class="spinner"></div>
@@ -40,7 +65,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { Browser } from '@wailsio/runtime'
 import { marked } from 'marked'
 import { AppService } from '../bindings/scribe'
-import type { MarketplaceRepo } from '../types/skill'
+import type { MarketplaceRepo, SkillAudit, SkillAuditResult } from '../types/skill'
 
 const props = defineProps<{
   repo: MarketplaceRepo
@@ -55,6 +80,8 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const renderedContent = ref<string | null>(null)
 const contentEl = ref<HTMLElement | null>(null)
+const audits = ref<SkillAudit[]>([])
+const auditsLoading = ref(false)
 
 function handleContentClick(e: MouseEvent) {
   const target = (e.target as HTMLElement).closest('a')
@@ -87,6 +114,20 @@ async function loadContent() {
   }
 }
 
+async function loadAudits() {
+  if (props.repo.provider !== 'agenthub') return
+  auditsLoading.value = true
+  try {
+    const result = await AppService.GetSkillAudits(props.repo.owner, props.repo.fullName.split('/')[1] ?? '', props.repo.name) as SkillAuditResult
+    audits.value = result.audits ?? []
+  } catch {
+    // Silently fail — audits are supplementary info
+    audits.value = []
+  } finally {
+    auditsLoading.value = false
+  }
+}
+
 function handleClose() {
   visible.value = false
 }
@@ -104,6 +145,7 @@ function handleKeydown(e: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   loadContent()
+  loadAudits()
 })
 
 onUnmounted(() => {
@@ -194,6 +236,98 @@ onUnmounted(() => {
   color: var(--text-secondary);
   line-height: 1.5;
   flex-shrink: 0;
+}
+
+/* Security Audits */
+.audits-section {
+  padding: 0.625rem 1.25rem 0;
+  flex-shrink: 0;
+}
+
+.audits-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.spinner-sm {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.audits-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.audits-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.audit-badges {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.audit-badge strong {
+  font-weight: 700;
+}
+
+.audit-pass {
+  background-color: rgba(52, 199, 89, 0.12);
+  color: #1a7a34;
+}
+
+.audit-warn {
+  background-color: rgba(255, 179, 0, 0.15);
+  color: #8a6500;
+}
+
+.audit-fail {
+  background-color: rgba(255, 59, 48, 0.12);
+  color: #d32f2f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .audit-pass {
+    background-color: rgba(52, 199, 89, 0.18);
+    color: #7ee09a;
+  }
+
+  .audit-warn {
+    background-color: rgba(255, 179, 0, 0.18);
+    color: #ffc94d;
+  }
+
+  .audit-fail {
+    background-color: rgba(255, 59, 48, 0.18);
+    color: #ff8a80;
+  }
 }
 
 .detail-body {

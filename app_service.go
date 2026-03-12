@@ -706,6 +706,12 @@ func (a *AppService) GetRepoReadme(owner, repo string) (string, error) {
 	return scribe.GetRepoReadme(owner, repo)
 }
 
+// GetSkillAudits fetches vulnerability audit results for an AgentHub skill
+func (a *AppService) GetSkillAudits(authorName, repoSlug, name string) (*scribe.SkillAuditResult, error) {
+	scribe.Logger.Info("AppService.GetSkillAudits called", "author", authorName, "repo", repoSlug, "name", name)
+	return scribe.GetSkillAudits(authorName, repoSlug, name)
+}
+
 // ======================================================================
 // Updates API
 // ======================================================================
