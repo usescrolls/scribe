@@ -75,7 +75,8 @@ async function loadContent() {
   try {
     loading.value = true
     error.value = null
-    const content = await AppService.GetRepoReadme(props.repo.owner, props.repo.name)
+    const [readmeOwner, readmeRepo] = props.repo.fullName.split('/')
+    const content = await AppService.GetRepoReadme(readmeOwner, readmeRepo)
     if (content) {
       renderedContent.value = await marked(content)
     }

@@ -1,12 +1,17 @@
 <template>
   <div class="marketplace">
-    <div class="marketplace-header">
-      <h2>Marketplace</h2>
-      <p class="subtitle">Discover and install skills from GitHub</p>
-    </div>
-
     <!-- Search form -->
     <div class="search-form">
+      <div class="provider-tabs">
+        <button
+          v-for="p in providers"
+          :key="p.id"
+          :class="['provider-tab', { active: activeProvider === p.id }]"
+          @click="switchProvider(p.id)"
+        >
+          {{ p.displayName }}
+        </button>
+      </div>
       <input
         ref="searchInput"
         v-model="query"
@@ -68,24 +73,39 @@
       <div class="repo-grid">
         <div
           v-for="repo in results.repos"
-          :key="repo.fullName"
+          :key="`${repo.provider}:${repo.fullName}:${repo.name}`"
           class="repo-card"
           @click="handleCardClick($event, repo)"
         >
           <div class="repo-card-header">
             <img v-if="repo.avatarUrl" :src="repo.avatarUrl" class="repo-avatar" alt="" />
-            <span class="repo-name">{{ repo.fullName }}</span>
+            <div class="repo-name-group">
+              <span class="repo-name">{{ repo.provider === 'agenthub' ? repo.name : repo.fullName }}</span>
+              <span v-if="repo.provider === 'agenthub'" class="repo-source">{{ repo.fullName }}</span>
+            </div>
+            <svg v-if="repo.verified" class="verified-icon" width="12" height="12" viewBox="0 0 24 24" fill="var(--accent-color)" stroke="none" title="Verified author">
+              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="var(--accent-color)" stroke-width="1.5" fill="none"/>
+              <path d="M9 12l2 2 4-4" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
           </div>
           <p v-if="repo.description" class="repo-desc">{{ repo.description }}</p>
           <div class="repo-card-footer">
             <div class="repo-badges">
-              <span class="badge badge-stars" title="Stars">
+              <span v-if="repo.stars > 0" class="badge badge-stars" title="Stars">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                 </svg>
                 {{ formatStars(repo.stars) }}
               </span>
-              <span v-if="repo.skillCount > 0" class="badge badge-skills" title="Skills found">{{ repo.skillCount }} skill{{ repo.skillCount !== 1 ? 's' : '' }}</span>
+              <span v-if="repo.downloads" class="badge badge-downloads" title="Downloads">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                {{ formatDownloads(repo.downloads) }}
+              </span>
+              <span v-if="repo.category && repo.category !== 'skill'" class="badge badge-category">{{ repo.category }}</span>
             </div>
             <div class="repo-actions">
               <button
@@ -143,7 +163,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { Browser } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
-import type { MarketplaceResult, MarketplaceRepo } from '../types/skill'
+import type { MarketplaceResult, MarketplaceRepo, MarketplaceProviderInfo } from '../types/skill'
 import RepoReadmeModal from './RepoReadmeModal.vue'
 
 const emit = defineEmits<{
@@ -160,62 +180,107 @@ const results = ref<MarketplaceResult | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 const detailRepo = ref<MarketplaceRepo | null>(null)
 const currentPage = ref(1)
+const activeProvider = ref('agenthub')
+const providers = ref<MarketplaceProviderInfo[]>([])
 const totalPages = computed(() => {
   if (!results.value) return 1
   return Math.max(1, Math.ceil(results.value.totalCount / PAGE_SIZE))
 })
 
-onMounted(() => {
+onMounted(async () => {
   searchInput.value?.focus()
+  try {
+    const all = await AppService.GetMarketplaceProviders() as MarketplaceProviderInfo[]
+    // Sort so AgentHub comes first
+    const order = ['agenthub', 'github']
+    providers.value = all.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+  } catch {
+    providers.value = [
+      { id: 'agenthub', displayName: 'skills.sh' },
+      { id: 'github', displayName: 'GitHub' },
+    ]
+  }
   loadInitial()
 })
+
+function switchProvider(id: string) {
+  if (id === activeProvider.value) return
+  activeProvider.value = id
+  query.value = ''
+  lastQuery.value = ''
+  currentPage.value = 1
+  results.value = null
+  error.value = null
+  loadInitial()
+}
 
 async function loadInitial() {
   searching.value = true
   error.value = null
+  const provider = activeProvider.value
   try {
-    const res = await AppService.SearchMarketplace('github', '', 1)
-    results.value = res as MarketplaceResult
+    const res = await AppService.SearchMarketplace(provider, '', 1)
+    if (activeProvider.value === provider) {
+      results.value = res as MarketplaceResult
+    }
   } catch (e) {
-    error.value = extractError(e)
+    if (activeProvider.value === provider) {
+      error.value = extractError(e)
+    }
   } finally {
-    searching.value = false
+    if (activeProvider.value === provider) {
+      searching.value = false
+    }
   }
 }
 
 async function handleSearch() {
   if (searching.value) return
 
+  const provider = activeProvider.value
   searching.value = true
   error.value = null
   lastQuery.value = query.value.trim()
   currentPage.value = 1
 
   try {
-    const res = await AppService.SearchMarketplace('github', lastQuery.value, 1)
-    results.value = res as MarketplaceResult
+    const res = await AppService.SearchMarketplace(provider, lastQuery.value, 1)
+    if (activeProvider.value === provider) {
+      results.value = res as MarketplaceResult
+    }
   } catch (e) {
-    error.value = extractError(e)
-    results.value = null
+    if (activeProvider.value === provider) {
+      error.value = extractError(e)
+      results.value = null
+    }
   } finally {
-    searching.value = false
+    if (activeProvider.value === provider) {
+      searching.value = false
+    }
   }
 }
 
 async function goToPage(page: number) {
   if (searching.value || page < 1 || page > totalPages.value) return
 
+  const provider = activeProvider.value
   searching.value = true
   error.value = null
 
   try {
-    const res = await AppService.SearchMarketplace('github', lastQuery.value, page)
-    results.value = res as MarketplaceResult
-    currentPage.value = page
+    const res = await AppService.SearchMarketplace(provider, lastQuery.value, page)
+    if (activeProvider.value === provider) {
+      results.value = res as MarketplaceResult
+      currentPage.value = page
+    }
   } catch (e) {
-    error.value = extractError(e)
+    if (activeProvider.value === provider) {
+      error.value = extractError(e)
+    }
   } finally {
-    searching.value = false
+    if (activeProvider.value === provider) {
+      searching.value = false
+    }
   }
 }
 
@@ -232,6 +297,11 @@ function handleCardClick(_event: MouseEvent, repo: MarketplaceRepo) {
 }
 
 function formatStars(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
+function formatDownloads(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
 }
@@ -257,20 +327,36 @@ function extractError(e: unknown): string {
   margin: 0 auto;
 }
 
-.marketplace-header {
-  margin-bottom: 1.5rem;
+/* Provider tabs */
+.provider-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.125rem;
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
-.marketplace-header h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0;
-}
-
-.subtitle {
-  font-size: 0.8125rem;
+.provider-tab {
+  padding: 0.3125rem 0.75rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
   color: var(--text-secondary);
-  margin: 0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.provider-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.provider-tab.active {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 /* Search form — matches Install tab */
@@ -483,6 +569,12 @@ function extractError(e: unknown): string {
   flex-shrink: 0;
 }
 
+.repo-name-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .repo-name {
   font-size: 0.75rem;
   font-weight: 600;
@@ -492,6 +584,14 @@ function extractError(e: unknown): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.repo-source {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-badges {
@@ -531,9 +631,25 @@ function extractError(e: unknown): string {
   }
 }
 
-.badge-skills {
-  background-color: rgba(0, 113, 227, 0.1);
-  color: var(--accent-color);
+.badge-downloads {
+  background-color: rgba(52, 199, 89, 0.12);
+  color: #1a7a34;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge-downloads {
+    background-color: rgba(52, 199, 89, 0.15);
+    color: #5dd47a;
+  }
+}
+
+.badge-category {
+  background-color: rgba(142, 142, 147, 0.1);
+  color: var(--text-secondary);
+}
+
+.verified-icon {
+  flex-shrink: 0;
 }
 
 .repo-desc {

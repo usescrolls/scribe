@@ -96,6 +96,9 @@ export interface MarketplaceRepo {
   stars: number
   skillCount: number
   provider: string
+  downloads?: number
+  verified?: boolean
+  category?: string
 }
 
 export interface MarketplaceResult {

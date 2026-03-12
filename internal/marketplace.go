@@ -21,6 +21,9 @@ type MarketplaceRepo struct {
 	Stars       int    `json:"stars"`
 	SkillCount  int    `json:"skillCount"`
 	Provider    string `json:"provider"`
+	Downloads   int    `json:"downloads,omitempty"`
+	Verified    bool   `json:"verified,omitempty"`
+	Category    string `json:"category,omitempty"`
 }
 
 // MarketplaceResult holds the search results from a marketplace provider
@@ -39,6 +42,7 @@ type MarketplaceProviderInfo struct {
 var marketplaceProviders = map[string]MarketplaceProvider{}
 
 func init() {
+	registerMarketplaceProvider(&AgentHubMarketplace{})
 	registerMarketplaceProvider(&GitHubMarketplace{})
 }
 
