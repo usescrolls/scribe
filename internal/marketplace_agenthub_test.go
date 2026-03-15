@@ -308,6 +308,137 @@ func TestAgentHubMarketplace_GetSkillAudits_NullAuditsReturnsEmpty(t *testing.T)
 	}
 }
 
+func TestAgentHubMarketplace_GetSkillAudits_ParsesAuditDetails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"audits": []map[string]string{
+				{"provider": "agent-trust-hub", "label": "Agent Trust Hub", "result": "Pass"},
+				{"provider": "socket", "label": "Socket", "result": "Warn"},
+			},
+			"auditDetails": []map[string]any{
+				{
+					"provider":     "agent-trust-hub",
+					"result":       "Pass",
+					"riskLevel":    "Low",
+					"analysisHtml": "<p>No issues found</p>",
+					"analyzedAt":   "2026-03-10",
+					"alerts":       nil,
+					"metadata":     map[string]string{"Version": "1.2.0"},
+				},
+				{
+					"provider":  "socket",
+					"result":    "Warn",
+					"riskLevel": nil,
+					"alerts": []map[string]any{
+						{
+							"type":        "Obfuscated Code",
+							"severity":    "HIGH",
+							"file":        "src/index.js",
+							"description": "Detected obfuscated code patterns",
+							"confidence":  85,
+						},
+					},
+					"metadata": map[string]string{"Dependencies": "12"},
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	a := &AgentHubMarketplace{baseURL: server.URL}
+	result, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err != nil {
+		t.Fatalf("GetSkillAudits returned error: %v", err)
+	}
+	if len(result.Audits) != 2 {
+		t.Fatalf("expected 2 audits, got %d", len(result.Audits))
+	}
+	if len(result.AuditDetails) != 2 {
+		t.Fatalf("expected 2 audit details, got %d", len(result.AuditDetails))
+	}
+
+	// Check agent-trust-hub detail
+	ath := result.AuditDetails[0]
+	if ath.Provider != "agent-trust-hub" {
+		t.Errorf("detail[0].Provider = %q, want 'agent-trust-hub'", ath.Provider)
+	}
+	if ath.RiskLevel == nil || *ath.RiskLevel != "Low" {
+		t.Errorf("detail[0].RiskLevel = %v, want 'Low'", ath.RiskLevel)
+	}
+	if ath.AnalysisHTML == nil || *ath.AnalysisHTML != "<p>No issues found</p>" {
+		t.Errorf("detail[0].AnalysisHTML = %v, want '<p>No issues found</p>'", ath.AnalysisHTML)
+	}
+	if ath.Metadata == nil || ath.Metadata["Version"] != "1.2.0" {
+		t.Errorf("detail[0].Metadata = %v, want Version=1.2.0", ath.Metadata)
+	}
+
+	// Check socket detail with alerts
+	sock := result.AuditDetails[1]
+	if sock.Provider != "socket" {
+		t.Errorf("detail[1].Provider = %q, want 'socket'", sock.Provider)
+	}
+	if len(sock.Alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(sock.Alerts))
+	}
+	alert := sock.Alerts[0]
+	if alert.Type != "Obfuscated Code" {
+		t.Errorf("alert.Type = %q, want 'Obfuscated Code'", alert.Type)
+	}
+	if alert.Severity != "HIGH" {
+		t.Errorf("alert.Severity = %q, want 'HIGH'", alert.Severity)
+	}
+	if alert.File == nil || *alert.File != "src/index.js" {
+		t.Errorf("alert.File = %v, want 'src/index.js'", alert.File)
+	}
+	if alert.Confidence == nil || *alert.Confidence != 85 {
+		t.Errorf("alert.Confidence = %v, want 85", alert.Confidence)
+	}
+}
+
+func TestAgentHubMarketplace_GetSkillAudits_NullAuditDetailsReturnsEmpty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"audits": [], "auditDetails": null}`))
+	}))
+	defer server.Close()
+
+	a := &AgentHubMarketplace{baseURL: server.URL}
+	result, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.AuditDetails == nil {
+		t.Fatal("expected non-nil AuditDetails slice")
+	}
+	if len(result.AuditDetails) != 0 {
+		t.Errorf("expected 0 audit details, got %d", len(result.AuditDetails))
+	}
+}
+
+func TestAgentHubMarketplace_GetSkillAudits_MissingAuditDetailsField(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"audits": [{"provider": "vibesafe", "label": "VibeSafe", "result": "Pass"}]}`))
+	}))
+	defer server.Close()
+
+	a := &AgentHubMarketplace{baseURL: server.URL}
+	result, err := a.GetSkillAudits("alice", "repo", "my-skill")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Audits) != 1 {
+		t.Errorf("expected 1 audit, got %d", len(result.Audits))
+	}
+	if result.AuditDetails == nil {
+		t.Fatal("expected non-nil AuditDetails slice when field missing")
+	}
+	if len(result.AuditDetails) != 0 {
+		t.Errorf("expected 0 audit details, got %d", len(result.AuditDetails))
+	}
+}
+
 func TestGetMarketplaceProviders_ContainsAgentHub(t *testing.T) {
 	providers := GetMarketplaceProviders()
 

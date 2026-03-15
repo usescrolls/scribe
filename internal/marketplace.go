@@ -39,9 +39,30 @@ type SkillAudit struct {
 	Result   string `json:"result"`   // Result status: "Pass", "Warn", "Fail", etc.
 }
 
+// AuditAlert represents a single alert from a security audit provider
+type AuditAlert struct {
+	Type        string  `json:"type"`
+	Severity    string  `json:"severity"`
+	File        *string `json:"file"`
+	Description string  `json:"description"`
+	Confidence  *int    `json:"confidence"`
+}
+
+// AuditDetail contains detailed security audit information for a specific provider
+type AuditDetail struct {
+	Provider     string            `json:"provider"`
+	Result       string            `json:"result"`
+	RiskLevel    *string           `json:"riskLevel"`
+	AnalysisHTML *string           `json:"analysisHtml"`
+	AnalyzedAt   *string           `json:"analyzedAt"`
+	Alerts       []AuditAlert      `json:"alerts"`
+	Metadata     map[string]string `json:"metadata"`
+}
+
 // SkillAuditResult is the response from fetching audits for a skill
 type SkillAuditResult struct {
-	Audits []SkillAudit `json:"audits"`
+	Audits       []SkillAudit  `json:"audits"`
+	AuditDetails []AuditDetail `json:"auditDetails"`
 }
 
 // MarketplaceProviderInfo is the frontend-friendly representation of a provider

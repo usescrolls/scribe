@@ -117,6 +117,25 @@ export interface SkillAudit {
   result: string
 }
 
+export interface AuditAlert {
+  type: string
+  severity: string
+  file: string | null
+  description: string
+  confidence: number | null
+}
+
+export interface AuditDetail {
+  provider: string
+  result: string
+  riskLevel: string | null
+  analysisHtml: string | null
+  analyzedAt: string | null
+  alerts: AuditAlert[] | null
+  metadata: Record<string, string> | null
+}
+
 export interface SkillAuditResult {
   audits: SkillAudit[]
+  auditDetails: AuditDetail[]
 }

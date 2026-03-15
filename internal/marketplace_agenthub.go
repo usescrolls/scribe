@@ -128,7 +128,8 @@ func (a *AgentHubMarketplace) GetSkillAudits(authorName, repoSlug, name string) 
 	}
 
 	var auditsResp struct {
-		Audits []SkillAudit `json:"audits"`
+		Audits       []SkillAudit  `json:"audits"`
+		AuditDetails []AuditDetail `json:"auditDetails"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&auditsResp); err != nil {
 		return nil, fmt.Errorf("failed to parse audits response: %w", err)
@@ -137,8 +138,14 @@ func (a *AgentHubMarketplace) GetSkillAudits(authorName, repoSlug, name string) 
 	if auditsResp.Audits == nil {
 		auditsResp.Audits = []SkillAudit{}
 	}
+	if auditsResp.AuditDetails == nil {
+		auditsResp.AuditDetails = []AuditDetail{}
+	}
 
-	return &SkillAuditResult{Audits: auditsResp.Audits}, nil
+	return &SkillAuditResult{
+		Audits:       auditsResp.Audits,
+		AuditDetails: auditsResp.AuditDetails,
+	}, nil
 }
 
 // AgentHub API response types (unexported)

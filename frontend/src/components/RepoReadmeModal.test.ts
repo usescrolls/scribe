@@ -80,24 +80,25 @@ describe("RepoReadmeModal", () => {
       expect(w.text()).toContain("Loading audits")
     })
 
-    it("renders audit badges when audits are returned", async () => {
+    it("renders audit rows when audits are returned", async () => {
       mockAppService.GetSkillAudits.mockResolvedValue({
         audits: [
           { provider: "vibesafe", label: "VibeSafe", result: "Pass" },
           { provider: "snyk", label: "Snyk", result: "Warn" },
         ],
+        auditDetails: [],
       })
       const w = mountModal()
       await flushPromises()
 
-      const badges = w.findAll(".audit-badge")
-      expect(badges).toHaveLength(2)
-      expect(badges[0].text()).toContain("VibeSafe")
-      expect(badges[0].text()).toContain("Pass")
-      expect(badges[0].classes()).toContain("audit-pass")
-      expect(badges[1].text()).toContain("Snyk")
-      expect(badges[1].text()).toContain("Warn")
-      expect(badges[1].classes()).toContain("audit-warn")
+      const rows = w.findAll(".audit-row-wrapper")
+      expect(rows).toHaveLength(2)
+      expect(rows[0].find(".audit-row-label").text()).toBe("VibeSafe")
+      expect(rows[0].find(".audit-badge").text()).toBe("Pass")
+      expect(rows[0].find(".audit-badge").classes()).toContain("audit-pass")
+      expect(rows[1].find(".audit-row-label").text()).toBe("Snyk")
+      expect(rows[1].find(".audit-badge").text()).toBe("Warn")
+      expect(rows[1].find(".audit-badge").classes()).toContain("audit-warn")
     })
 
     it("applies audit-fail class for failed audits", async () => {
@@ -128,7 +129,7 @@ describe("RepoReadmeModal", () => {
       const w = mountModal()
       await flushPromises()
 
-      expect(w.find(".audits-list").exists()).toBe(false)
+      expect(w.find(".audits-list-container").exists()).toBe(false)
       expect(w.find(".audits-loading").exists()).toBe(false)
     })
 
@@ -140,7 +141,7 @@ describe("RepoReadmeModal", () => {
       await flushPromises()
 
       // Should not show audits, but also not crash
-      expect(w.find(".audits-list").exists()).toBe(false)
+      expect(w.find(".audits-list-container").exists()).toBe(false)
       expect(w.find(".audits-loading").exists()).toBe(false)
       // README should still load normally
       expect(w.find(".markdown-content").exists()).toBe(true)
