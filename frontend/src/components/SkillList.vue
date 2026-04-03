@@ -18,6 +18,15 @@
       @confirm="executeBulkRemove"
       @cancel="confirmBulkRemove = false"
     />
+    <ConfirmDialog
+      v-if="confirmRemoveGroup"
+      title="Remove from Workspace"
+      :message="`Remove all ${confirmRemoveGroup.skills.filter(s => !s.isSystem).length} skills from &quot;${confirmRemoveGroup.source}&quot; from this workspace?`"
+      confirm-label="Remove All"
+      :danger="true"
+      @confirm="executeRemoveGroup"
+      @cancel="confirmRemoveGroup = null"
+    />
     <ToastNotification
       v-if="toast"
       :message="toast.message"
@@ -73,6 +82,13 @@
           </a>
           <span v-else class="group-source">{{ group.source }}</span>
           <span class="group-count">{{ group.skills.length }}</span>
+          <button
+            v-if="!selectionMode && group.skills.filter(s => !s.isSystem).length > 1"
+            class="group-action-btn group-remove-btn"
+            @click="handleRemoveGroup(group)"
+          >
+            Remove all
+          </button>
         </div>
         <div class="skills-list">
           <SkillCard
@@ -193,6 +209,7 @@ function handleDetail(skill: SkillInfo) {
 }
 
 const confirmRemoveName = ref<string | null>(null)
+const confirmRemoveGroup = ref<SourceGroup | null>(null)
 
 function handleRemove(name: string) {
   confirmRemoveName.value = name
@@ -207,6 +224,35 @@ async function executeRemove() {
     await fetchAll()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to remove skill from workspace'
+  }
+}
+
+function handleRemoveGroup(group: SourceGroup) {
+  confirmRemoveGroup.value = group
+}
+
+async function executeRemoveGroup() {
+  const group = confirmRemoveGroup.value
+  confirmRemoveGroup.value = null
+  if (!group) return
+  const wsName = activeWorkspace.value?.name || 'default'
+  const removable = group.skills.filter(s => !s.isSystem)
+  const count = removable.length
+  try {
+    for (const skill of removable) {
+      await AppService.RemoveSkillFromWorkspace(skill.name, wsName)
+    }
+    await fetchAll()
+    const plural = count === 1 ? '' : 's'
+    toast.value = {
+      message: `Removed ${count} skill${plural} from ${wsName}`,
+      type: 'success',
+    }
+  } catch (e) {
+    toast.value = {
+      message: e instanceof Error ? e.message : 'Failed to remove skills from workspace',
+      type: 'error',
+    }
   }
 }
 
@@ -461,6 +507,28 @@ onUnmounted(() => {
   font-size: 0.6875rem;
   color: var(--text-secondary);
   margin-left: auto;
+}
+
+.group-action-btn {
+  padding: 0.125rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.group-header:hover .group-action-btn {
+  opacity: 1;
+}
+
+.group-remove-btn:hover {
+  background-color: var(--danger-color);
+  color: white;
 }
 
 .skills-list {

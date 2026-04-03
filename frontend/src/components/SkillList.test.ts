@@ -586,6 +586,199 @@ describe("SkillList", () => {
     })
   })
 
+  describe("group removal from workspace", () => {
+    const twoSkillsSameSource: SkillInfo[] = [
+      {
+        name: "react-patterns",
+        description: "React best practices",
+        source: "vercel-labs/skills",
+        sourceType: "github",
+        installedAt: "2025-01-29T10:00:00Z",
+        agents: ["claude-code"],
+      },
+      {
+        name: "react-hooks",
+        description: "React hooks guide",
+        source: "vercel-labs/skills",
+        sourceType: "github",
+        installedAt: "2025-01-29T10:00:00Z",
+        agents: ["claude-code"],
+      },
+    ]
+
+    const twoSkillsWorkspace: WorkspaceInfo[] = [
+      {
+        name: "default",
+        description: "",
+        skills: ["react-patterns", "react-hooks"],
+        isActive: true,
+      },
+    ]
+
+    it("shows 'Remove all' button on group with 2+ non-system skills", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+
+      const wrapper = await mountSkillList()
+
+      const removeBtn = wrapper.find(".group-remove-btn")
+      expect(removeBtn.exists()).toBe(true)
+      expect(removeBtn.text()).toBe("Remove all")
+    })
+
+    it("does not show 'Remove all' button on group with only 1 skill", async () => {
+      const wrapper = await mountSkillList()
+
+      const removeBtns = wrapper.findAll(".group-remove-btn")
+      expect(removeBtns).toHaveLength(0)
+    })
+
+    it("does not show 'Remove all' button in selection mode", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".header-actions button").trigger("click")
+
+      expect(wrapper.find(".group-remove-btn").exists()).toBe(false)
+    })
+
+    it("shows confirm dialog when 'Remove all' is clicked", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".group-remove-btn").trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find((d) =>
+        d.props("message")?.includes("vercel-labs/skills"),
+      )
+      expect(groupDialog).toBeDefined()
+      expect(groupDialog!.props("message")).toContain("2 skills")
+      expect(groupDialog!.props("danger")).toBe(true)
+    })
+
+    it("calls RemoveSkillFromWorkspace for each skill on confirm", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".group-remove-btn").trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find((d) =>
+        d.props("message")?.includes("vercel-labs/skills"),
+      )
+      await groupDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "react-patterns",
+        "default",
+      )
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledWith(
+        "react-hooks",
+        "default",
+      )
+      expect(mockAppService.RemoveSkillFromWorkspace).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not remove on cancel", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".group-remove-btn").trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find((d) =>
+        d.props("message")?.includes("vercel-labs/skills"),
+      )
+      await groupDialog!.vm.$emit("cancel")
+      await flushPromises()
+
+      expect(mockAppService.RemoveSkillFromWorkspace).not.toHaveBeenCalled()
+    })
+
+    it("shows success toast after group removal", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".group-remove-btn").trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find((d) =>
+        d.props("message")?.includes("vercel-labs/skills"),
+      )
+      await groupDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("2 skills")
+      expect(toast.props("type")).toBe("success")
+    })
+
+    it("shows error toast on group removal failure", async () => {
+      mockAppService.GetSkills.mockResolvedValue(twoSkillsSameSource)
+      mockAppService.GetWorkspaces.mockResolvedValue(twoSkillsWorkspace)
+      mockAppService.RemoveSkillFromWorkspace.mockRejectedValue(
+        new Error("Failed to remove"),
+      )
+
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".group-remove-btn").trigger("click")
+      await wrapper.vm.$nextTick()
+
+      const dialogs = wrapper.findAllComponents(ConfirmDialog)
+      const groupDialog = dialogs.find((d) =>
+        d.props("message")?.includes("vercel-labs/skills"),
+      )
+      await groupDialog!.vm.$emit("confirm")
+      await flushPromises()
+
+      const toast = wrapper.findComponent({ name: "ToastNotification" })
+      expect(toast.exists()).toBe(true)
+      expect(toast.props("message")).toContain("Failed to remove")
+      expect(toast.props("type")).toBe("error")
+    })
+
+    it("skips system skills in group removal", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        twoSkillsSameSource[0],
+        { ...twoSkillsSameSource[1], name: "system-skill", isSystem: true },
+      ])
+      mockAppService.GetWorkspaces.mockResolvedValue([
+        {
+          name: "default",
+          description: "",
+          skills: ["react-patterns", "system-skill"],
+          isActive: true,
+        },
+      ])
+      mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
+
+      const wrapper = await mountSkillList()
+
+      // Group has 2 skills but only 1 non-system, so no "Remove all" button
+      expect(wrapper.find(".group-remove-btn").exists()).toBe(false)
+    })
+  })
+
   describe("source URL validation", () => {
     it("renders source as link for https URLs", async () => {
       mockAppService.GetSkills.mockResolvedValue([
