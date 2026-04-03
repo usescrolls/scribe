@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
@@ -181,9 +181,16 @@ const groupedSkills = computed<SourceGroup[]>(() => {
   return [...groups.values()]
 })
 
+function getScrollContainer(): HTMLElement | null {
+  return document.querySelector('.main')
+}
+
 async function fetchAll() {
+  const isInitialLoad = skills.value.length === 0
+  const scrollContainer = getScrollContainer()
+  const scrollTop = scrollContainer?.scrollTop ?? 0
   try {
-    loading.value = true
+    if (isInitialLoad) loading.value = true
     error.value = null
     const [skillsData, wsData] = await Promise.all([
       AppService.GetSkills(),
@@ -191,10 +198,12 @@ async function fetchAll() {
     ])
     skills.value = skillsData
     workspaces.value = wsData
+    await nextTick()
+    if (scrollContainer) scrollContainer.scrollTop = scrollTop
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load skills'
   } finally {
-    loading.value = false
+    if (isInitialLoad) loading.value = false
   }
 }
 
