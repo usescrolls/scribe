@@ -88,10 +88,10 @@ frontend:
   before_script:
     - corepack enable
     - pnpm config set store-dir "${PNPM_STORE_DIR}"
-    - cd frontend && pnpm install --frozen-lockfile --prefer-offline
+    - pnpm --dir frontend install --frozen-lockfile --prefer-offline
   script:
-    - cd frontend && pnpm run test:coverage
-    - cd frontend && pnpm run build
+    - pnpm --dir frontend run test:coverage
+    - pnpm --dir frontend run build
   artifacts:
     paths:
       - frontend/dist
