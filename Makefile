@@ -4,6 +4,7 @@
 BINARY_NAME=scribe
 BUILD_DIR=build
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")-dev
+WAILS_VERSION ?= v3.0.0-alpha.72
 LDFLAGS=-s -w -X gitlab.com/usescrolls/scribe/internal.Version=$(VERSION)
 
 # macOS deployment target (set to current OS version to avoid linker warnings)
@@ -53,7 +54,7 @@ install: build
 
 # Download dependencies and install tools
 deps:
-	go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+	go install github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION)
 	go mod download
 	go mod tidy
 	cd frontend && pnpm install
