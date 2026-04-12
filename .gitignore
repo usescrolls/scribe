@@ -33,11 +33,19 @@ go.work.sum
 
 /scribe
 /build/
+.cache/
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
-frontend/bindings/
+# Track the generated Wails bindings needed by frontend tests and CI.
+frontend/bindings/*
+!frontend/bindings/gitlab.com/
+frontend/bindings/gitlab.com/*
+!frontend/bindings/gitlab.com/usescrolls/
+frontend/bindings/gitlab.com/usescrolls/*
+!frontend/bindings/gitlab.com/usescrolls/scribe/
+!frontend/bindings/gitlab.com/usescrolls/scribe/**
 frontend/coverage/
 frontend/package.json.md5
 .DS_Store

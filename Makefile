@@ -1,4 +1,4 @@
-.PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-ensure-bindings \
+.PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-sync-bindings wails-ensure-bindings \
         lint lint-fix install-hooks
 
 BINARY_NAME=scribe
@@ -23,7 +23,7 @@ else
 	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 endif
 
-# Build frontend only (generates bindings if missing)
+# Build frontend only (refreshes bindings if missing)
 build-frontend: wails-ensure-bindings
 	cd frontend && pnpm run build
 
@@ -38,9 +38,9 @@ run:
 # Clean build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
+	rm -rf .cache
 	rm -rf frontend/dist
 	rm -rf frontend/node_modules
-	rm -rf frontend/bindings
 	rm -rf frontend/coverage
 	rm -rf coverage
 	rm -f coverage*.out
@@ -63,11 +63,15 @@ deps:
 wails-generate:
 	wails3 generate bindings
 
-# Generate Wails v3 bindings only if they don't exist
+# Regenerate the checked-in Wails bindings used by frontend tests and CI
+wails-sync-bindings:
+	sh scripts/sync-wails-bindings.sh
+
+# Generate the checked-in Wails bindings only if they don't exist
 wails-ensure-bindings:
-	@if [ ! -d frontend/bindings ]; then \
-		echo "Generating Wails v3 bindings..."; \
-		wails3 generate bindings; \
+	@if [ ! -f frontend/bindings/gitlab.com/usescrolls/scribe/index.js ]; then \
+		echo "Generating checked-in Wails bindings..."; \
+		sh scripts/sync-wails-bindings.sh; \
 	fi
 
 # Run tests

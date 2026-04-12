@@ -98,6 +98,11 @@ scribe/
 │   ├── exitcodes.go            # Exit code constants
 │   └── *_test.go               # CLI tests (per-file)
 ├── frontend/                   # Vue 3 + TypeScript + Tailwind CSS
+│   ├── bindings/
+│   │   └── gitlab.com/usescrolls/scribe/
+│   │       ├── index.js        # Checked-in generated Wails entrypoint
+│   │       ├── appservice.js   # Checked-in generated Wails service bindings
+│   │       └── internal/       # Checked-in generated Wails model bindings
 │   ├── src/
 │   │   ├── main.ts             # Vue app entry with Wails runtime
 │   │   ├── App.vue             # Main layout with onboarding gate
@@ -214,10 +219,10 @@ make install
 |--------|-------------|
 | `deps` | Install wails3, download Go modules, install frontend packages |
 | `build` | Build frontend + Go binary for current platform |
-| `build-frontend` | Build Vue frontend only (generates bindings if missing) |
+| `build-frontend` | Build Vue frontend only (refreshes bindings if missing) |
 | `dev` | Development mode with hot reload (`wails3 dev`) |
 | `run` | Quick test: `go run . list` |
-| `clean` | Remove build artifacts, node_modules, coverage |
+| `clean` | Remove build artifacts, local caches, node_modules, coverage |
 | `install` | Build and install to `~/.local/bin` |
 | `test` | Run Go tests |
 | `test-verbose` | Run Go tests with verbose output |
@@ -225,9 +230,32 @@ make install
 | `coverage-html` | Generate HTML coverage report |
 | `lint` | Run `golangci-lint` |
 | `lint-fix` | Run `golangci-lint` with auto-fixes |
-| `wails-generate` | Force regenerate Wails v3 bindings |
+| `wails-generate` | Force regenerate all Wails v3 bindings |
+| `wails-sync-bindings` | Regenerate the checked-in frontend bindings used by CI |
 | `wails-ensure-bindings` | Generate bindings only if missing |
 | `install-hooks` | Install pre-commit and commit-msg git hooks |
+
+---
+
+## Wails Bindings
+
+Scribe commits the generated files under `frontend/bindings/gitlab.com/usescrolls/scribe/`.
+
+That is intentional:
+
+- frontend tests import those bindings directly
+- the GitLab frontend job does not run Wails code generation anymore
+- CI stays faster and less fragile when these files are already in the repo
+
+If you change the Wails service surface in `app_service.go`, `main.go`, or exported model types under `internal/`, refresh the tracked bindings with:
+
+```bash
+make wails-sync-bindings
+```
+
+The sync script expects the locally installed `wails3` version to match the pinned `WAILS_VERSION` in the `Makefile`. If it does not, rerun `make deps`.
+
+If you have the repo hooks installed with `make install-hooks`, the pre-commit hook will do that automatically and stage the updated binding files for you.
 
 ---
 
