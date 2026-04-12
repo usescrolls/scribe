@@ -29,7 +29,7 @@ test:
     # Go tests
     - go test -v -coverprofile=coverage.out ./internal/...
     - GO_COV=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-    - echo "Go coverage: ${GO_COV}%"
+    - 'echo "Go coverage: ${GO_COV}%"'
 
     # Frontend tests
     - cd frontend
