@@ -6,7 +6,7 @@ body = """
 {% for commit in commits %}
 - {{ commit.message | split(pat="\n") | first | trim }}\
     {% if commit.scope %} *({{ commit.scope }})* {% endif %}\
-    ([{{ commit.id | truncate(length=7, end="") }}](https://github.com/usescrolls/scribe/commit/{{ commit.id }}))\
+    ([{{ commit.id | truncate(length=7, end="") }}](https://gitlab.com/usescrolls/scribe/-/commit/{{ commit.id }}))\
 {% endfor %}
 {% endfor %}
 """

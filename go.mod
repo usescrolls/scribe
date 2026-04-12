@@ -1,4 +1,4 @@
-module github.com/usescrolls/scribe
+module gitlab.com/usescrolls/scribe
 
 go 1.26
 

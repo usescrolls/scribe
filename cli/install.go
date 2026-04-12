@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 var (

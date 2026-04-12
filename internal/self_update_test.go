@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -15,14 +16,7 @@ func TestClassifyInstallPath(t *testing.T) {
 		path string
 		want string
 	}{
-		// Homebrew formula (Intel)
-		{"/usr/local/Cellar/scribe/1.0.0/bin/scribe", "homebrew"},
-		// Homebrew formula (Apple Silicon)
-		{"/opt/homebrew/Cellar/scribe/1.0.0/bin/scribe", "homebrew"},
-		// Homebrew cask (direct Caskroom path)
-		{"/opt/homebrew/Caskroom/scribe/1.0.0/Scribe.app/Contents/MacOS/scribe", "homebrew"},
-		{"/usr/local/Caskroom/scribe/1.0.0/Scribe.app/Contents/MacOS/scribe", "homebrew"},
-		// macOS .app bundle (manual drag-and-drop, no Caskroom)
+		// macOS .app bundle
 		{"/Applications/Scribe.app/Contents/MacOS/scribe", "app-bundle"},
 		{"/Users/me/Applications/Scribe.app/Contents/MacOS/scribe", "app-bundle"},
 		// Standalone binary
@@ -210,18 +204,20 @@ func TestSelfUpdate_DevSuffixBuild(t *testing.T) {
 func newSelfUpdateServer(t *testing.T, tagName, assetName string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/usescrolls/scribe/releases/latest" {
-			http.NotFound(w, r)
+		// Serve download requests
+		if strings.HasPrefix(r.URL.Path, "/download/") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("fake binary"))
 			return
 		}
-		release := ghRelease{
+		rel := releaseManifest{
 			TagName: tagName,
-			HTMLURL: "https://github.com/usescrolls/scribe/releases/tag/" + tagName,
-			Assets: []ghReleaseAsset{
+			HTMLURL: "https://gitlab.com/usescrolls/scribe/-/releases/" + tagName,
+			Assets: []releaseManifestAsset{
 				{Name: assetName, BrowserDownloadURL: "http://" + r.Host + "/download/" + assetName},
 			},
 		}
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(release)
+		_ = json.NewEncoder(w).Encode(rel)
 	}))
 }

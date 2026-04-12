@@ -2,33 +2,27 @@
 
 This guide covers all installation methods for Scribe.
 
-## Option 1: Homebrew (macOS — Recommended)
+## Option 1: Shell Installer (macOS, Linux & WSL)
 
 ```bash
-brew install usescrolls/tap/scribe
+curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | bash
 ```
 
-## Option 2: macOS DMG Installer
+This detects your OS and architecture, downloads the latest binary, adds it to your PATH if needed, creates a minimal `.app` bundle on macOS, sets up a background service (launchd on macOS, XDG autostart on Linux), and on Linux also registers the `agenthub://` URL scheme.
 
-Download the DMG from the [latest GitHub release](https://github.com/usescrolls/scribe/releases/latest), open it, and drag Scribe to your Applications folder.
-
-## Option 3: Shell Installer (macOS, Linux & WSL)
+If you publish releases somewhere other than the default CDN, override the base URL when running the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | PUBLIC_DOWNLOAD_BASE="https://downloads.example.com/scribe" bash
 ```
-
-This detects your OS and architecture, downloads the latest binary to `~/.local/bin`, adds it to your PATH if needed, sets up a background service (launchd on macOS, systemd on Linux), and on Linux also registers the `agenthub://` URL scheme.
 
 To uninstall:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/uninstall.sh | bash
+curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/uninstall.sh | bash
 ```
 
 This stops the background service, removes the binary, cleans up `~/.scribe`, and removes platform-specific registrations.
-
-> **Note (macOS):** The standalone binary does not support URL scheme handling (`agenthub://`). For full functionality, use the DMG installer or Homebrew which provide a proper `.app` bundle.
 
 > **Note (Linux):** The binary requires the following runtime dependencies: `libgtk-3`, `libwebkit2gtk-4.1`, and `libayatana-appindicator3`. Install them via your package manager before running Scribe:
 > ```bash
@@ -42,36 +36,24 @@ This stops the background service, removes the binary, cleans up `~/.scribe`, an
 > sudo pacman -S gtk3 webkit2gtk-4.1 libayatana-appindicator
 > ```
 
-## Option 4: Windows PowerShell Installer
+## Option 2: Windows
 
-For Windows, use the PowerShell installer script for full setup including URL scheme registration. The install script is available in the repository at `packaging/windows/install.ps1`:
+Download the binary directly:
 
 ```powershell
-# Download the binary
-Invoke-WebRequest -Uri https://github.com/usescrolls/scribe/releases/latest/download/scribe-windows-amd64.exe -OutFile scribe.exe
-
-# Clone the repo to get the installer script (or download install.ps1 from the repo)
-git clone https://github.com/usescrolls/scribe.git
-copy scribe.exe scribe\packaging\windows\
-
-# System-wide install (requires admin)
-.\scribe\packaging\windows\install.ps1
-
-# Or user-only install (no admin required)
-.\scribe\packaging\windows\install.ps1 -UserInstall
+Invoke-WebRequest -Uri <PUBLIC_DOWNLOAD_BASE>/scribe-windows-amd64.exe -OutFile "$env:LOCALAPPDATA\Scribe\scribe.exe"
 ```
 
-The installer:
-- Copies the binary to `Program Files\Scribe` (or `%LOCALAPPDATA%\Scribe` for user install)
-- Registers the `agenthub://` URL scheme in the Windows Registry
-- Optionally creates a startup shortcut
+Replace `<PUBLIC_DOWNLOAD_BASE>` with your public release host. The default is `https://cdn.usescrolls.com`.
 
-## Option 5: Build from Source
+Then add `%LOCALAPPDATA%\Scribe` to your PATH.
+
+## Option 3: Build from Source
 
 Requires Go 1.26+, Node.js 20+, pnpm, and Wails v3. See [Development](development.md) for full setup instructions.
 
 ```bash
-git clone https://github.com/usescrolls/scribe.git
+git clone https://gitlab.com/usescrolls/scribe.git
 cd scribe
 make deps
 make build
@@ -82,17 +64,17 @@ make build
 
 ## Running as a Background Service
 
-The shell installer (Option 3) automatically sets up the background service on macOS (launchd) and Linux (systemd).
+The shell installer (Option 1) automatically sets up the background service on macOS (launchd) and Linux (XDG autostart).
 
 ### Windows (Startup Folder)
 
-The PowerShell installer can create a startup shortcut automatically. To do it manually:
+Windows installation is currently manual. To start Scribe automatically on login, create a Startup shortcut:
 
 ```powershell
 # Create a shortcut in the Startup folder
 $WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\Scribe.lnk")
-$Shortcut.TargetPath = "$env:ProgramFiles\Scribe\scribe.exe"
+$Shortcut.TargetPath = "$env:LOCALAPPDATA\Scribe\scribe.exe"
 $Shortcut.Save()
 ```
 
@@ -100,7 +82,7 @@ Or use Task Scheduler for more control:
 
 ```powershell
 # Create a scheduled task to run at login
-$Action = New-ScheduledTaskAction -Execute "$env:ProgramFiles\Scribe\scribe.exe"
+$Action = New-ScheduledTaskAction -Execute "$env:LOCALAPPDATA\Scribe\scribe.exe"
 $Trigger = New-ScheduledTaskTrigger -AtLogon
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName "Scribe" -Action $Action -Trigger $Trigger -Settings $Settings

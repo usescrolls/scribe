@@ -7,7 +7,7 @@ Add an "Install with Scribe" button to your repository to make it easy for users
 Add this markdown to your README:
 
 ```markdown
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
 ```
 
 Replace `OWNER/REPO` with your GitHub username and repository name.
@@ -16,17 +16,17 @@ Replace `OWNER/REPO` with your GitHub username and repository name.
 
 ### Default (with gradient)
 ```markdown
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
 ```
 
 ### Flat
 ```markdown
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install-flat.svg)](agenthub://install?source=github&repo=OWNER/REPO)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install-flat.svg)](agenthub://install?source=github&repo=OWNER/REPO)
 ```
 
 ### Dark
 ```markdown
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install-dark.svg)](agenthub://install?source=github&repo=OWNER/REPO)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install-dark.svg)](agenthub://install?source=github&repo=OWNER/REPO)
 ```
 
 ## URL Parameters
@@ -84,14 +84,14 @@ Here's a complete example of how to add the badge to your skill repository:
 ```markdown
 # My Awesome Skill
 
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install.svg)](agenthub://install?source=github&repo=myuser/my-awesome-skill)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install.svg)](agenthub://install?source=github&repo=myuser/my-awesome-skill)
 
 A skill that does amazing things for your AI coding agents.
 
 ## Installation
 
 ### One-Click Install
-Click the badge above to install with [Scribe](https://github.com/usescrolls/scribe).
+Click the badge above to install with [Scribe](https://gitlab.com/usescrolls/scribe).
 
 ### Manual Install
 ```bash
@@ -115,7 +115,7 @@ When a user clicks the badge:
 
 ## Requirements
 
-Users must have [Scribe](https://github.com/usescrolls/scribe) installed for the badge to work. The `agenthub://` URL scheme is registered during Scribe installation.
+Users must have [Scribe](https://gitlab.com/usescrolls/scribe) installed for the badge to work. The `agenthub://` URL scheme is registered during Scribe installation.
 
 ## Tips
 

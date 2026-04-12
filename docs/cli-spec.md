@@ -213,7 +213,7 @@ scribe update --force            # Force update all skills
 
 ### `scribe upgrade`
 
-Upgrade the Scribe binary to the latest GitHub release. Detects the install method (Homebrew, `.app` bundle, or standalone binary) and handles each accordingly.
+Upgrade the Scribe binary to the latest release. Detects the install method (`.app` bundle or standalone binary) and handles each accordingly.
 
 ```bash
 scribe upgrade

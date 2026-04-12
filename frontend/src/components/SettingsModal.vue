@@ -184,19 +184,19 @@
                 <h3 class="section-title">Report an Issue</h3>
                 <div class="report-section">
                   <p class="report-text">
-                    Found a bug or have a feature request? Open an issue on GitHub and we'll look into it.
+                    Found a bug or have a feature request? Open an issue on GitLab and we'll look into it.
                     Please note that we do not accept pull requests.
                   </p>
                   <button
                     class="report-btn"
-                    @click="Browser.OpenURL('https://github.com/usescrolls/scribe/issues/new')"
+                    @click="Browser.OpenURL('https://gitlab.com/usescrolls/scribe/-/issues/new')"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="10"/>
                       <line x1="12" y1="8" x2="12" y2="12"/>
                       <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    Open Issue on GitHub
+                    Open Issue on GitLab
                   </button>
                   <div class="log-hint">
                     <h4 class="log-hint-heading">Include logs if needed</h4>

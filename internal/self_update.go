@@ -12,7 +12,7 @@ import (
 )
 
 // DetectInstallMethod returns how Scribe was installed.
-// Possible values: "homebrew", "app-bundle", "binary", "dev", "unknown".
+// Possible values: "app-bundle", "binary", "dev", "unknown".
 func DetectInstallMethod() string {
 	if Version == "dev" || strings.HasSuffix(Version, "-dev") {
 		return "dev"
@@ -32,45 +32,15 @@ func DetectInstallMethod() string {
 
 // classifyInstallPath determines the install method from a resolved executable path.
 func classifyInstallPath(execPath string) string {
-	lower := strings.ToLower(execPath)
-
-	// Homebrew formula: binary lives inside /Cellar/
-	if strings.Contains(lower, "/cellar/") {
-		return "homebrew"
-	}
-
-	// Homebrew cask: binary lives inside /Caskroom/
-	if strings.Contains(lower, "/caskroom/") {
-		return "homebrew"
-	}
-
 	// macOS .app bundle
 	if strings.Contains(execPath, ".app/Contents/MacOS/") {
-		// Check if Homebrew manages this .app via a cask
-		if isHomebrewCask() {
-			return "homebrew"
-		}
 		return "app-bundle"
 	}
 
 	return "binary"
 }
 
-// isHomebrewCask checks if a Homebrew Caskroom entry exists for scribe.
-func isHomebrewCask() bool {
-	caskDirs := []string{
-		"/opt/homebrew/Caskroom/scribe",
-		"/usr/local/Caskroom/scribe",
-	}
-	for _, d := range caskDirs {
-		if _, err := os.Stat(d); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// expectedAssetName returns the GitHub release asset filename for the current platform.
+// expectedAssetName returns the release asset filename for the current platform.
 // Returns "" if the platform is unsupported.
 func expectedAssetName() string {
 	switch runtime.GOOS {
@@ -94,13 +64,11 @@ func expectedAssetName() string {
 }
 
 // SelfUpdate downloads and installs the latest version of the Scribe binary.
-// Pass "" for baseURL to use the production GitHub API.
+// Pass "" for baseURL to use PublicDownloadBase.
 func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 	method := DetectInstallMethod()
 
 	switch method {
-	case "homebrew":
-		return nil, fmt.Errorf("scribe was installed via Homebrew; run 'brew upgrade usescrolls/tap/scribe' instead")
 	case "dev":
 		return nil, fmt.Errorf("cannot upgrade development builds")
 	case "unknown":
@@ -108,19 +76,19 @@ func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 	}
 
 	// Fetch latest release
-	release, err := fetchLatestRelease(baseURL)
+	rel, err := fetchLatestRelease(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check for updates: %w", err)
 	}
 
-	latest := strings.TrimPrefix(release.TagName, "v")
+	latest := strings.TrimPrefix(rel.TagName, "v")
 	current := strings.TrimPrefix(Version, "v")
 
 	if compareSemver(current, latest) >= 0 {
 		return &SelfUpdateResult{
 			Updated:       false,
 			OldVersion:    Version,
-			NewVersion:    release.TagName,
+			NewVersion:    rel.TagName,
 			InstallMethod: method,
 			Message:       "already up to date",
 		}, nil
@@ -133,14 +101,14 @@ func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 	}
 
 	var downloadURL string
-	for _, asset := range release.Assets {
+	for _, asset := range rel.Assets {
 		if asset.Name == assetName {
-			downloadURL = asset.BrowserDownloadURL
+			downloadURL = asset.DownloadURL
 			break
 		}
 	}
 	if downloadURL == "" {
-		return nil, fmt.Errorf("release %s does not contain asset %q", release.TagName, assetName)
+		return nil, fmt.Errorf("release %s does not contain asset %q", rel.TagName, assetName)
 	}
 
 	// Get current executable path
@@ -170,7 +138,7 @@ func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 
 	// Download the asset
 	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Get(downloadURL) //nolint:gosec // URL comes from GitHub API response
+	resp, err := client.Get(downloadURL) //nolint:gosec // URL comes from trusted release metadata
 	if err != nil {
 		_ = tmpFile.Close()
 		return nil, fmt.Errorf("failed to download update: %w", err)
@@ -202,9 +170,9 @@ func SelfUpdate(baseURL string) (*SelfUpdateResult, error) {
 	return &SelfUpdateResult{
 		Updated:       true,
 		OldVersion:    Version,
-		NewVersion:    release.TagName,
+		NewVersion:    rel.TagName,
 		InstallMethod: method,
-		Message:       fmt.Sprintf("upgraded from %s to %s", Version, release.TagName),
+		Message:       fmt.Sprintf("upgraded from %s to %s", Version, rel.TagName),
 	}, nil
 }
 

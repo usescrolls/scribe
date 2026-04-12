@@ -1,2 +1,2 @@
 // Re-export bindings from generated location
-export * from '../../bindings/github.com/usescrolls/scribe/index.js'
+export * from "../../bindings/gitlab.com/usescrolls/scribe/index.js"

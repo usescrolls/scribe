@@ -1,10 +1,10 @@
 .PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-ensure-bindings \
-        app app-run lint lint-fix install-hooks
+        lint lint-fix install-hooks
 
 BINARY_NAME=scribe
 BUILD_DIR=build
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")-dev
-LDFLAGS=-s -w -X github.com/usescrolls/scribe/internal.Version=$(VERSION)
+LDFLAGS=-s -w -X gitlab.com/usescrolls/scribe/internal.Version=$(VERSION)
 
 # macOS deployment target (set to current OS version to avoid linker warnings)
 MACOS_VERSION := $(shell sw_vers -productVersion 2>/dev/null || echo "")
@@ -103,19 +103,3 @@ install-hooks:
 	cp scripts/hooks/commit-msg .git/hooks/commit-msg
 	chmod +x .git/hooks/commit-msg
 	@echo "Git hooks installed"
-
-# ============================================================================
-# macOS App Bundle
-# ============================================================================
-
-# Create macOS .app bundle (requires build first)
-app: build
-	VERSION=$(VERSION) ./packaging/macos/create-app.sh
-	@echo ""
-	@echo "To run the app with the proper icon:"
-	@echo "  make app-run"
-	@echo "  or: open build/Scribe.app"
-
-# Run the macOS .app bundle
-app-run:
-	open $(BUILD_DIR)/Scribe.app

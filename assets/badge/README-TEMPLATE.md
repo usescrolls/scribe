@@ -1,6 +1,6 @@
 # [Skill Name]
 
-[![Install with Scribe](https://raw.githubusercontent.com/usescrolls/scribe/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
+[![Install with Scribe](https://gitlab.com/usescrolls/scribe/-/raw/main/assets/badge/install.svg)](agenthub://install?source=github&repo=OWNER/REPO)
 
 [Brief description of what your skill does]
 
@@ -11,7 +11,7 @@
 Click the badge above or use this link:
 [Install with Scribe](agenthub://install?source=github&repo=OWNER/REPO)
 
-Requires [Scribe](https://github.com/usescrolls/scribe) to be installed.
+Requires [Scribe](https://gitlab.com/usescrolls/scribe) to be installed.
 
 ### Manual Install
 

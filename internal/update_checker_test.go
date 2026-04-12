@@ -7,24 +7,24 @@ import (
 	"testing"
 )
 
-func newUpdateServer(t *testing.T, statusCode int, release ghRelease) *httptest.Server {
+func newUpdateServer(t *testing.T, statusCode int, rel releaseManifest) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/usescrolls/scribe/releases/latest" {
+		if r.URL.Path != "/releases/latest" {
 			http.NotFound(w, r)
 			return
 		}
 		w.WriteHeader(statusCode)
-		if err := json.NewEncoder(w).Encode(release); err != nil {
+		if err := json.NewEncoder(w).Encode(rel); err != nil {
 			t.Fatalf("failed to encode response: %v", err)
 		}
 	}))
 }
 
 func TestCheckForUpdate_UpdateAvailable(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusOK, ghRelease{
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName:     "v99.0.0",
-		HTMLURL:     "https://github.com/usescrolls/scribe/releases/tag/v99.0.0",
+		HTMLURL:     "https://gitlab.com/usescrolls/scribe/-/releases/v99.0.0",
 		PublishedAt: "2026-01-01T00:00:00Z",
 	})
 	defer srv.Close()
@@ -52,9 +52,9 @@ func TestCheckForUpdate_UpdateAvailable(t *testing.T) {
 }
 
 func TestCheckForUpdate_UpToDate(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusOK, ghRelease{
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName:     "v1.0.0",
-		HTMLURL:     "https://github.com/usescrolls/scribe/releases/tag/v1.0.0",
+		HTMLURL:     "https://gitlab.com/usescrolls/scribe/-/releases/v1.0.0",
 		PublishedAt: "2026-01-01T00:00:00Z",
 	})
 	defer srv.Close()
@@ -73,7 +73,7 @@ func TestCheckForUpdate_UpToDate(t *testing.T) {
 }
 
 func TestCheckForUpdate_CurrentNewer(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusOK, ghRelease{
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.0.0",
 	})
 	defer srv.Close()
@@ -106,9 +106,9 @@ func TestCheckForUpdate_DevVersion(t *testing.T) {
 }
 
 func TestCheckForUpdate_DevSuffixedVersion_SameRelease(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusOK, ghRelease{
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.17.0",
-		HTMLURL: "https://github.com/usescrolls/scribe/releases/tag/v1.17.0",
+		HTMLURL: "https://gitlab.com/usescrolls/scribe/-/releases/v1.17.0",
 	})
 	defer srv.Close()
 
@@ -126,9 +126,9 @@ func TestCheckForUpdate_DevSuffixedVersion_SameRelease(t *testing.T) {
 }
 
 func TestCheckForUpdate_DevSuffixedVersion_NewerRelease(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusOK, ghRelease{
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.18.0",
-		HTMLURL: "https://github.com/usescrolls/scribe/releases/tag/v1.18.0",
+		HTMLURL: "https://gitlab.com/usescrolls/scribe/-/releases/v1.18.0",
 	})
 	defer srv.Close()
 
@@ -146,7 +146,7 @@ func TestCheckForUpdate_DevSuffixedVersion_NewerRelease(t *testing.T) {
 }
 
 func TestCheckForUpdate_APIError(t *testing.T) {
-	srv := newUpdateServer(t, http.StatusNotFound, ghRelease{})
+	srv := newUpdateServer(t, http.StatusNotFound, releaseManifest{})
 	defer srv.Close()
 
 	old := Version
@@ -175,6 +175,25 @@ func TestCheckForUpdate_MalformedJSON(t *testing.T) {
 		t.Fatal("expected error for malformed JSON")
 	}
 }
+
+func TestBuildReleaseManifestURL(t *testing.T) {
+	tests := []struct {
+		baseURL string
+		want    string
+	}{
+		{"https://cdn.example.com", "https://cdn.example.com/releases/latest"},
+		{"https://cdn.example.com/", "https://cdn.example.com/releases/latest"},
+		{"http://localhost:1234", "http://localhost:1234/releases/latest"},
+	}
+	for _, tt := range tests {
+		got := buildReleaseManifestURL(tt.baseURL)
+		if got != tt.want {
+			t.Errorf("buildReleaseManifestURL(%q) = %q, want %q", tt.baseURL, got, tt.want)
+		}
+	}
+}
+
+// --- Semver tests ---
 
 func TestCompareSemver(t *testing.T) {
 	tests := []struct {

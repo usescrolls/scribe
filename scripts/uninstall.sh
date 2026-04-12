@@ -3,7 +3,7 @@
 # Scribe Uninstaller (macOS, Linux & WSL)
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/uninstall.sh | bash
+#   curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/uninstall.sh | bash
 #
 
 set -e

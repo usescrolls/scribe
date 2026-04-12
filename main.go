@@ -12,8 +12,8 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
-	"github.com/usescrolls/scribe/cli"
-	scribe "github.com/usescrolls/scribe/internal"
+	"gitlab.com/usescrolls/scribe/cli"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 //go:embed frontend/dist

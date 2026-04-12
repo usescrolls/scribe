@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 // TestCLICommands tests that CLICommands returns the expected commands

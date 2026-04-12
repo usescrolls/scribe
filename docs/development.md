@@ -41,11 +41,11 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
 # Install Go and frontend dependencies
 make deps
 
-# Build the macOS .app bundle (includes frontend + Go binary)
-make app
+# Build the app for your current platform
+make build
 
-# Launch the app
-make app-run
+# Run the binary
+./build/bin/scribe
 ```
 
 ---
@@ -73,8 +73,8 @@ scribe/
 │   ├── onboarding.go           # Onboarding wizard logic
 │   ├── system_skill.go         # Built-in agent detection skill
 │   ├── url_scheme.go           # agenthub:// URL scheme handler
-│   ├── update_checker.go       # Check for skill updates
-│   ├── update_config.go        # Update configuration
+│   ├── update_checker.go       # Check for app updates from the release manifest
+│   ├── update_config.go        # App update notification configuration
 │   ├── updater.go              # Perform skill updates
 │   ├── self_update.go          # Self-update (binary upgrade)
 │   ├── config.go               # Logger initialization
@@ -106,7 +106,7 @@ scribe/
 │   │   │   ├── SkillCard.vue              # Skill display card
 │   │   │   ├── SkillDetailModal.vue       # Skill detail modal
 │   │   │   ├── BrowseSkills.vue           # All skills browser
-│   │   │   ├── MarketplaceSkills.vue      # GitHub marketplace browser
+│   │   │   ├── MarketplaceSkills.vue      # Marketplace browser
 │   │   │   ├── InstallSkills.vue          # Multi-step install wizard
 │   │   │   ├── SidebarWorkspaceList.vue   # Workspace list in sidebar
 │   │   │   ├── WorkspaceSelector.vue      # Workspace selector
@@ -141,17 +141,13 @@ scribe/
 │   │       └── scribe.ts         # Auto-generated Wails bindings
 │   └── **/*.test.ts              # Frontend tests (Vitest)
 ├── docs/                        # Documentation
-├── packaging/                   # Platform installers
-│   ├── macos/                   # create-app.sh, create-dmg.sh, Info.plist
-│   ├── linux/                   # scribe.desktop
-│   └── windows/                 # install.ps1, uninstall.ps1, agenthub.reg
 ├── scripts/
 │   ├── install.sh               # Universal installer (macOS, Linux, WSL)
 │   ├── uninstall.sh             # Universal uninstaller
 │   └── hooks/                   # Git hooks (pre-commit, commit-msg)
 ├── icons/                       # App icons (SVG, PNG, ICO, ICNS)
 ├── assets/                      # Badge assets for documentation
-├── .github/workflows/           # CI/CD (release.yml)
+├── .gitlab-ci.yml               # CI/CD pipeline
 └── build/                       # Build outputs (generated)
 ```
 
@@ -208,12 +204,6 @@ make dev
 # Build binary for current platform
 make build
 
-# Build macOS .app bundle
-make app
-
-# Launch the .app bundle
-make app-run
-
 # Build and install to ~/.local/bin
 make install
 ```
@@ -229,8 +219,6 @@ make install
 | `run` | Quick test: `go run . list` |
 | `clean` | Remove build artifacts, node_modules, coverage |
 | `install` | Build and install to `~/.local/bin` |
-| `app` | Create macOS `.app` bundle (runs `build` first) |
-| `app-run` | Launch the `.app` bundle |
 | `test` | Run Go tests |
 | `test-verbose` | Run Go tests with verbose output |
 | `coverage` | Run tests with coverage stats |

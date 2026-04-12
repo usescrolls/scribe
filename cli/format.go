@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 // formatSourceInfo formats a SourceInfo for display

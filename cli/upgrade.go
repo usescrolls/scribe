@@ -5,16 +5,15 @@ import (
 
 	"github.com/spf13/cobra"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Upgrade Scribe to the latest version",
-	Long: `Upgrade the Scribe binary to the latest GitHub release.
+	Long: `Upgrade the Scribe binary to the latest release.
 
 This command downloads and replaces the current binary with the latest version.
-Homebrew and .app bundle installations are detected and handled separately.
 
 Examples:
   scribe upgrade`,

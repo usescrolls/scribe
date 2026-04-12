@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 var (
@@ -94,19 +94,19 @@ func checkForAppUpdate() {
 
 	if info.UpdateAvailable {
 		method := scribe.DetectInstallMethod()
+		releaseURL := info.ReleaseURL
+		if releaseURL == "" {
+			releaseURL = scribe.PublicDownloadBase
+		}
 		switch method {
-		case "homebrew":
-			fmt.Fprintf(os.Stderr,
-				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: brew upgrade usescrolls/tap/scribe\n\n",
-				info.LatestVersion, info.CurrentVersion)
 		case "binary", "app-bundle":
 			fmt.Fprintf(os.Stderr,
 				"\n  A new version of Scribe is available: %s (current: %s)\n  Run: scribe upgrade\n\n",
 				info.LatestVersion, info.CurrentVersion)
 		default:
 			fmt.Fprintf(os.Stderr,
-				"\n  A new version of Scribe is available: %s (current: %s)\n  https://github.com/usescrolls/scribe/releases/latest\n\n",
-				info.LatestVersion, info.CurrentVersion)
+				"\n  A new version of Scribe is available: %s (current: %s)\n  %s\n\n",
+				info.LatestVersion, info.CurrentVersion, releaseURL)
 		}
 	}
 }

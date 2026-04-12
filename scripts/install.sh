@@ -2,14 +2,15 @@
 #
 # Scribe Installer (macOS, Linux & WSL)
 #
-# Downloads the latest release from GitHub and installs it.
+# Downloads the latest release from a public release host and installs it.
+# Override the default host with PUBLIC_DOWNLOAD_BASE or SCRIBE_DOWNLOAD_BASE.
 # Sets up the background service, PATH, and URL scheme handler.
 #
 # Install:
-#   curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+#   curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | bash
 #
 # Uninstall:
-#   curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/uninstall.sh | bash
+#   curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/uninstall.sh | bash
 #
 
 set -e
@@ -21,7 +22,9 @@ OS=$(uname -s)
 
 # --- Install ---
 
-REPO="usescrolls/scribe"
+DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com"
+DOWNLOAD_BASE="${SCRIBE_DOWNLOAD_BASE:-${PUBLIC_DOWNLOAD_BASE:-$DEFAULT_DOWNLOAD_BASE}}"
+DOWNLOAD_BASE="${DOWNLOAD_BASE%/}"
 ARCH=$(uname -m)
 
 case "$OS" in
@@ -52,7 +55,7 @@ case "$OS" in
         ;;
 esac
 
-DOWNLOAD_URL="https://github.com/$REPO/releases/latest/download/$ASSET_NAME"
+DOWNLOAD_URL="$DOWNLOAD_BASE/$ASSET_NAME"
 
 # Check for existing installation
 INSTALLED_VERSION=""
@@ -60,8 +63,8 @@ if [ -x "$BINARY_PATH" ]; then
     INSTALLED_VERSION=$("$BINARY_PATH" version 2>/dev/null | sed 's/scribe version //' || true)
 fi
 
-# Get latest version tag from GitHub
-LATEST_VERSION=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" | sed 's|.*/v||')
+# Get latest version from release metadata
+LATEST_VERSION=$(curl -fsSL "$DOWNLOAD_BASE/releases/latest" 2>/dev/null | grep -o '"tag_name":"v[^"]*"' | head -1 | sed 's/"tag_name":"v//' | sed 's/"//' || true)
 
 if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
     echo "Scribe v$INSTALLED_VERSION is already installed and up to date."
@@ -210,7 +213,7 @@ if [ "$OS" = "Darwin" ]; then
 PLISTEOF
 
     # Download app icon
-    ICON_URL="https://raw.githubusercontent.com/$REPO/main/icons/AppIcon.icns"
+    ICON_URL="$DOWNLOAD_BASE/icons/AppIcon.icns"
     mkdir -p "$APP_BUNDLE/Contents/Resources"
     curl -fsSL "$ICON_URL" -o "$APP_BUNDLE/Contents/Resources/AppIcon.icns" 2>/dev/null || true
 
@@ -260,7 +263,7 @@ fi
 if [ "$OS" = "Linux" ]; then
     # --- App icon ---
     ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
-    ICON_URL="https://raw.githubusercontent.com/$REPO/main/icons/icon.png"
+    ICON_URL="$DOWNLOAD_BASE/icons/icon.png"
     mkdir -p "$ICON_DIR"
     curl -fsSL "$ICON_URL" -o "$ICON_DIR/scribe.png" 2>/dev/null || true
 

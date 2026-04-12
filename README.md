@@ -6,7 +6,7 @@
 A skill distribution tool that syncs AI coding skills to 39 coding agents.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/usescrolls/scribe/main/scripts/install.sh | bash
+curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | bash
 ```
 
 ![Scribe Demo](https://cdn.usescrolls.com/images/demo_scribe.gif)
@@ -21,7 +21,7 @@ On first launch, Scribe runs an onboarding wizard that detects your installed ag
 
 If you've seen `npx skills add`, you might wonder why Scribe exists. Both tools install the same `SKILL.md` files to coding agents, but they make different trade-offs:
 
-- **No runtime dependency**: Scribe is a standalone Go binary — no Node.js required. Install once via `brew` or `curl`, runs offline after that
+- **No runtime dependency**: Scribe is a standalone Go binary — no Node.js required. Install once via `curl`, runs offline after that
 - **Fast**: Native binary + local git clone cache. No npm registry roundtrip on every invocation
 - **Workspaces**: Organize skills into named sets (e.g. `web-dev`, `data-eng`) and switch between them
 - **Desktop GUI**: Vue 3 app with skill browser, workspace manager, and install wizard. You can paste `npx skills add owner/repo` commands directly into the Install tab — Scribe parses them automatically
@@ -63,9 +63,7 @@ Scribe detects which agents you have installed (by checking for their config dir
 
 ## Other Installation Methods
 
-On macOS you can also use Homebrew: `brew install usescrolls/tap/scribe`
-
-For Windows, DMG installer, and building from source, see [Installation](docs/installation.md).
+For Windows and building from source, see [Installation](docs/installation.md).
 
 ## CLI Usage
 

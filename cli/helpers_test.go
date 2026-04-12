@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 // setupTempHome creates a temp directory, sets HOME to it, initializes the

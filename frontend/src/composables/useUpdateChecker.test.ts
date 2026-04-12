@@ -6,7 +6,7 @@ const mockUpdateAvailable = {
   currentVersion: "1.0.0",
   latestVersion: "1.1.0",
   updateAvailable: true,
-  releaseURL: "https://github.com/usescrolls/scribe/releases/tag/v1.1.0",
+  releaseURL: "https://gitlab.com/usescrolls/scribe/-/releases/v1.1.0",
   publishedAt: "2026-02-20T00:00:00Z",
 }
 
@@ -149,7 +149,7 @@ describe("useUpdateChecker", () => {
       checker.openReleasePage()
 
       expect(mockBrowser.OpenURL).toHaveBeenCalledWith(
-        "https://github.com/usescrolls/scribe/releases/tag/v1.1.0",
+        "https://gitlab.com/usescrolls/scribe/-/releases/v1.1.0",
       )
     })
 

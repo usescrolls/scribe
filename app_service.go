@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	scribe "github.com/usescrolls/scribe/internal"
+	scribe "gitlab.com/usescrolls/scribe/internal"
 )
 
 // AppService provides bindings for the frontend
