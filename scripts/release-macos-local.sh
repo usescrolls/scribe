@@ -49,11 +49,17 @@ ensure_clean_worktree() {
 }
 
 detect_tag() {
-    mapfile -t tags < <(git tag --points-at HEAD --list 'v*')
-    if [[ "${#tags[@]}" -ne 1 ]]; then
-        fail "expected exactly one v* tag on HEAD, found ${#tags[@]}"
+    local tags=""
+    local count=""
+
+    tags="$(git tag --points-at HEAD --list 'v*' | sed '/^$/d')"
+    count="$(printf '%s\n' "${tags}" | sed '/^$/d' | wc -l | tr -d ' ')"
+
+    if [[ "${count}" -ne 1 ]]; then
+        fail "expected exactly one v* tag on HEAD, found ${count}"
     fi
-    printf '%s\n' "${tags[0]}"
+
+    printf '%s\n' "${tags}"
 }
 
 derive_project_url() {
