@@ -91,13 +91,30 @@ derive_project_url() {
     fail "unable to derive GitLab project URL; set GITLAB_PROJECT_URL"
 }
 
+build_release_asset_url() {
+    local download_base="$1"
+    local tag="$2"
+    local asset_name="$3"
+
+    printf '%s/releases/%s/%s\n' "${download_base%/}" "${tag}" "${asset_name}"
+}
+
+build_release_asset_key() {
+    local prefix="$1"
+    local tag="$2"
+    local asset_name="$3"
+
+    storage_key "${prefix}" "releases/${tag}/${asset_name}"
+}
+
 wait_for_ci_assets() {
     local download_base="$1"
+    local tag="$2"
     local asset_url=""
 
     for asset_url in \
-        "${download_base}/${LINUX_ASSET}" \
-        "${download_base}/${WINDOWS_ASSET}"
+        "$(build_release_asset_url "${download_base}" "${tag}" "${LINUX_ASSET}")" \
+        "$(build_release_asset_url "${download_base}" "${tag}" "${WINDOWS_ASSET}")"
     do
         wait_for_public_asset "${asset_url}" "required CI asset is not available yet"
     done
@@ -223,7 +240,7 @@ main() {
         -o "${asset_path}" \
         .
 
-    wait_for_ci_assets "${public_download_base}"
+    wait_for_ci_assets "${public_download_base}" "${tag}"
 
     latest_file="$(mktemp)"
     legacy_latest_file="$(mktemp)"
@@ -233,8 +250,9 @@ main() {
     configure_rclone "${rclone_config}"
     export RCLONE_CONFIG="${rclone_config}"
 
+    rclone copyto "${asset_path}" "r2:${cdn_bucket}/$(build_release_asset_key "${cdn_prefix}" "${tag}" "${ASSET_NAME}")"
     rclone copyto "${asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${ASSET_NAME}")"
-    wait_for_public_asset "${public_download_base}/${ASSET_NAME}" "uploaded macOS asset is not available yet"
+    wait_for_public_asset "$(build_release_asset_url "${public_download_base}" "${tag}" "${ASSET_NAME}")" "uploaded macOS asset is not available yet"
 
     cat >"${latest_file}" <<EOF
 {
@@ -242,9 +260,9 @@ main() {
   "html_url": "${project_url}/-/releases/${tag}",
   "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "assets": [
-    {"name": "${LINUX_ASSET}", "browser_download_url": "${public_download_base}/${LINUX_ASSET}"},
-    {"name": "${ASSET_NAME}", "browser_download_url": "${public_download_base}/${ASSET_NAME}"},
-    {"name": "${WINDOWS_ASSET}", "browser_download_url": "${public_download_base}/${WINDOWS_ASSET}"}
+    {"name": "${LINUX_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${LINUX_ASSET}")"},
+    {"name": "${ASSET_NAME}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${ASSET_NAME}")"},
+    {"name": "${WINDOWS_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${WINDOWS_ASSET}")"}
   ]
 }
 EOF
@@ -256,7 +274,7 @@ EOF
     # /releases/latest can discover the namespaced asset URLs.
     rclone copyto "${legacy_latest_file}" "r2:${cdn_bucket}/releases/latest"
 
-    log "Uploaded ${ASSET_NAME} and refreshed ${cdn_prefix}/releases/latest for ${tag}"
+    log "Uploaded ${ASSET_NAME} to ${cdn_prefix}/releases/${tag}/ and refreshed ${cdn_prefix}/releases/latest for ${tag}"
 }
 
 main "$@"

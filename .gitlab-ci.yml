@@ -172,7 +172,10 @@ publish-cdn:
       EOF
     - export RCLONE_CONFIG=/tmp/rclone.conf
   script:
+    - RELEASE_PREFIX="${CDN_PREFIX}/releases/${CI_COMMIT_TAG}"
+    - rclone copyto scribe-linux-amd64 "r2:${CDN_BUCKET}/${RELEASE_PREFIX}/scribe-linux-amd64"
     - rclone copyto scribe-linux-amd64 "r2:${CDN_BUCKET}/${CDN_PREFIX}/scribe-linux-amd64"
+    - rclone copyto scribe-windows-amd64.exe "r2:${CDN_BUCKET}/${RELEASE_PREFIX}/scribe-windows-amd64.exe"
     - rclone copyto scribe-windows-amd64.exe "r2:${CDN_BUCKET}/${CDN_PREFIX}/scribe-windows-amd64.exe"
     - rclone copyto icons/AppIcon.icns "r2:${CDN_BUCKET}/${CDN_PREFIX}/icons/AppIcon.icns"
     - rclone copyto icons/icon.png "r2:${CDN_BUCKET}/${CDN_PREFIX}/icons/icon.png"
@@ -202,13 +205,13 @@ release:
     assets:
       links:
         - name: scribe-linux-amd64
-          url: "${PUBLIC_DOWNLOAD_BASE}/scribe-linux-amd64"
-          filepath: /scribe/scribe-linux-amd64
+          url: "${PUBLIC_DOWNLOAD_BASE}/releases/${CI_COMMIT_TAG}/scribe-linux-amd64"
+          filepath: /scribe/releases/${CI_COMMIT_TAG}/scribe-linux-amd64
         - name: scribe-windows-amd64.exe
-          url: "${PUBLIC_DOWNLOAD_BASE}/scribe-windows-amd64.exe"
-          filepath: /scribe/scribe-windows-amd64.exe
+          url: "${PUBLIC_DOWNLOAD_BASE}/releases/${CI_COMMIT_TAG}/scribe-windows-amd64.exe"
+          filepath: /scribe/releases/${CI_COMMIT_TAG}/scribe-windows-amd64.exe
         - name: scribe-darwin-arm64
-          url: "${PUBLIC_DOWNLOAD_BASE}/scribe-darwin-arm64"
-          filepath: /scribe/scribe-darwin-arm64
+          url: "${PUBLIC_DOWNLOAD_BASE}/releases/${CI_COMMIT_TAG}/scribe-darwin-arm64"
+          filepath: /scribe/releases/${CI_COMMIT_TAG}/scribe-darwin-arm64
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/

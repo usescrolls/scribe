@@ -44,7 +44,7 @@ Download the binary directly:
 Invoke-WebRequest -Uri <PUBLIC_DOWNLOAD_BASE>/scribe-windows-amd64.exe -OutFile "$env:LOCALAPPDATA\Scribe\scribe.exe"
 ```
 
-Replace `<PUBLIC_DOWNLOAD_BASE>` with your public release host. The default is `https://cdn.usescrolls.com/scribe`.
+Replace `<PUBLIC_DOWNLOAD_BASE>` with your public release host. The default latest alias is `https://cdn.usescrolls.com/scribe`. Immutable tagged binaries live under `<PUBLIC_DOWNLOAD_BASE>/releases/<tag>/...`.
 
 Then add `%LOCALAPPDATA%\Scribe` to your PATH.
 

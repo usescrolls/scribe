@@ -20,6 +20,38 @@ INSTALL_DIR="$HOME/.local/bin"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
 OS=$(uname -s)
 
+fetch_release_manifest() {
+    curl -fsSL "$DOWNLOAD_BASE/releases/latest" 2>/dev/null || true
+}
+
+compact_release_manifest() {
+    printf '%s' "$1" | tr -d '[:space:]'
+}
+
+extract_latest_version() {
+    local manifest="$1"
+    local tail="${manifest#*\"tag_name\":\"v}"
+
+    if [ "$tail" = "$manifest" ]; then
+        return 0
+    fi
+
+    printf '%s\n' "${tail%%\"*}"
+}
+
+extract_asset_download_url() {
+    local manifest="$1"
+    local asset_name="$2"
+    local marker="\"name\":\"${asset_name}\",\"browser_download_url\":\""
+    local tail="${manifest#*${marker}}"
+
+    if [ "$tail" = "$manifest" ]; then
+        return 0
+    fi
+
+    printf '%s\n' "${tail%%\"*}"
+}
+
 # --- Install ---
 
 DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
@@ -56,6 +88,8 @@ case "$OS" in
 esac
 
 DOWNLOAD_URL="$DOWNLOAD_BASE/$ASSET_NAME"
+RELEASE_MANIFEST="$(fetch_release_manifest)"
+COMPACT_RELEASE_MANIFEST="$(compact_release_manifest "$RELEASE_MANIFEST")"
 
 # Check for existing installation
 INSTALLED_VERSION=""
@@ -63,8 +97,13 @@ if [ -x "$BINARY_PATH" ]; then
     INSTALLED_VERSION=$("$BINARY_PATH" version 2>/dev/null | sed 's/scribe version //' || true)
 fi
 
-# Get latest version from release metadata
-LATEST_VERSION=$(curl -fsSL "$DOWNLOAD_BASE/releases/latest" 2>/dev/null | grep -o '"tag_name":"v[^"]*"' | head -1 | sed 's/"tag_name":"v//' | sed 's/"//' || true)
+# Get latest version and the exact asset URL from release metadata.
+LATEST_VERSION="$(extract_latest_version "$COMPACT_RELEASE_MANIFEST")"
+MANIFEST_DOWNLOAD_URL="$(extract_asset_download_url "$COMPACT_RELEASE_MANIFEST" "$ASSET_NAME")"
+
+if [ -n "$MANIFEST_DOWNLOAD_URL" ]; then
+    DOWNLOAD_URL="$MANIFEST_DOWNLOAD_URL"
+fi
 
 if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
     echo "Scribe v$INSTALLED_VERSION is already installed and up to date."

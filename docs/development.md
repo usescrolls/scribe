@@ -411,8 +411,8 @@ GUI build requires the Apple SDK.
 
 Tagged releases are split across CI and a local macOS publish step:
 
-- GitLab CI runs tests, builds the Linux and Windows binaries, uploads them to the CDN, and creates the GitLab release entry.
-- A local macOS checkout builds `scribe-darwin-arm64`, uploads it to the same CDN prefix, and writes the final release manifest consumed by auto-update.
+- GitLab CI runs tests, builds the Linux and Windows binaries, uploads immutable release files under `scribe/releases/<tag>/`, refreshes the moving latest aliases, and creates the GitLab release entry.
+- A local macOS checkout builds `scribe-darwin-arm64`, uploads it under the same `scribe/releases/<tag>/` prefix, refreshes the moving macOS alias, and writes the final release manifest consumed by auto-update.
 
 Run the macOS publish step from a clean macOS checkout where `HEAD` has exactly one `v*` tag:
 
@@ -433,7 +433,7 @@ Optional overrides:
 - `PUBLIC_DOWNLOAD_BASE` (must end with `/scribe` when `CDN_PREFIX=scribe`)
 - `GITLAB_PROJECT_URL`
 
-The script waits for the CI-published Linux and Windows assets, uploads the macOS binary to `scribe/`, writes `scribe/releases/latest`, and also refreshes the legacy root `releases/latest` manifest for older installed builds.
+The script waits for the CI-published Linux and Windows assets under `scribe/releases/<tag>/`, uploads the macOS binary under the same versioned prefix, writes `scribe/releases/latest`, and also refreshes the legacy root `releases/latest` manifest for older installed builds.
 
 ---
 
