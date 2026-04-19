@@ -14,7 +14,6 @@ variables:
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.cache/pnpm/store"
   # Public base URL where binaries, icons, and release metadata are served.
   PUBLIC_DOWNLOAD_BASE: "https://cdn.usescrolls.com"
-  CDN_BUCKET: "usescrolls-cdn"
 
 .go-cache: &go-cache
   cache:
@@ -153,6 +152,10 @@ publish-cdn:
     - build-windows-amd64
   before_script:
     - apk add --no-cache rclone
+    - ': "${CDN_BUCKET:?CDN_BUCKET CI/CD variable is required. If it is protected, protect release tags (for example v*).}"'
+    - ': "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID CI/CD variable is required. If it is protected, protect release tags (for example v*).}"'
+    - ': "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY CI/CD variable is required. If it is protected, protect release tags (for example v*).}"'
+    - ': "${R2_ENDPOINT:?R2_ENDPOINT CI/CD variable is required. If it is protected, protect release tags (for example v*).}"'
     - |
       cat > /tmp/rclone.conf <<EOF
       [r2]

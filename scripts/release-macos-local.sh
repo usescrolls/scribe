@@ -7,7 +7,7 @@ set -euo pipefail
 # If present, a repo-root .env file is loaded automatically.
 
 DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com"
-DEFAULT_CDN_BUCKET="usescrolls-cdn"
+DEFAULT_CDN_BUCKET="agenthub-plugins"
 ASSET_NAME="scribe-darwin-arm64"
 WINDOWS_ASSET="scribe-windows-amd64.exe"
 LINUX_ASSET="scribe-linux-amd64"
