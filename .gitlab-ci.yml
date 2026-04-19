@@ -180,7 +180,9 @@ publish-cdn:
 # ---------------------------------------------------------------------------
 release:
   stage: release
-  image: alpine:latest
+  image:
+    name: registry.gitlab.com/gitlab-org/cli:latest
+    entrypoint: [""]
   needs:
     - publish-cdn
   before_script:
