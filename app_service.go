@@ -768,7 +768,7 @@ func (a *AppService) SetUpdateNotificationsDisabled(disabled bool) error {
 	return scribe.SetUpdateNotificationsDisabled(disabled)
 }
 
-// GetInstallMethod returns how Scribe was installed ("homebrew", "app-bundle", "binary", "dev", "unknown").
+// GetInstallMethod returns how Scribe was installed ("app-bundle", "binary", "dev", "unknown").
 func (a *AppService) GetInstallMethod() string {
 	method := scribe.DetectInstallMethod()
 	scribe.Logger.Info("AppService.GetInstallMethod called", "method", method)

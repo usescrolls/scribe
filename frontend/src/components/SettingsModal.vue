@@ -59,12 +59,6 @@
                         </span>
                       </template>
 
-                      <template v-else-if="installMethod === 'homebrew'">
-                        <span class="homebrew-hint">
-                          Run <code>brew upgrade usescrolls/tap/scribe</code> to update
-                        </span>
-                      </template>
-
                       <template v-else>
                         <button class="update-link-btn" @click="openReleasePage">
                           View release notes
@@ -736,18 +730,6 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: #ef4444;
   font-weight: 500;
-}
-
-.homebrew-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.homebrew-hint code {
-  background-color: var(--bg-secondary);
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  font-size: 0.6875rem;
 }
 
 .up-to-date {

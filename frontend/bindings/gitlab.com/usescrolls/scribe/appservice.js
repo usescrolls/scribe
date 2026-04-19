@@ -167,7 +167,7 @@ export function GetAgentStatus() {
 }
 
 /**
- * GetInstallMethod returns how Scribe was installed ("homebrew", "app-bundle", "binary", "dev", "unknown").
+ * GetInstallMethod returns how Scribe was installed ("app-bundle", "binary", "dev", "unknown").
  * @returns {$CancellablePromise<string>}
  */
 export function GetInstallMethod() {
