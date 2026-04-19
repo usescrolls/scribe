@@ -12,6 +12,11 @@ describe("SkillCard", () => {
     installedAt: "2025-01-29T10:00:00Z",
     agents: ["claude-code", "cursor"],
   }
+  const prefixedSkill: SkillInfo = {
+    ...mockSkill,
+    name: "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+    displayName: "avoid-ai-tropes",
+  }
 
   const mockWorkspaces: WorkspaceInfo[] = [
     {
@@ -46,6 +51,12 @@ describe("SkillCard", () => {
       const wrapper = mountSkillCard()
 
       expect(wrapper.find(".name").text()).toBe("react-patterns")
+    })
+
+    it("prefers displayName for the visible label", () => {
+      const wrapper = mountSkillCard(prefixedSkill)
+
+      expect(wrapper.find(".name").text()).toBe("avoid-ai-tropes")
     })
 
     it("renders skill description (truncated)", () => {
@@ -150,6 +161,17 @@ describe("SkillCard", () => {
       const wrapper = mountSkillCard(mockSkill, { showUninstall: true })
 
       expect(wrapper.find(".uninstall-btn .btn-label").text()).toBe("Uninstall")
+    })
+
+    it("emits the canonical name for uninstall when displayName differs", async () => {
+      const wrapper = mountSkillCard(prefixedSkill, { showUninstall: true })
+
+      await wrapper.find(".uninstall-btn").trigger("click")
+
+      expect(wrapper.emitted("uninstall")).toBeTruthy()
+      expect(wrapper.emitted("uninstall")![0]).toEqual([
+        "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+      ])
     })
   })
 
@@ -303,6 +325,27 @@ describe("SkillCard", () => {
       expect(wrapper.emitted("add-to-workspace")).toBeTruthy()
       expect(wrapper.emitted("add-to-workspace")![0]).toEqual([
         "react-patterns",
+        "default",
+      ])
+    })
+
+    it("uses the canonical name for workspace actions when displayName differs", async () => {
+      const wrapper = mountSkillCard(prefixedSkill, {
+        showWorkspacePicker: true,
+        allWorkspaces: mockWorkspaces,
+        skillWorkspaces: [],
+      })
+
+      await wrapper.find(".ws-picker-btn").trigger("click")
+
+      const checkboxes = wrapper.findAll(
+        '.ws-picker-item input[type="checkbox"]',
+      )
+      await checkboxes[0].setValue(true)
+
+      expect(wrapper.emitted("add-to-workspace")).toBeTruthy()
+      expect(wrapper.emitted("add-to-workspace")![0]).toEqual([
+        "gitlab-nunomen-claude-skills--avoid-ai-tropes",
         "default",
       ])
     })

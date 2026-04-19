@@ -3,7 +3,7 @@
     <ConfirmDialog
       v-if="confirmRemoveName"
       title="Remove from Workspace"
-      :message="`Remove &quot;${confirmRemoveName}&quot; from this workspace?`"
+      :message="`Remove &quot;${confirmRemoveLabel}&quot; from this workspace?`"
       confirm-label="Remove"
       :danger="true"
       @confirm="executeRemove"
@@ -227,6 +227,11 @@ function handleDetail(skill: SkillInfo) {
 
 const confirmRemoveName = ref<string | null>(null)
 const confirmRemoveGroup = ref<SourceGroup | null>(null)
+const confirmRemoveLabel = computed(() => {
+  if (!confirmRemoveName.value) return ''
+  const skill = skills.value.find(s => s.name === confirmRemoveName.value)
+  return skill?.displayName || skill?.name || confirmRemoveName.value
+})
 
 function handleRemove(name: string) {
   confirmRemoveName.value = name

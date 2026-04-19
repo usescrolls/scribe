@@ -6,7 +6,7 @@
           <div class="detail-header">
             <div class="detail-title">
               <span class="source-badge">{{ skill.sourceType }}</span>
-              <h3>{{ skill.name }}</h3>
+              <h3>{{ displayName }}</h3>
             </div>
             <button class="close-btn" @click="handleClose" title="Close">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { Browser } from '@wailsio/runtime'
 import { marked } from 'marked'
 import { AppService } from '../bindings/scribe'
@@ -55,6 +55,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const renderedContent = ref<string | null>(null)
 const contentEl = ref<HTMLElement | null>(null)
+const displayName = computed(() => props.skill.displayName || props.skill.name)
 
 // Intercept link clicks in rendered markdown and open in system browser
 function handleContentClick(e: MouseEvent) {

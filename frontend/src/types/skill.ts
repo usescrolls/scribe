@@ -1,5 +1,6 @@
 export interface SkillInfo {
   name: string
+  displayName?: string
   description: string
   source: string
   sourceType: string

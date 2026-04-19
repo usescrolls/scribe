@@ -3,7 +3,7 @@
     <ConfirmDialog
       v-if="confirmUninstallName"
       title="Uninstall Skill"
-      :message="`Uninstall &quot;${confirmUninstallName}&quot;? This will remove it from all workspaces.`"
+      :message="`Uninstall &quot;${confirmUninstallLabel}&quot;? This will remove it from all workspaces.`"
       confirm-label="Uninstall"
       :danger="true"
       @confirm="executeUninstall"
@@ -325,7 +325,7 @@ async function handleUpdateGroup(group: SourceGroup) {
         const result = await AppService.UpdateSkill(skill.name)
         if (result) results.push(result as UpdateResult)
       } catch (e) {
-        const msg = e instanceof Error ? e.message : `Failed to update ${skill.name}`
+        const msg = e instanceof Error ? e.message : `Failed to update ${getSkillLabel(skill)}`
         errors.push(msg)
       }
     }
@@ -416,6 +416,10 @@ function isHttpUrl(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://')
 }
 
+function getSkillLabel(skill: SkillInfo | undefined): string {
+  return skill?.displayName || skill?.name || ''
+}
+
 const detailSkill = ref<SkillInfo | null>(null)
 
 function handleDetail(skill: SkillInfo) {
@@ -424,6 +428,11 @@ function handleDetail(skill: SkillInfo) {
 
 const confirmUninstallName = ref<string | null>(null)
 const confirmUninstallGroup = ref<SourceGroup | null>(null)
+const confirmUninstallLabel = computed(() => {
+  if (!confirmUninstallName.value) return ''
+  const skill = allSkillsRaw.value.find(s => s.name === confirmUninstallName.value)
+  return getSkillLabel(skill) || confirmUninstallName.value
+})
 
 function handleUninstall(name: string) {
   confirmUninstallName.value = name

@@ -228,6 +228,42 @@ describe("SkillList", () => {
       expect(dialog.props("danger")).toBe(true)
     })
 
+    it("uses displayName in the remove confirmation text", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+          displayName: "avoid-ai-tropes",
+          description: "Avoid AI tropes",
+          source: "nunomen/claude-skills",
+          sourceType: "gitlab",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ])
+      mockAppService.GetWorkspaces.mockResolvedValue([
+        {
+          name: "default",
+          description: "Default workspace",
+          skills: ["gitlab-nunomen-claude-skills--avoid-ai-tropes"],
+          isActive: true,
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+      const card = wrapper.findComponent({ name: "SkillCard" })
+      await card.vm.$emit(
+        "remove",
+        "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+      )
+      await flushPromises()
+
+      const dialog = wrapper.findComponent(ConfirmDialog)
+      expect(dialog.props("message")).toContain("avoid-ai-tropes")
+      expect(dialog.props("message")).not.toContain(
+        "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+      )
+    })
+
     it("calls RemoveSkillFromWorkspace on confirm", async () => {
       mockAppService.RemoveSkillFromWorkspace.mockResolvedValue(undefined)
 

@@ -13,6 +13,11 @@ describe("SkillDetailModal", () => {
     installedAt: "2025-01-29T10:00:00Z",
     agents: ["claude-code"],
   }
+  const prefixedSkill: SkillInfo = {
+    ...mockSkill,
+    name: "gitlab-nunomen-claude-skills--avoid-ai-tropes",
+    displayName: "avoid-ai-tropes",
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -40,6 +45,13 @@ describe("SkillDetailModal", () => {
       const wrapper = mountModal()
 
       expect(wrapper.find(".detail-title h3").text()).toBe("react-patterns")
+    })
+
+    it("prefers displayName in the header", () => {
+      mockAppService.GetSkillContent.mockResolvedValue("")
+      const wrapper = mountModal(prefixedSkill)
+
+      expect(wrapper.find(".detail-title h3").text()).toBe("avoid-ai-tropes")
     })
 
     it("shows source type badge", () => {
@@ -82,6 +94,16 @@ describe("SkillDetailModal", () => {
 
       expect(mockAppService.GetSkillContent).toHaveBeenCalledWith(
         "react-patterns",
+      )
+    })
+
+    it("uses the canonical name for content loading when displayName differs", async () => {
+      mockAppService.GetSkillContent.mockResolvedValue("# Hello")
+      mountModal(prefixedSkill)
+      await flushPromises()
+
+      expect(mockAppService.GetSkillContent).toHaveBeenCalledWith(
+        "gitlab-nunomen-claude-skills--avoid-ai-tropes",
       )
     })
 
