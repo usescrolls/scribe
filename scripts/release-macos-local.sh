@@ -251,7 +251,7 @@ main() {
     latest_file="$(mktemp)"
     legacy_latest_file="$(mktemp)"
     rclone_config="$(mktemp)"
-    trap 'rm -f "${latest_file}" "${legacy_latest_file}" "${rclone_config}"' EXIT
+    trap "rm -f -- \"${latest_file}\" \"${legacy_latest_file}\" \"${rclone_config}\"" EXIT
 
     configure_rclone "${rclone_config}"
     export RCLONE_CONFIG="${rclone_config}"
