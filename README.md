@@ -1,7 +1,7 @@
 # Scribe
 
-![Go Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/nunomen/f7a526db56e4e8869e1a3ff5bae38b38/raw/go-coverage.json)
-![Frontend Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/nunomen/f7a526db56e4e8869e1a3ff5bae38b38/raw/frontend-coverage.json)
+![Go Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgitlab.com%2Fusescrolls%2Fscribe%2F-%2Fjobs%2Fartifacts%2Fmain%2Fraw%2Fbadges%2Fgo-coverage.json%3Fjob%3Dgo-test)
+![Frontend Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgitlab.com%2Fusescrolls%2Fscribe%2F-%2Fjobs%2Fartifacts%2Fmain%2Fraw%2Fbadges%2Ffrontend-coverage.json%3Fjob%3Dfrontend)
 
 A skill distribution tool that syncs AI coding skills to 39 coding agents.
 

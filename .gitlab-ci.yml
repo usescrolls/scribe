@@ -64,11 +64,26 @@ go-test:
   script:
     - go test -v -coverprofile=coverage.out ./internal/...
     - go run github.com/boumenot/gocover-cobertura@v1.4.0 < coverage.out > coverage.xml
-    - GO_COV=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-    - 'echo "Go coverage: ${GO_COV}%"'
+    - |
+      GO_COV=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
+      echo "Go coverage: ${GO_COV}%"
+      badge_color() {
+        awk -v pct="$1" 'BEGIN {
+          if (pct >= 90) print "brightgreen";
+          else if (pct >= 80) print "green";
+          else if (pct >= 70) print "yellowgreen";
+          else if (pct >= 60) print "yellow";
+          else if (pct >= 50) print "orange";
+          else print "red";
+        }'
+      }
+      mkdir -p badges
+      GO_BADGE_COLOR=$(badge_color "$GO_COV")
+      printf '{"schemaVersion":1,"label":"go coverage","message":"%s%%","color":"%s"}\n' "$GO_COV" "$GO_BADGE_COLOR" > badges/go-coverage.json
   coverage: '/Go coverage:\s+(\d+\.\d+)%/'
   artifacts:
     paths:
+      - badges/go-coverage.json
       - coverage.out
       - coverage.xml
     reports:
@@ -76,6 +91,7 @@ go-test:
         coverage_format: cobertura
         path: coverage.xml
   rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG =~ /^v/
 
 # ---------------------------------------------------------------------------
@@ -91,11 +107,28 @@ frontend:
     - pnpm --dir frontend install --frozen-lockfile --prefer-offline
   script:
     - pnpm --dir frontend run test:coverage
+    - |
+      FRONTEND_COV=$(node -e "const fs = require('node:fs'); const summary = JSON.parse(fs.readFileSync('frontend/coverage/coverage-summary.json', 'utf8')); process.stdout.write(summary.total.lines.pct.toFixed(1));")
+      badge_color() {
+        awk -v pct="$1" 'BEGIN {
+          if (pct >= 90) print "brightgreen";
+          else if (pct >= 80) print "green";
+          else if (pct >= 70) print "yellowgreen";
+          else if (pct >= 60) print "yellow";
+          else if (pct >= 50) print "orange";
+          else print "red";
+        }'
+      }
+      mkdir -p badges
+      FRONTEND_BADGE_COLOR=$(badge_color "$FRONTEND_COV")
+      printf '{"schemaVersion":1,"label":"frontend coverage","message":"%s%%","color":"%s"}\n' "$FRONTEND_COV" "$FRONTEND_BADGE_COLOR" > badges/frontend-coverage.json
     - pnpm --dir frontend run build
   artifacts:
     paths:
+      - badges/frontend-coverage.json
       - frontend/dist
   rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG =~ /^v/
 
 # ---------------------------------------------------------------------------
