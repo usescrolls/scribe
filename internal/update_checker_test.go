@@ -183,6 +183,8 @@ func TestBuildReleaseManifestURL(t *testing.T) {
 	}{
 		{"https://cdn.example.com", "https://cdn.example.com/releases/latest"},
 		{"https://cdn.example.com/", "https://cdn.example.com/releases/latest"},
+		{"https://cdn.example.com/scribe", "https://cdn.example.com/scribe/releases/latest"},
+		{"https://cdn.example.com/scribe/", "https://cdn.example.com/scribe/releases/latest"},
 		{"http://localhost:1234", "http://localhost:1234/releases/latest"},
 	}
 	for _, tt := range tests {

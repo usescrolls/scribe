@@ -22,7 +22,7 @@ OS=$(uname -s)
 
 # --- Install ---
 
-DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com"
+DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
 DOWNLOAD_BASE="${SCRIBE_DOWNLOAD_BASE:-${PUBLIC_DOWNLOAD_BASE:-$DEFAULT_DOWNLOAD_BASE}}"
 DOWNLOAD_BASE="${DOWNLOAD_BASE%/}"
 ARCH=$(uname -m)

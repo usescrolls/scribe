@@ -11,7 +11,7 @@ var Version = "dev"
 
 // PublicDownloadBase is the public base URL for release binaries and installer
 // assets. It is overridden at build time via ldflags when releases are built.
-var PublicDownloadBase = "https://cdn.usescrolls.com"
+var PublicDownloadBase = "https://cdn.usescrolls.com/scribe"
 
 const (
 	MarketplaceName  = "scribe"

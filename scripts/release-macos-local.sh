@@ -3,11 +3,12 @@ set -euo pipefail
 
 # Build and publish the macOS arm64 release asset from a tagged macOS checkout.
 # Required env vars: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT.
-# Optional env vars: PUBLIC_DOWNLOAD_BASE, CDN_BUCKET, GITLAB_PROJECT_URL.
+# Optional env vars: PUBLIC_DOWNLOAD_BASE, CDN_BUCKET, CDN_PREFIX, GITLAB_PROJECT_URL.
 # If present, a repo-root .env file is loaded automatically.
 
-DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com"
+DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
 DEFAULT_CDN_BUCKET="agenthub-plugins"
+DEFAULT_CDN_PREFIX="scribe"
 ASSET_NAME="scribe-darwin-arm64"
 WINDOWS_ASSET="scribe-windows-amd64.exe"
 LINUX_ASSET="scribe-linux-amd64"
@@ -117,6 +118,20 @@ wait_for_public_asset() {
     fail "${failure_message}: ${asset_url}"
 }
 
+ensure_public_download_base_matches_prefix() {
+    local public_download_base="$1"
+    local cdn_prefix="$2"
+
+    [[ -z "${cdn_prefix}" ]] && return 0
+
+    case "${public_download_base%/}" in
+        */"${cdn_prefix}") ;;
+        *)
+            fail "PUBLIC_DOWNLOAD_BASE must end with /${cdn_prefix}. Current value: ${public_download_base}"
+            ;;
+    esac
+}
+
 configure_rclone() {
     : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required}"
     : "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required}"
@@ -134,6 +149,19 @@ no_check_bucket = true
 EOF
 }
 
+storage_key() {
+    local prefix="$1"
+    local path="$2"
+
+    prefix="${prefix%/}"
+    if [[ -z "${prefix}" ]]; then
+        printf '%s\n' "${path}"
+        return 0
+    fi
+
+    printf '%s/%s\n' "${prefix}" "${path}"
+}
+
 main() {
     local root_dir=""
     local tag=""
@@ -141,10 +169,12 @@ main() {
     local project_url=""
     local public_download_base="${PUBLIC_DOWNLOAD_BASE:-${DEFAULT_DOWNLOAD_BASE}}"
     local cdn_bucket="${CDN_BUCKET:-${DEFAULT_CDN_BUCKET}}"
+    local cdn_prefix="${CDN_PREFIX:-${DEFAULT_CDN_PREFIX}}"
     local release_dir="build/release"
     local asset_path="${release_dir}/${ASSET_NAME}"
     local macos_version=""
     local latest_file=""
+    local legacy_latest_file=""
     local rclone_config=""
 
     [[ "$(uname -s)" == "Darwin" ]] || fail "this script must run on macOS"
@@ -169,6 +199,8 @@ main() {
 
     public_download_base="${PUBLIC_DOWNLOAD_BASE:-${DEFAULT_DOWNLOAD_BASE}}"
     cdn_bucket="${CDN_BUCKET:-${DEFAULT_CDN_BUCKET}}"
+    cdn_prefix="${CDN_PREFIX:-${DEFAULT_CDN_PREFIX}}"
+    ensure_public_download_base_matches_prefix "${public_download_base}" "${cdn_prefix}"
 
     log "Releasing ${tag} from $(git rev-parse --short HEAD)"
 
@@ -194,13 +226,14 @@ main() {
     wait_for_ci_assets "${public_download_base}"
 
     latest_file="$(mktemp)"
+    legacy_latest_file="$(mktemp)"
     rclone_config="$(mktemp)"
-    trap 'rm -f "${latest_file}" "${rclone_config}"' EXIT
+    trap 'rm -f "${latest_file}" "${legacy_latest_file}" "${rclone_config}"' EXIT
 
     configure_rclone "${rclone_config}"
     export RCLONE_CONFIG="${rclone_config}"
 
-    rclone copyto "${asset_path}" "r2:${cdn_bucket}/${ASSET_NAME}"
+    rclone copyto "${asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${ASSET_NAME}")"
     wait_for_public_asset "${public_download_base}/${ASSET_NAME}" "uploaded macOS asset is not available yet"
 
     cat >"${latest_file}" <<EOF
@@ -216,9 +249,14 @@ main() {
 }
 EOF
 
-    rclone copyto "${latest_file}" "r2:${cdn_bucket}/releases/latest"
+    cp "${latest_file}" "${legacy_latest_file}"
 
-    log "Uploaded ${ASSET_NAME} and refreshed releases/latest for ${tag}"
+    rclone copyto "${latest_file}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "releases/latest")"
+    # Keep the legacy manifest path alive so existing installs that still check
+    # /releases/latest can discover the namespaced asset URLs.
+    rclone copyto "${legacy_latest_file}" "r2:${cdn_bucket}/releases/latest"
+
+    log "Uploaded ${ASSET_NAME} and refreshed ${cdn_prefix}/releases/latest for ${tag}"
 }
 
 main "$@"

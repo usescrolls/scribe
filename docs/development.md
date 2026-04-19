@@ -403,7 +403,37 @@ make build
 make build
 ```
 
-For CI/CD, use platform-specific runners or Docker containers.
+Linux and Windows release artifacts are built in GitLab CI. The macOS release
+artifact is built and published locally from a tagged macOS checkout because the
+GUI build requires the Apple SDK.
+
+## Release Publishing
+
+Tagged releases are split across CI and a local macOS publish step:
+
+- GitLab CI runs tests, builds the Linux and Windows binaries, uploads them to the CDN, and creates the GitLab release entry.
+- A local macOS checkout builds `scribe-darwin-arm64`, uploads it to the same CDN prefix, and writes the final release manifest consumed by auto-update.
+
+Run the macOS publish step from a clean macOS checkout where `HEAD` has exactly one `v*` tag:
+
+```bash
+./scripts/release-macos-local.sh
+```
+
+The script auto-loads `.env` from the repo root. Start from [`.env.example`](../.env.example) and set at least:
+
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_ENDPOINT`
+
+Optional overrides:
+
+- `CDN_BUCKET`
+- `CDN_PREFIX` (defaults to `scribe`)
+- `PUBLIC_DOWNLOAD_BASE` (must end with `/scribe` when `CDN_PREFIX=scribe`)
+- `GITLAB_PROJECT_URL`
+
+The script waits for the CI-published Linux and Windows assets, uploads the macOS binary to `scribe/`, writes `scribe/releases/latest`, and also refreshes the legacy root `releases/latest` manifest for older installed builds.
 
 ---
 
