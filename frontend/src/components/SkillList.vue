@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <div v-for="group in groupedSkills" :key="group.source" class="source-group">
+      <div v-for="group in groupedSkills" :key="group.key" class="source-group">
         <div class="group-header">
           <input
             v-if="selectionMode && hasSelectableSkills(group)"
@@ -136,6 +136,7 @@ import EmptyState from './EmptyState.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
+import { sourceGroupKey } from '../utils/source'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const skills = ref<SkillInfo[]>([])
@@ -163,6 +164,7 @@ const filteredSkills = computed(() => {
 })
 
 interface SourceGroup {
+  key: string
   source: string
   sourceType: string
   sourceUrl?: string
@@ -172,9 +174,15 @@ interface SourceGroup {
 const groupedSkills = computed<SourceGroup[]>(() => {
   const groups = new Map<string, SourceGroup>()
   for (const skill of filteredSkills.value) {
-    const key = skill.source || 'unknown'
+    const key = sourceGroupKey(skill.source, skill.sourceType)
     if (!groups.has(key)) {
-      groups.set(key, { source: skill.source || 'Unknown source', sourceType: skill.sourceType || 'local', sourceUrl: skill.sourceUrl, skills: [] })
+      groups.set(key, {
+        key,
+        source: skill.source || 'Unknown source',
+        sourceType: skill.sourceType || 'local',
+        sourceUrl: skill.sourceUrl,
+        skills: [],
+      })
     }
     groups.get(key)!.skills.push(skill)
   }

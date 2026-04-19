@@ -189,6 +189,7 @@ func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
 
 	// Group skill names by their source
 	type sourceGroup struct {
+		key        string
 		source     string
 		sourceType string
 		skills     []string
@@ -206,13 +207,17 @@ func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
 		if skill.Meta.SourceType == "local" || skill.Meta.SourceType == "builtin" {
 			continue
 		}
-		key := skill.Meta.Source
+		key := sourceIdentityFromMeta(skill.Meta)
 		if key == "" {
 			continue
 		}
 		g, ok := groups[key]
 		if !ok {
-			g = &sourceGroup{source: key, sourceType: skill.Meta.SourceType}
+			g = &sourceGroup{
+				key:        key,
+				source:     skill.Meta.Source,
+				sourceType: skill.Meta.SourceType,
+			}
 			groups[key] = g
 		}
 		g.skills = append(g.skills, name)
@@ -221,11 +226,11 @@ func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
 	now := time.Now().UTC().Format(time.RFC3339)
 	results := make(map[string]SourceGroupCheckResult, len(groups))
 
-	for key, g := range groups {
+	for _, g := range groups {
 		checkResults, newSkills := CheckSourceForUpdates(g.source, g.skills)
 
 		sgr := SourceGroupCheckResult{
-			Source:             key,
+			Source:             g.source,
 			CheckedAt:          now,
 			NewAvailableSkills: newSkills,
 		}
@@ -240,7 +245,7 @@ func CheckAllSourcesForUpdates() map[string]SourceGroupCheckResult {
 			}
 		}
 
-		results[key] = sgr
+		results[g.key] = sgr
 	}
 
 	return results

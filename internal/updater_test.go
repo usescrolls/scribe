@@ -546,9 +546,9 @@ func TestCheckAllSourcesForUpdates_GroupsBySource(t *testing.T) {
 		t.Fatalf("expected 1 source group, got %d", len(results))
 	}
 
-	sgr, ok := results["testowner/remote-repo"]
+	sgr, ok := results["github:testowner/remote-repo"]
 	if !ok {
-		t.Fatal("expected result for 'testowner/remote-repo'")
+		t.Fatal("expected result for 'github:testowner/remote-repo'")
 	}
 	if sgr.HasUpdates {
 		t.Error("expected HasUpdates=false (all up to date)")
@@ -558,6 +558,58 @@ func TestCheckAllSourcesForUpdates_GroupsBySource(t *testing.T) {
 	}
 	if sgr.CheckedAt == "" {
 		t.Error("expected CheckedAt to be set")
+	}
+}
+
+func TestCheckAllSourcesForUpdates_SeparatesSameOwnerRepoAcrossProviders(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	githubContent := "---\nname: github-commit\ndescription: GitHub\n---\n# GitHub\n"
+	gitlabContent := "---\nname: gitlab-commit\ndescription: GitLab\n---\n# GitLab\n"
+
+	githubRepoDir := filepath.Join(tmpDir, "github-remote-repo")
+	githubRepoURL := createTestGitRepo(t, githubRepoDir, map[string]string{
+		"github-commit/SKILL.md": githubContent,
+	})
+
+	gitlabRepoDir := filepath.Join(tmpDir, "gitlab-remote-repo")
+	gitlabRepoURL := createTestGitRepo(t, gitlabRepoDir, map[string]string{
+		"gitlab-commit/SKILL.md": gitlabContent,
+	})
+
+	scrollsDir, _ := GetScrollsDir()
+	for _, tc := range []struct {
+		name       string
+		content    string
+		sourceType string
+		sourceURL  string
+	}{
+		{"github-commit", githubContent, "github", githubRepoURL},
+		{"gitlab-commit", gitlabContent, "gitlab", gitlabRepoURL},
+	} {
+		skillDir := filepath.Join(scrollsDir, tc.name)
+		_ = os.MkdirAll(skillDir, 0o755)
+		_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(tc.content), 0o644)
+		meta := NewSkillMeta(&SourceInfo{
+			Type: tc.sourceType, Owner: "nunomen", Repo: "claude-skills", URL: tc.sourceURL,
+		}, "", tc.content, nil)
+		meta.Source = "nunomen/claude-skills"
+		meta.SourceType = tc.sourceType
+		_ = WriteSkillMeta(filepath.Join(skillDir, MetaFileName), meta)
+	}
+
+	results := CheckAllSourcesForUpdates()
+	if len(results) != 2 {
+		t.Fatalf("expected 2 source groups, got %d", len(results))
+	}
+
+	if _, ok := results["github:nunomen/claude-skills"]; !ok {
+		t.Fatal("expected GitHub source group")
+	}
+	if _, ok := results["gitlab:nunomen/claude-skills"]; !ok {
+		t.Fatal("expected GitLab source group")
 	}
 }
 
@@ -590,7 +642,7 @@ func TestCheckAllSourcesForUpdates_DetectsOutdated(t *testing.T) {
 		t.Fatalf("expected 1 source group, got %d", len(results))
 	}
 
-	sgr := results["testowner/remote-repo"]
+	sgr := results["github:testowner/remote-repo"]
 	if !sgr.HasUpdates {
 		t.Error("expected HasUpdates=true")
 	}
@@ -1225,9 +1277,9 @@ func TestCheckAllSourcesForUpdates_PopulatesNewAvailableSkills(t *testing.T) {
 		t.Fatalf("expected 1 source group, got %d", len(allResults))
 	}
 
-	sgr, ok := allResults["testowner/remote-repo"]
+	sgr, ok := allResults["github:testowner/remote-repo"]
 	if !ok {
-		t.Fatal("expected result for 'testowner/remote-repo'")
+		t.Fatal("expected result for 'github:testowner/remote-repo'")
 	}
 
 	if len(sgr.NewAvailableSkills) != 2 {

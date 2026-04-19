@@ -101,6 +101,35 @@ describe("BrowseSkills", () => {
       expect(groups).toHaveLength(2)
     })
 
+    it("keeps github and gitlab repos with the same owner/repo in separate groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "github-skill",
+          description: "From GitHub",
+          source: "nunomen/claude-skills",
+          sourceType: "github",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+        {
+          name: "gitlab-skill",
+          description: "From GitLab",
+          source: "nunomen/claude-skills",
+          sourceType: "gitlab",
+          installedAt: "2025-01-28T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+
+      const groups = wrapper.findAll(".source-group")
+      expect(groups).toHaveLength(2)
+
+      const badges = wrapper.findAll(".group-badge")
+      expect(badges.map((badge) => badge.text())).toEqual(["github", "gitlab"])
+    })
+
     it("shows source avatar in group header for github sources", async () => {
       const wrapper = await mountBrowseSkills()
 
@@ -1595,7 +1624,7 @@ describe("BrowseSkills", () => {
 
     it("shows CTA with correct count when new skills available", async () => {
       sourceUpdates.value = {
-        "vercel-labs/skills": {
+        "github:vercel-labs/skills": {
           source: "vercel-labs/skills",
           hasUpdates: false,
           updatedSkillNames: [],
@@ -1624,7 +1653,7 @@ describe("BrowseSkills", () => {
 
     it("uses singular 'skill' for count of 1", async () => {
       sourceUpdates.value = {
-        "vercel-labs/skills": {
+        "github:vercel-labs/skills": {
           source: "vercel-labs/skills",
           hasUpdates: false,
           updatedSkillNames: [],
@@ -1648,7 +1677,7 @@ describe("BrowseSkills", () => {
 
     it("emits install-from-source when CTA clicked", async () => {
       sourceUpdates.value = {
-        "vercel-labs/skills": {
+        "github:vercel-labs/skills": {
           source: "vercel-labs/skills",
           hasUpdates: false,
           updatedSkillNames: [],
@@ -1676,7 +1705,7 @@ describe("BrowseSkills", () => {
     it("CTA disappears when re-check shows skills are now installed", async () => {
       // Simulate stale sourceUpdates showing 2 new skills available
       sourceUpdates.value = {
-        "vercel-labs/skills": {
+        "github:vercel-labs/skills": {
           source: "vercel-labs/skills",
           hasUpdates: false,
           updatedSkillNames: [],
@@ -1698,7 +1727,7 @@ describe("BrowseSkills", () => {
 
       // Backend re-check returns no new skills (they were just installed)
       mockAppService.CheckSourceGroupUpdates.mockResolvedValue({
-        "vercel-labs/skills": {
+        "github:vercel-labs/skills": {
           source: "vercel-labs/skills",
           hasUpdates: false,
           updatedSkillNames: [],
@@ -1729,7 +1758,7 @@ describe("BrowseSkills", () => {
       mockAppService.GetSkills.mockResolvedValue(sshSkills)
 
       sourceUpdates.value = {
-        "my-org/private-repo": {
+        "github:my-org/private-repo": {
           source: "my-org/private-repo",
           hasUpdates: false,
           updatedSkillNames: [],

@@ -104,6 +104,43 @@ describe("SkillList", () => {
       expect(groups).toHaveLength(2)
     })
 
+    it("keeps github and gitlab repos with the same owner/repo in separate groups", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          name: "github-skill",
+          description: "From GitHub",
+          source: "nunomen/claude-skills",
+          sourceType: "github",
+          installedAt: "2025-01-29T10:00:00Z",
+          agents: ["claude-code"],
+        },
+        {
+          name: "gitlab-skill",
+          description: "From GitLab",
+          source: "nunomen/claude-skills",
+          sourceType: "gitlab",
+          installedAt: "2025-01-28T10:00:00Z",
+          agents: ["claude-code"],
+        },
+      ])
+      mockAppService.GetWorkspaces.mockResolvedValue([
+        {
+          name: "default",
+          description: "Default workspace",
+          skills: ["github-skill", "gitlab-skill"],
+          isActive: true,
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+
+      const groups = wrapper.findAll(".source-group")
+      expect(groups).toHaveLength(2)
+
+      const badges = wrapper.findAll(".group-badge")
+      expect(badges.map((badge) => badge.text())).toEqual(["github", "gitlab"])
+    })
+
     it("shows source avatar in group header", async () => {
       const wrapper = await mountSkillList()
 

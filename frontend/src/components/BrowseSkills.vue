@@ -49,7 +49,7 @@
         </div>
       </div>
 
-      <div v-for="group in groupedSkills" :key="group.source" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
+      <div v-for="group in groupedSkills" :key="group.key" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
         <div class="group-header">
           <input
             v-if="selectionMode && hasSelectableSkills(group)"
@@ -91,10 +91,10 @@
             v-if="isGroupUpdatable(group)"
             class="group-action-btn group-update-btn"
             :class="{ 'group-update-btn--highlighted': groupHasUpdate(group) }"
-            :disabled="updatingGroup === group.source"
+            :disabled="updatingGroup === group.key"
             @click="handleUpdateGroup(group)"
           >
-            {{ updatingGroup === group.source ? 'Updating...' : 'Update' }}
+            {{ updatingGroup === group.key ? 'Updating...' : 'Update' }}
           </button>
           <button
             v-if="group.skills.length > 1"
@@ -173,6 +173,7 @@ import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
 import { useSkillUpdateChecker } from '../composables/useSkillUpdateChecker'
+import { sourceGroupKey } from '../utils/source'
 import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
 
 const emit = defineEmits<{
@@ -197,6 +198,7 @@ let unsubscribeWorkspace: { (): void } | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 interface SourceGroup {
+  key: string
   source: string
   sourceType: string
   sourceUrl?: string
@@ -206,9 +208,15 @@ interface SourceGroup {
 const groupedSkills = computed<SourceGroup[]>(() => {
   const groups = new Map<string, SourceGroup>()
   for (const skill of allSkillsRaw.value) {
-    const key = skill.source || 'unknown'
+    const key = sourceGroupKey(skill.source, skill.sourceType)
     if (!groups.has(key)) {
-      groups.set(key, { source: skill.source || 'Unknown source', sourceType: skill.sourceType || 'local', sourceUrl: skill.sourceUrl, skills: [] })
+      groups.set(key, {
+        key,
+        source: skill.source || 'Unknown source',
+        sourceType: skill.sourceType || 'local',
+        sourceUrl: skill.sourceUrl,
+        skills: [],
+      })
     }
     groups.get(key)!.skills.push(skill)
   }
@@ -287,11 +295,11 @@ function isGroupUpdatable(group: SourceGroup): boolean {
 }
 
 function groupHasUpdate(group: SourceGroup): boolean {
-  return sourceHasUpdates(group.source)
+  return sourceHasUpdates(group.key)
 }
 
 function getNewAvailableCount(group: SourceGroup): number {
-  const info = getUpdateInfo(group.source)
+  const info = getUpdateInfo(group.key)
   return info?.newAvailableSkills?.length ?? 0
 }
 
@@ -300,7 +308,7 @@ function handleInstallNewSkills(group: SourceGroup) {
 }
 
 function getUpdateTooltip(group: SourceGroup): string {
-  const info = getUpdateInfo(group.source)
+  const info = getUpdateInfo(group.key)
   if (!info || !info.updatedSkillNames?.length) return 'Update available'
   const count = info.updatedSkillNames.length
   return `${count} skill${count !== 1 ? 's' : ''} changed: ${info.updatedSkillNames.join(', ')}`
@@ -308,7 +316,7 @@ function getUpdateTooltip(group: SourceGroup): string {
 
 async function handleUpdateGroup(group: SourceGroup) {
   if (updatingGroup.value) return
-  updatingGroup.value = group.source
+  updatingGroup.value = group.key
   try {
     const results: UpdateResult[] = []
     const errors: string[] = []
@@ -322,7 +330,7 @@ async function handleUpdateGroup(group: SourceGroup) {
       }
     }
     await fetchAll()
-    clearUpdate(group.source)
+    clearUpdate(group.key)
 
     // Show toast with update summary
     const updated = results.filter(r => r.updated)

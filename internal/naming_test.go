@@ -17,8 +17,21 @@ func TestSourceQualifier_GitHub(t *testing.T) {
 func TestSourceQualifier_GitLab(t *testing.T) {
 	source := &SourceInfo{Type: "gitlab", Owner: "bob", Repo: "tools"}
 	got := SourceQualifier(source)
-	if got != "bob-tools" {
-		t.Errorf("SourceQualifier() = %q, want %q", got, "bob-tools")
+	if got != "gitlab-bob-tools" {
+		t.Errorf("SourceQualifier() = %q, want %q", got, "gitlab-bob-tools")
+	}
+}
+
+func TestSourceQualifier_GenericGitUsesHost(t *testing.T) {
+	source := &SourceInfo{
+		Type:  "git",
+		Owner: "bob",
+		Repo:  "tools",
+		URL:   "https://git.example.com/team/tools.git",
+	}
+	got := SourceQualifier(source)
+	if got != "git-example-com-team-tools" {
+		t.Errorf("SourceQualifier() = %q, want %q", got, "git-example-com-team-tools")
 	}
 }
 
@@ -81,6 +94,14 @@ func TestSourceQualifierFromMeta(t *testing.T) {
 	got := SourceQualifierFromMeta(meta)
 	if got != "alice-skills" {
 		t.Errorf("SourceQualifierFromMeta() = %q, want %q", got, "alice-skills")
+	}
+}
+
+func TestSourceQualifierFromMeta_GitLab(t *testing.T) {
+	meta := &SkillMeta{Source: "alice/skills", SourceType: "gitlab"}
+	got := SourceQualifierFromMeta(meta)
+	if got != "gitlab-alice-skills" {
+		t.Errorf("SourceQualifierFromMeta() = %q, want %q", got, "gitlab-alice-skills")
 	}
 }
 

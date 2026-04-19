@@ -829,6 +829,47 @@ func TestFilterAndResolveConflicts_Conflict(t *testing.T) {
 	}
 }
 
+func TestFilterAndResolveConflicts_DifferentSourceTypeSameOwnerRepo(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	githubSource := &SourceInfo{
+		Type:  "github",
+		Owner: "nunomen",
+		Repo:  "claude-skills",
+		URL:   "https://github.com/nunomen/claude-skills",
+	}
+	installTestSkillWithMeta(t, tmpDir, "commit", "commit", githubSource)
+
+	gitlabSource := &SourceInfo{
+		Type:  "gitlab",
+		Owner: "nunomen",
+		Repo:  "claude-skills",
+		URL:   "https://gitlab.com/nunomen/claude-skills",
+	}
+	skills := []*Skill{{Name: "commit", Description: "test", Path: filepath.Join(tmpDir, ".scribe", "scrolls", "commit")}}
+
+	toInstall, already, err := FilterAndResolveConflicts(skills, gitlabSource)
+	if err != nil {
+		t.Fatalf("FilterAndResolveConflicts() error: %v", err)
+	}
+	if len(already) != 0 {
+		t.Errorf("expected 0 already installed, got %d", len(already))
+	}
+	if len(toInstall) != 1 {
+		t.Fatalf("expected 1 skill to install, got %d", len(toInstall))
+	}
+	if toInstall[0].Name != "gitlab-nunomen-claude-skills--commit" {
+		t.Errorf("expected qualified name 'gitlab-nunomen-claude-skills--commit', got %q", toInstall[0].Name)
+	}
+
+	scrollsDir := filepath.Join(tmpDir, ".scribe", "scrolls")
+	if _, err := os.Stat(filepath.Join(scrollsDir, "nunomen-claude-skills--commit", "SKILL.md")); err != nil {
+		t.Error("existing GitHub skill should have been renamed to 'nunomen-claude-skills--commit'")
+	}
+}
+
 // installTestSkillWithMeta is a test helper that creates an installed skill
 // with proper SKILL.md frontmatter and .scribe-meta.json metadata.
 func installTestSkillWithMeta(t *testing.T, homeDir, storageName, fmName string, source *SourceInfo) {

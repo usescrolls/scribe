@@ -225,16 +225,16 @@ func copyFile(src, dst string) error {
 
 // installedSkillIndex maps frontmatter names to storage info for conflict detection.
 type installedSkillIndex struct {
-	fmToStorage   map[string][]string // lowercase frontmatter name → [storage names]
-	storageSource map[string]string   // storage name → source string
+	fmToStorage           map[string][]string // lowercase frontmatter name → [storage names]
+	storageSourceIdentity map[string]string   // storage name → source identity key
 }
 
 // buildInstalledIndex reads all installed skills and builds lookup maps.
 func buildInstalledIndex() *installedSkillIndex {
 	installed, _ := ListInstalledSkills()
 	idx := &installedSkillIndex{
-		fmToStorage:   make(map[string][]string, len(installed)),
-		storageSource: make(map[string]string, len(installed)),
+		fmToStorage:           make(map[string][]string, len(installed)),
+		storageSourceIdentity: make(map[string]string, len(installed)),
 	}
 	for _, storageName := range installed {
 		skill, err := ReadSkill(storageName)
@@ -244,7 +244,7 @@ func buildInstalledIndex() *installedSkillIndex {
 		fmKey := strings.ToLower(skill.Name)
 		idx.fmToStorage[fmKey] = append(idx.fmToStorage[fmKey], storageName)
 		if skill.Meta != nil {
-			idx.storageSource[storageName] = skill.Meta.Source
+			idx.storageSourceIdentity[storageName] = sourceIdentityFromMeta(skill.Meta)
 		}
 	}
 	return idx
@@ -255,7 +255,7 @@ func buildInstalledIndex() *installedSkillIndex {
 // Comparisons are case-insensitive.
 func FilterAlreadyInstalled(skills []*Skill, source *SourceInfo) (newSkills []*Skill, alreadyInstalledNames []string, conflicts []*Skill) {
 	idx := buildInstalledIndex()
-	newSource := formatSource(source)
+	newSourceIdentity := sourceIdentityFromSourceInfo(source)
 
 	for _, skill := range skills {
 		fmKey := strings.ToLower(skill.Name)
@@ -266,7 +266,7 @@ func FilterAlreadyInstalled(skills []*Skill, source *SourceInfo) (newSkills []*S
 			continue
 		}
 
-		if hasSourceMatch(idx.storageSource, existingNames, newSource) {
+		if hasSourceMatch(idx.storageSourceIdentity, existingNames, newSourceIdentity) {
 			alreadyInstalledNames = append(alreadyInstalledNames, skill.Name)
 		} else {
 			conflicts = append(conflicts, skill)
@@ -275,10 +275,10 @@ func FilterAlreadyInstalled(skills []*Skill, source *SourceInfo) (newSkills []*S
 	return
 }
 
-// hasSourceMatch checks if any of the storage names have a matching source string.
-func hasSourceMatch(storageSource map[string]string, storageNames []string, targetSource string) bool {
+// hasSourceMatch checks if any of the storage names have a matching source identity.
+func hasSourceMatch(storageSourceIdentity map[string]string, storageNames []string, targetSourceIdentity string) bool {
 	for _, sn := range storageNames {
-		if storageSource[sn] == targetSource {
+		if storageSourceIdentity[sn] == targetSourceIdentity {
 			return true
 		}
 	}

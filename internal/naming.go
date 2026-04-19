@@ -17,9 +17,22 @@ const (
 // Examples: "alice-skills" from owner=alice, repo=skills.
 func SourceQualifier(source *SourceInfo) string {
 	switch source.Type {
-	case "github", "gitlab", "bitbucket", "git":
+	case "github":
 		if source.Owner != "" && source.Repo != "" {
 			return SanitizeName(source.Owner + "-" + source.Repo)
+		}
+		return ""
+	case "gitlab", "bitbucket":
+		if source.Owner != "" && source.Repo != "" {
+			return SanitizeName(source.Type + "-" + source.Owner + "-" + source.Repo)
+		}
+		return ""
+	case "git":
+		if source.URL != "" {
+			return qualifierFromURL(source.URL)
+		}
+		if source.Owner != "" && source.Repo != "" {
+			return SanitizeName("git-" + source.Owner + "-" + source.Repo)
 		}
 		return ""
 	case "local":
@@ -66,12 +79,14 @@ func qualifierFromURL(rawURL string) string {
 	}
 	// Use host + first two path segments at most
 	host := strings.TrimPrefix(u.Host, "www.")
+	host = strings.NewReplacer(".", "-", ":", "-").Replace(host)
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	segments := []string{host}
 	for i, p := range parts {
 		if i >= 2 {
 			break
 		}
+		p = strings.TrimSuffix(p, ".git")
 		segments = append(segments, p)
 	}
 	return SanitizeName(strings.Join(segments, "-"))
