@@ -3,12 +3,14 @@ set -euo pipefail
 
 # Build and publish the macOS arm64 release asset from a tagged macOS checkout.
 # Required env vars: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT.
-# Optional env vars: PUBLIC_DOWNLOAD_BASE, CDN_BUCKET, CDN_PREFIX, GITLAB_PROJECT_URL.
+# Optional env vars: PUBLIC_DOWNLOAD_BASE, CDN_BUCKET, CDN_PREFIX, GITLAB_PROJECT_URL,
+# MACOS_MIN_VERSION.
 # If present, a repo-root .env file is loaded automatically.
 
 DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
 DEFAULT_CDN_BUCKET="agenthub-plugins"
 DEFAULT_CDN_PREFIX="scribe"
+DEFAULT_MACOS_MIN_VERSION="11.0"
 ASSET_NAME="scribe-darwin-arm64"
 WINDOWS_ASSET="scribe-windows-amd64.exe"
 LINUX_ASSET="scribe-linux-amd64"
@@ -195,7 +197,7 @@ main() {
     local cdn_prefix="${CDN_PREFIX:-${DEFAULT_CDN_PREFIX}}"
     local release_dir="build/release"
     local asset_path="${release_dir}/${ASSET_NAME}"
-    local macos_version=""
+    local macos_min_version="${MACOS_MIN_VERSION:-${DEFAULT_MACOS_MIN_VERSION}}"
     local latest_file=""
     local legacy_latest_file=""
     local rclone_config=""
@@ -208,7 +210,6 @@ main() {
     require_command make
     require_command rclone
     require_command curl
-    require_command sw_vers
 
     root_dir="$(repo_root)"
     cd "${root_dir}"
@@ -218,7 +219,6 @@ main() {
     tag="$(detect_tag)"
     version="${tag#v}"
     project_url="$(derive_project_url)"
-    macos_version="$(sw_vers -productVersion)"
 
     public_download_base="${PUBLIC_DOWNLOAD_BASE:-${DEFAULT_DOWNLOAD_BASE}}"
     cdn_bucket="${CDN_BUCKET:-${DEFAULT_CDN_BUCKET}}"
@@ -226,6 +226,7 @@ main() {
     ensure_public_download_base_matches_prefix "${public_download_base}" "${cdn_prefix}"
 
     log "Releasing ${tag} from $(git rev-parse --short HEAD)"
+    log "Building macOS binary with minimum deployment target ${macos_min_version}"
 
     corepack enable
     require_command pnpm
@@ -238,9 +239,9 @@ main() {
     CGO_ENABLED=1 \
     GOOS=darwin \
     GOARCH=arm64 \
-    MACOSX_DEPLOYMENT_TARGET="${macos_version}" \
-    CGO_CFLAGS="-mmacosx-version-min=${macos_version}" \
-    CGO_LDFLAGS="-mmacosx-version-min=${macos_version}" \
+    MACOSX_DEPLOYMENT_TARGET="${macos_min_version}" \
+    CGO_CFLAGS="-mmacosx-version-min=${macos_min_version}" \
+    CGO_LDFLAGS="-mmacosx-version-min=${macos_min_version}" \
     go build \
         -ldflags="-s -w -X gitlab.com/usescrolls/scribe/internal.Version=${version} -X gitlab.com/usescrolls/scribe/internal.PublicDownloadBase=${public_download_base}" \
         -o "${asset_path}" \

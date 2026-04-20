@@ -57,6 +57,7 @@ extract_asset_download_url() {
 DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
 DOWNLOAD_BASE="${SCRIBE_DOWNLOAD_BASE:-${PUBLIC_DOWNLOAD_BASE:-$DEFAULT_DOWNLOAD_BASE}}"
 DOWNLOAD_BASE="${DOWNLOAD_BASE%/}"
+MACOS_MIN_VERSION="${MACOS_MIN_VERSION:-11.0}"
 ARCH=$(uname -m)
 
 case "$OS" in
@@ -227,7 +228,7 @@ if [ "$OS" = "Darwin" ]; then
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
-    <string>10.13</string>
+    <string>${MACOS_MIN_VERSION}</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

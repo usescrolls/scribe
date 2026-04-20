@@ -407,12 +407,16 @@ Linux and Windows release artifacts are built in GitLab CI. The macOS release
 artifact is built and published locally from a tagged macOS checkout because the
 GUI build requires the Apple SDK.
 
+The macOS binary is built with a pinned minimum deployment target of `11.0` by
+default so releases stay compatible across build machines. Override it with
+`MACOS_MIN_VERSION` only when intentionally raising the support floor.
+
 ## Release Publishing
 
 Tagged releases are split across CI and a local macOS publish step:
 
 - GitLab CI runs tests, builds the Linux and Windows binaries, uploads immutable release files under `scribe/releases/<tag>/`, refreshes the moving latest aliases, and creates the GitLab release entry.
-- A local macOS checkout builds `scribe-darwin-arm64`, uploads it under the same `scribe/releases/<tag>/` prefix, refreshes the moving macOS alias, and writes the final release manifest consumed by auto-update.
+- A local macOS checkout builds `scribe-darwin-arm64` with `MACOS_MIN_VERSION=11.0` by default, uploads it under the same `scribe/releases/<tag>/` prefix, refreshes the moving macOS alias, and writes the final release manifest consumed by auto-update.
 
 Run the macOS publish step from a clean macOS checkout where `HEAD` has exactly one `v*` tag:
 

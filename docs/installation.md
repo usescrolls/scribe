@@ -4,6 +4,8 @@ This guide covers all installation methods for Scribe.
 
 ## Option 1: Shell Installer (macOS, Linux & WSL)
 
+macOS releases currently target macOS 11+.
+
 ```bash
 curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | bash
 ```

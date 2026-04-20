@@ -7,17 +7,17 @@ VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || 
 WAILS_VERSION ?= v3.0.0-alpha.72
 LDFLAGS=-s -w -X gitlab.com/usescrolls/scribe/internal.Version=$(VERSION)
 
-# macOS deployment target (set to current OS version to avoid linker warnings)
-MACOS_VERSION := $(shell sw_vers -productVersion 2>/dev/null || echo "")
+# Pin the minimum macOS deployment target so local builds and releases stay compatible.
+MACOS_MIN_VERSION ?= 11.0
 
 # Build for current platform (frontend + Go)
 build: build-frontend
 	mkdir -p $(BUILD_DIR)/bin
 ifeq ($(shell uname),Darwin)
 	CGO_ENABLED=1 \
-	MACOSX_DEPLOYMENT_TARGET=$(MACOS_VERSION) \
-	CGO_CFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
-	CGO_LDFLAGS="-mmacosx-version-min=$(MACOS_VERSION)" \
+	MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) \
+	CGO_CFLAGS="-mmacosx-version-min=$(MACOS_MIN_VERSION)" \
+	CGO_LDFLAGS="-mmacosx-version-min=$(MACOS_MIN_VERSION)" \
 	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
 else
 	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
