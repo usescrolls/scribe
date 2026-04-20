@@ -24,6 +24,7 @@ DEFAULT_LINUX_ASSET="scribe-linux-amd64"
 DEFAULT_MACOS_ASSET="scribe-darwin-arm64"
 DEFAULT_WINDOWS_ASSET="scribe-windows-amd64.exe"
 DEFAULT_RELEASE_NOTES=$'Migration release.\n\nFuture updates are served from GitLab/CDN.'
+TEMP_DIR=""
 
 log() {
     printf '%s\n' "$*"
@@ -32,6 +33,12 @@ log() {
 fail() {
     printf 'Error: %s\n' "$*" >&2
     exit 1
+}
+
+cleanup_temp_dir() {
+    if [[ -n "${TEMP_DIR:-}" ]]; then
+        rm -rf -- "${TEMP_DIR}"
+    fi
 }
 
 usage() {
@@ -175,7 +182,6 @@ main() {
     local macos_asset=""
     local windows_asset=""
     local title=""
-    local temp_dir=""
     local notes_file=""
     local assets=()
     local asset_name=""
@@ -209,17 +215,17 @@ main() {
     windows_asset="${WINDOWS_ASSET:-${DEFAULT_WINDOWS_ASSET}}"
     title="${GITHUB_RELEASE_TITLE:-${tag}}"
 
-    temp_dir="$(mktemp -d)"
-    trap 'rm -rf -- "${temp_dir}"' EXIT
+    TEMP_DIR="$(mktemp -d)"
+    trap cleanup_temp_dir EXIT
 
-    notes_file="${temp_dir}/release-notes.md"
+    notes_file="${TEMP_DIR}/release-notes.md"
     build_notes_file "${notes_file}" "${public_download_base}"
 
     for asset_name in "${linux_asset}" "${macos_asset}" "${windows_asset}"; do
         download_asset \
             "$(build_release_asset_url "${public_download_base}" "${tag}" "${asset_name}")" \
-            "${temp_dir}/${asset_name}"
-        assets+=("${temp_dir}/${asset_name}")
+            "${TEMP_DIR}/${asset_name}"
+        assets+=("${TEMP_DIR}/${asset_name}")
     done
 
     if gh release view "${tag}" --repo "${repo}" >/dev/null 2>&1; then
