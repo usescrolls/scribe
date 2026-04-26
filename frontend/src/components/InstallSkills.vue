@@ -535,8 +535,58 @@ function fillExample(example: string) {
 }
 
 function parseSourceInput(input: string): string {
-  const match = input.match(/^\s*(?:npx\s+)?skills\s+add\s+(.+)$/i)
-  return match ? match[1].trim() : input
+  const trimmed = input.trim()
+  const skillsMatch = trimmed.match(/^(?:npx\s+)?skills\s+add\s+(.+)$/i)
+  if (skillsMatch) return firstCommandArg(skillsMatch[1]) || trimmed
+
+  const scribeMatch = trimmed.match(/^scribe\s+install\s+(.+)$/i)
+  if (scribeMatch) return firstCommandArg(scribeMatch[1]) || trimmed
+
+  const gitCloneMatch = trimmed.match(/^git\s+clone\s+(.+)$/i)
+  if (gitCloneMatch) return firstCommandArg(gitCloneMatch[1]) || trimmed
+
+  const ghCloneMatch = trimmed.match(/^gh\s+repo\s+clone\s+(.+)$/i)
+  if (ghCloneMatch) return firstCommandArg(ghCloneMatch[1]) || trimmed
+
+  return trimmed
+}
+
+function firstCommandArg(rest: string): string {
+  const parts = rest.match(/"[^"]+"|'[^']+'|\S+/g) ?? []
+  let skipNext = false
+  for (const rawPart of parts) {
+    if (skipNext) {
+      skipNext = false
+      continue
+    }
+    const part = stripQuotes(rawPart)
+    if (part.startsWith('-')) {
+      skipNext = commandFlagTakesValue(part)
+      continue
+    }
+    return part
+  }
+  return ''
+}
+
+function commandFlagTakesValue(flag: string): boolean {
+  if (flag.includes('=')) return false
+  return [
+    '-b', '--branch', '-c', '--config', '--depth', '-o', '--origin',
+    '--reference', '--reference-if-able', '--separate-git-dir',
+    '--template', '-u', '--upload-pack',
+  ].includes(flag)
+}
+
+function stripQuotes(value: string): string {
+  if (value.length >= 2) {
+    const first = value[0]
+    const last = value[value.length - 1]
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return value.slice(1, -1)
+    }
+  }
+  return value
 }
 
 function extractErrorMessage(e: unknown): string {

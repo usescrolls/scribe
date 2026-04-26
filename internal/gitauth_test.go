@@ -17,6 +17,8 @@ func TestIsSSHURL(t *testing.T) {
 		{"git@github.com:owner/repo.git", true},
 		{"git@gitlab.com:owner/repo.git", true},
 		{"git@bitbucket.org:owner/repo.git", true},
+		{"breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git", true},
+		{"ssh://git@github.internal.example.com/owner/repo.git", true},
 		{"https://github.com/owner/repo", false},
 		{"http://github.com/owner/repo", false},
 		{"", false},
@@ -52,6 +54,45 @@ func TestExtractHost(t *testing.T) {
 		t.Run(tt.url, func(t *testing.T) {
 			if got := extractHost(tt.url); got != tt.want {
 				t.Errorf("extractHost(%q) = %q, want %q", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHostFromURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want string
+	}{
+		{"git@github.com:owner/repo.git", "github.com"},
+		{"breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git", "breitling-code.ghe.com"},
+		{"ssh://git@github.internal.example.com:2222/owner/repo.git", "github.internal.example.com:2222"},
+		{"https://github.com/owner/repo", "github.com"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			if got := hostFromURL(tt.url); got != tt.want {
+				t.Errorf("hostFromURL(%q) = %q, want %q", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSSHUserFromURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want string
+	}{
+		{"git@github.com:owner/repo.git", "git"},
+		{"breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git", "breitling-code"},
+		{"ssh://deploy@github.internal.example.com/owner/repo.git", "deploy"},
+		{"https://github.com/owner/repo", "git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			if got := sshUserFromURL(tt.url); got != tt.want {
+				t.Errorf("sshUserFromURL(%q) = %q, want %q", tt.url, got, tt.want)
 			}
 		})
 	}

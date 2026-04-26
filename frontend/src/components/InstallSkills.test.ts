@@ -191,6 +191,66 @@ describe("InstallSkills", () => {
       )
     })
 
+    it("strips 'git clone' prefix from SSH clone command input", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "enterprise-skill", description: "desc" }],
+        source:
+          "breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git",
+        sourceType: "git",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper
+        .find("input")
+        .setValue(
+          "git clone breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git",
+        )
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git",
+      )
+    })
+
+    it("strips 'gh repo clone' prefix from enterprise host input", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "enterprise-skill", description: "desc" }],
+        source: "breitling-code.ghe.com/Breitling-Digital/skills",
+        sourceType: "git",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper
+        .find("input")
+        .setValue(
+          "gh repo clone breitling-code.ghe.com/Breitling-Digital/skills",
+        )
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "breitling-code.ghe.com/Breitling-Digital/skills",
+      )
+    })
+
+    it("strips 'scribe install' prefix from command input", async () => {
+      mockAppService.DiscoverFromSource.mockResolvedValue({
+        skills: [{ name: "my-skill", description: "desc" }],
+        source: "owner/repo",
+        sourceType: "github",
+      })
+
+      const wrapper = mountInstallSkills()
+      await wrapper.find("input").setValue("scribe install -y owner/repo")
+      await wrapper.find(".install-btn").trigger("click")
+      await flushPromises()
+
+      expect(mockAppService.DiscoverFromSource).toHaveBeenCalledWith(
+        "owner/repo",
+      )
+    })
+
     it("passes through plain owner/repo without modification", async () => {
       mockAppService.DiscoverFromSource.mockResolvedValue({
         skills: [{ name: "my-skill", description: "desc" }],

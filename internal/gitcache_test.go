@@ -58,6 +58,16 @@ func TestCacheKeyForSource(t *testing.T) {
 			expected: filepath.Join("git.company.com", "org", "project"),
 		},
 		{
+			name: "git source (SSH self-hosted with custom user)",
+			source: &SourceInfo{
+				Type:  "git",
+				Owner: "Breitling-Digital",
+				Repo:  "skills",
+				URL:   "breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git",
+			},
+			expected: filepath.Join("breitling-code.ghe.com", "Breitling-Digital", "skills"),
+		},
+		{
 			name: "local source returns empty",
 			source: &SourceInfo{
 				Type:      "local",
@@ -121,6 +131,11 @@ func TestBuildCloneURL(t *testing.T) {
 			name:     "gitlab URL",
 			source:   &SourceInfo{URL: "https://gitlab.com/org/project"},
 			expected: "https://gitlab.com/org/project.git",
+		},
+		{
+			name:     "ssh URL with custom user",
+			source:   &SourceInfo{URL: "breitling-code@breitling-code.ghe.com:Breitling-Digital/skills"},
+			expected: "breitling-code@breitling-code.ghe.com:Breitling-Digital/skills.git",
 		},
 	}
 

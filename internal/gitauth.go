@@ -3,6 +3,7 @@ package scribe
 import (
 	"bufio"
 	"fmt"
+	neturl "net/url"
 	"os/exec"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 // then falls back to SSH agent for SSH URLs, and returns nil for public repos.
 func authForSource(source *SourceInfo) transport.AuthMethod {
 	if isSSHURL(source.URL) {
-		auth, err := gitssh.NewSSHAgentAuth("git")
+		auth, err := gitssh.NewSSHAgentAuth(sshUserFromURL(source.URL))
 		if err != nil {
 			Logger.Debug("ssh agent auth not available", "error", err)
 			return nil
@@ -101,19 +102,48 @@ func extractHost(rawURL string) string {
 
 // isSSHURL returns true if the URL uses SSH format (git@host:owner/repo).
 func isSSHURL(url string) bool {
-	return strings.HasPrefix(url, "git@")
+	_, _, _, ok := splitSSHURL(url)
+	return ok
 }
 
 // hostFromURL extracts the hostname from a git URL (SSH or HTTPS).
 func hostFromURL(rawURL string) string {
-	if isSSHURL(rawURL) {
-		rest := strings.TrimPrefix(rawURL, "git@")
-		if host, _, ok := strings.Cut(rest, ":"); ok {
-			return host
-		}
-		return ""
+	if _, host, _, ok := splitSSHURL(rawURL); ok {
+		return host
 	}
 	return extractHost(rawURL)
+}
+
+func sshUserFromURL(rawURL string) string {
+	user, _, _, ok := splitSSHURL(rawURL)
+	if ok && user != "" {
+		return user
+	}
+	return "git"
+}
+
+func splitSSHURL(rawURL string) (user, host, path string, ok bool) {
+	if strings.HasPrefix(rawURL, "ssh://") {
+		u, err := neturl.Parse(rawURL)
+		if err != nil || u.Host == "" || strings.Trim(u.Path, "/") == "" {
+			return "", "", "", false
+		}
+		return u.User.Username(), u.Host, strings.TrimPrefix(u.Path, "/"), true
+	}
+
+	if strings.Contains(rawURL, "://") {
+		return "", "", "", false
+	}
+
+	userHost, path, ok := strings.Cut(rawURL, ":")
+	if !ok || path == "" || strings.Contains(userHost, "/") {
+		return "", "", "", false
+	}
+	user, host, ok = strings.Cut(userHost, "@")
+	if !ok || user == "" || host == "" {
+		return "", "", "", false
+	}
+	return user, host, path, true
 }
 
 // IsAuthError returns true if the error message suggests an authentication failure.
