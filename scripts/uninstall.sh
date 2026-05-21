@@ -9,8 +9,10 @@
 set -e
 
 BINARY_NAME="scribe"
+DESKTOP_BINARY_NAME="scribe-desktop"
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
+DESKTOP_BINARY_PATH="$HOME/.local/lib/scribe/$DESKTOP_BINARY_NAME"
 OS=$(uname -s)
 
 echo "Scribe Uninstaller"
@@ -76,6 +78,11 @@ fi
 # Remove CLI binary / symlink
 rm -f "$BINARY_PATH"
 echo "  Removed: $BINARY_PATH"
+
+rm -f "$DESKTOP_BINARY_PATH"
+rmdir "$HOME/.local/lib/scribe" 2>/dev/null || true
+rm -f "$HOME/.scribe/install.json"
+echo "  Removed: desktop binary and install manifest"
 
 echo ""
 echo "Scribe has been uninstalled."

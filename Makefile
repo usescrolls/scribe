@@ -1,7 +1,8 @@
-.PHONY: build build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-sync-bindings wails-ensure-bindings \
+.PHONY: build build-cli build-desktop build-frontend dev run clean install deps test test-verbose coverage coverage-html wails-generate wails-sync-bindings wails-ensure-bindings \
         lint lint-fix install-hooks
 
 BINARY_NAME=scribe
+DESKTOP_BINARY_NAME=scribe-desktop
 BUILD_DIR=build
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")-dev
 WAILS_VERSION ?= v3.0.0-alpha.72
@@ -10,17 +11,25 @@ LDFLAGS=-s -w -X gitlab.com/usescrolls/scribe/internal.Version=$(VERSION)
 # Pin the minimum macOS deployment target so local builds and releases stay compatible.
 MACOS_MIN_VERSION ?= 11.0
 
-# Build for current platform (frontend + Go)
-build: build-frontend
+# Build CLI + desktop app for current platform
+build: build-cli build-desktop
+
+# Build the headless CLI. This binary must not link Wails or desktop UI libraries.
+build-cli:
+	mkdir -p $(BUILD_DIR)/bin
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) ./cmd/scribe
+
+# Build the desktop app (frontend + Wails Go binary)
+build-desktop: build-frontend
 	mkdir -p $(BUILD_DIR)/bin
 ifeq ($(shell uname),Darwin)
 	CGO_ENABLED=1 \
 	MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) \
 	CGO_CFLAGS="-mmacosx-version-min=$(MACOS_MIN_VERSION)" \
 	CGO_LDFLAGS="-mmacosx-version-min=$(MACOS_MIN_VERSION)" \
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(DESKTOP_BINARY_NAME) .
 else
-	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(BINARY_NAME) .
+	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/bin/$(DESKTOP_BINARY_NAME) .
 endif
 
 # Build frontend only (refreshes bindings if missing)
@@ -33,7 +42,7 @@ dev:
 
 # Run CLI command directly
 run:
-	go run . list
+	go run ./cmd/scribe list
 
 # Clean build artifacts
 clean:
@@ -48,8 +57,11 @@ clean:
 # Install to ~/.local/bin
 install: build
 	mkdir -p $(HOME)/.local/bin
+	mkdir -p $(HOME)/.local/lib/scribe
 	cp $(BUILD_DIR)/bin/$(BINARY_NAME) $(HOME)/.local/bin/
+	cp $(BUILD_DIR)/bin/$(DESKTOP_BINARY_NAME) $(HOME)/.local/lib/scribe/
 	@echo "Installed to ~/.local/bin/$(BINARY_NAME)"
+	@echo "Installed desktop app to ~/.local/lib/scribe/$(DESKTOP_BINARY_NAME)"
 	@echo "Make sure ~/.local/bin is in your PATH"
 
 # Download dependencies and install tools

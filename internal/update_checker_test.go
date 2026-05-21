@@ -22,6 +22,8 @@ func newUpdateServer(t *testing.T, statusCode int, rel releaseManifest) *httptes
 }
 
 func TestCheckForUpdate_UpdateAvailable(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName:     "v99.0.0",
 		HTMLURL:     "https://gitlab.com/usescrolls/scribe/-/releases/v99.0.0",
@@ -51,7 +53,40 @@ func TestCheckForUpdate_UpdateAvailable(t *testing.T) {
 	}
 }
 
+func TestCheckForUpdate_UsesInstallManifestVersionAndBaseURL(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
+	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
+		TagName:     "v2.0.0",
+		HTMLURL:     "https://gitlab.com/usescrolls/scribe/-/releases/v2.0.0",
+		PublishedAt: "2026-01-01T00:00:00Z",
+	})
+	defer srv.Close()
+
+	writeTestInstallManifest(t, "1.0.0", "/tmp/scribe", "/tmp/scribe-desktop", srv.URL)
+
+	old := Version
+	Version = "9.0.0"
+	defer func() { Version = old }()
+
+	info, err := CheckForUpdate("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.CurrentVersion != "1.0.0" {
+		t.Fatalf("CurrentVersion = %q, want manifest version 1.0.0", info.CurrentVersion)
+	}
+	if info.LatestVersion != "v2.0.0" {
+		t.Fatalf("LatestVersion = %q, want v2.0.0", info.LatestVersion)
+	}
+	if !info.UpdateAvailable {
+		t.Fatal("expected UpdateAvailable to be true")
+	}
+}
+
 func TestCheckForUpdate_UpToDate(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName:     "v1.0.0",
 		HTMLURL:     "https://gitlab.com/usescrolls/scribe/-/releases/v1.0.0",
@@ -73,6 +108,8 @@ func TestCheckForUpdate_UpToDate(t *testing.T) {
 }
 
 func TestCheckForUpdate_CurrentNewer(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.0.0",
 	})
@@ -106,6 +143,8 @@ func TestCheckForUpdate_DevVersion(t *testing.T) {
 }
 
 func TestCheckForUpdate_DevSuffixedVersion_SameRelease(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.17.0",
 		HTMLURL: "https://gitlab.com/usescrolls/scribe/-/releases/v1.17.0",
@@ -126,6 +165,8 @@ func TestCheckForUpdate_DevSuffixedVersion_SameRelease(t *testing.T) {
 }
 
 func TestCheckForUpdate_DevSuffixedVersion_NewerRelease(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusOK, releaseManifest{
 		TagName: "v1.18.0",
 		HTMLURL: "https://gitlab.com/usescrolls/scribe/-/releases/v1.18.0",
@@ -146,6 +187,8 @@ func TestCheckForUpdate_DevSuffixedVersion_NewerRelease(t *testing.T) {
 }
 
 func TestCheckForUpdate_APIError(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := newUpdateServer(t, http.StatusNotFound, releaseManifest{})
 	defer srv.Close()
 
@@ -160,6 +203,8 @@ func TestCheckForUpdate_APIError(t *testing.T) {
 }
 
 func TestCheckForUpdate_MalformedJSON(t *testing.T) {
+	setUpdateCheckTestHome(t)
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("not json"))
@@ -193,6 +238,13 @@ func TestBuildReleaseManifestURL(t *testing.T) {
 			t.Errorf("buildReleaseManifestURL(%q) = %q, want %q", tt.baseURL, got, tt.want)
 		}
 	}
+}
+
+func setUpdateCheckTestHome(t *testing.T) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
 }
 
 // --- Semver tests ---

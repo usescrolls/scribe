@@ -427,7 +427,7 @@ export function UpdateSkill(name) {
 }
 
 /**
- * UpgradeApp performs a self-update of the Scribe binary.
+ * UpgradeApp updates the installed Scribe CLI and desktop components.
  * @returns {$CancellablePromise<scribe$0.SelfUpdateResult | null>}
  */
 export function UpgradeApp() {

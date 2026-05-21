@@ -181,13 +181,14 @@ type UpdateInfo struct {
 	PublishedAt     string `json:"publishedAt"`
 }
 
-// SelfUpdateResult contains the outcome of a self-update (binary upgrade) attempt.
+// SelfUpdateResult contains the outcome of a self-update attempt.
 type SelfUpdateResult struct {
-	Updated       bool   `json:"updated"`
-	OldVersion    string `json:"oldVersion"`
-	NewVersion    string `json:"newVersion"`
-	InstallMethod string `json:"installMethod"`
-	Message       string `json:"message"`
+	Updated       bool     `json:"updated"`
+	OldVersion    string   `json:"oldVersion"`
+	NewVersion    string   `json:"newVersion"`
+	InstallMethod string   `json:"installMethod"`
+	Components    []string `json:"components,omitempty"`
+	Message       string   `json:"message"`
 }
 
 // WorkspaceInfo is the frontend-friendly representation of a workspace

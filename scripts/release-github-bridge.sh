@@ -15,12 +15,17 @@ set -euo pipefail
 #   GITHUB_RELEASE_TITLE
 #   GITHUB_RELEASE_NOTES
 #   GITHUB_RELEASE_NOTES_FILE
-#   LINUX_ASSET / MACOS_ASSET / WINDOWS_ASSET
+#   LINUX_CLI_ASSET / LINUX_DESKTOP_ASSET / LINUX_ASSET
+#   MACOS_CLI_ASSET / MACOS_DESKTOP_ASSET / MACOS_ASSET / WINDOWS_ASSET
 #
 # If present, a repo-root .env file is loaded automatically.
 
 DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
+DEFAULT_LINUX_CLI_ASSET="scribe-cli-linux-amd64"
+DEFAULT_LINUX_DESKTOP_ASSET="scribe-desktop-linux-amd64"
 DEFAULT_LINUX_ASSET="scribe-linux-amd64"
+DEFAULT_MACOS_CLI_ASSET="scribe-cli-darwin-arm64"
+DEFAULT_MACOS_DESKTOP_ASSET="scribe-desktop-darwin-arm64"
 DEFAULT_MACOS_ASSET="scribe-darwin-arm64"
 DEFAULT_WINDOWS_ASSET="scribe-windows-amd64.exe"
 DEFAULT_RELEASE_NOTES=$'Migration release.\n\nFuture updates are served from GitLab/CDN.'
@@ -59,7 +64,8 @@ Environment overrides:
   GITHUB_RELEASE_TITLE
   GITHUB_RELEASE_NOTES
   GITHUB_RELEASE_NOTES_FILE
-  LINUX_ASSET / MACOS_ASSET / WINDOWS_ASSET
+  LINUX_CLI_ASSET / LINUX_DESKTOP_ASSET / LINUX_ASSET
+  MACOS_CLI_ASSET / MACOS_DESKTOP_ASSET / MACOS_ASSET / WINDOWS_ASSET
 EOF
 }
 
@@ -178,7 +184,11 @@ main() {
     local repo=""
     local target_commit=""
     local public_download_base=""
+    local linux_cli_asset=""
+    local linux_desktop_asset=""
     local linux_asset=""
+    local macos_cli_asset=""
+    local macos_desktop_asset=""
     local macos_asset=""
     local windows_asset=""
     local title=""
@@ -210,7 +220,11 @@ main() {
     tag="$(normalize_tag "$1")"
     repo="${2:-$(derive_github_repository)}"
     public_download_base="${PUBLIC_DOWNLOAD_BASE:-${SCRIBE_DOWNLOAD_BASE:-${DEFAULT_DOWNLOAD_BASE}}}"
+    linux_cli_asset="${LINUX_CLI_ASSET:-${DEFAULT_LINUX_CLI_ASSET}}"
+    linux_desktop_asset="${LINUX_DESKTOP_ASSET:-${DEFAULT_LINUX_DESKTOP_ASSET}}"
     linux_asset="${LINUX_ASSET:-${DEFAULT_LINUX_ASSET}}"
+    macos_cli_asset="${MACOS_CLI_ASSET:-${DEFAULT_MACOS_CLI_ASSET}}"
+    macos_desktop_asset="${MACOS_DESKTOP_ASSET:-${DEFAULT_MACOS_DESKTOP_ASSET}}"
     macos_asset="${MACOS_ASSET:-${DEFAULT_MACOS_ASSET}}"
     windows_asset="${WINDOWS_ASSET:-${DEFAULT_WINDOWS_ASSET}}"
     title="${GITHUB_RELEASE_TITLE:-${tag}}"
@@ -221,7 +235,7 @@ main() {
     notes_file="${TEMP_DIR}/release-notes.md"
     build_notes_file "${notes_file}" "${public_download_base}"
 
-    for asset_name in "${linux_asset}" "${macos_asset}" "${windows_asset}"; do
+    for asset_name in "${linux_cli_asset}" "${linux_desktop_asset}" "${linux_asset}" "${macos_cli_asset}" "${macos_desktop_asset}" "${macos_asset}" "${windows_asset}"; do
         download_asset \
             "$(build_release_asset_url "${public_download_base}" "${tag}" "${asset_name}")" \
             "${TEMP_DIR}/${asset_name}"

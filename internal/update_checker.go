@@ -96,7 +96,7 @@ func parseReleaseManifest(data []byte) (*release, error) {
 // --- Update check (public API) ---
 
 // CheckForUpdate queries the configured CDN release manifest and compares the
-// latest release tag against the current compiled version.
+// latest release tag against the installed product version.
 // Pass "" for overrideURL to use PublicDownloadBase.
 func CheckForUpdate(overrideURL string) (*UpdateInfo, error) {
 	if Version == "dev" {
@@ -107,16 +107,26 @@ func CheckForUpdate(overrideURL string) (*UpdateInfo, error) {
 		}, nil
 	}
 
+	currentVersion := Version
+	if manifest, err := ReadInstallManifest(); err == nil {
+		if manifest.Version != "" {
+			currentVersion = manifest.Version
+		}
+		if overrideURL == "" && manifest.PublicDownloadBase != "" {
+			overrideURL = manifest.PublicDownloadBase
+		}
+	}
+
 	rel, err := fetchLatestRelease(overrideURL)
 	if err != nil {
 		return nil, err
 	}
 
 	latest := strings.TrimPrefix(rel.TagName, "v")
-	current := strings.TrimPrefix(Version, "v")
+	current := strings.TrimPrefix(currentVersion, "v")
 
 	return &UpdateInfo{
-		CurrentVersion:  Version,
+		CurrentVersion:  currentVersion,
 		LatestVersion:   rel.TagName,
 		UpdateAvailable: compareSemver(current, latest) < 0,
 		ReleaseURL:      rel.URL,

@@ -775,7 +775,7 @@ func (a *AppService) GetInstallMethod() string {
 	return method
 }
 
-// UpgradeApp performs a self-update of the Scribe binary.
+// UpgradeApp updates the installed Scribe CLI and desktop components.
 func (a *AppService) UpgradeApp() (*scribe.SelfUpdateResult, error) {
 	method := scribe.DetectInstallMethod()
 	scribe.Logger.Info("AppService.UpgradeApp called", "installMethod", method)
