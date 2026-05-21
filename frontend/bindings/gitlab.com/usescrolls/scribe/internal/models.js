@@ -607,7 +607,7 @@ export class MarketplaceResult {
 }
 
 /**
- * SelfUpdateResult contains the outcome of a self-update (binary upgrade) attempt.
+ * SelfUpdateResult contains the outcome of a self-update attempt.
  */
 export class SelfUpdateResult {
     /**
@@ -643,6 +643,13 @@ export class SelfUpdateResult {
              */
             this["installMethod"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["components"] = undefined;
+        }
         if (!("message" in $$source)) {
             /**
              * @member
@@ -660,7 +667,11 @@ export class SelfUpdateResult {
      * @returns {SelfUpdateResult}
      */
     static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("components" in $$parsedSource) {
+            $$parsedSource["components"] = $$createField4_0($$parsedSource["components"]);
+        }
         return new SelfUpdateResult(/** @type {Partial<SelfUpdateResult>} */($$parsedSource));
     }
 }

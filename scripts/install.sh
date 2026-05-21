@@ -16,8 +16,13 @@
 set -e
 
 BINARY_NAME="scribe"
+DESKTOP_BINARY_NAME="scribe-desktop"
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
+DESKTOP_INSTALL_DIR="$HOME/.local/lib/scribe"
+DESKTOP_BINARY_PATH="$DESKTOP_INSTALL_DIR/$DESKTOP_BINARY_NAME"
+APP_BUNDLE="$HOME/Applications/Scribe.app"
+APP_BINARY="$APP_BUNDLE/Contents/MacOS/$DESKTOP_BINARY_NAME"
 OS=$(uname -s)
 
 fetch_release_manifest() {
@@ -63,20 +68,31 @@ ARCH=$(uname -m)
 case "$OS" in
     Linux)
         case "$ARCH" in
-            x86_64)  ASSET_NAME="scribe-linux-amd64" ;;
-            aarch64) ASSET_NAME="scribe-linux-arm64" ;;
+            x86_64)
+                CLI_ASSET_NAME="scribe-cli-linux-amd64"
+                DESKTOP_ASSET_NAME="scribe-desktop-linux-amd64"
+                ;;
+            aarch64)
+                CLI_ASSET_NAME="scribe-cli-linux-arm64"
+                DESKTOP_ASSET_NAME="scribe-desktop-linux-arm64"
+                ;;
             *)       echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
         esac
         ;;
     Darwin)
         case "$ARCH" in
-            arm64)  ASSET_NAME="scribe-darwin-arm64" ;;
+            arm64)
+                CLI_ASSET_NAME="scribe-cli-darwin-arm64"
+                DESKTOP_ASSET_NAME="scribe-desktop-darwin-arm64"
+                ;;
             x86_64)
                 # Detect Rosetta 2: use arm64 binary on Apple Silicon
                 if [ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" = "1" ]; then
-                    ASSET_NAME="scribe-darwin-arm64"
+                    CLI_ASSET_NAME="scribe-cli-darwin-arm64"
+                    DESKTOP_ASSET_NAME="scribe-desktop-darwin-arm64"
                 else
-                    ASSET_NAME="scribe-darwin-amd64"
+                    CLI_ASSET_NAME="scribe-cli-darwin-amd64"
+                    DESKTOP_ASSET_NAME="scribe-desktop-darwin-amd64"
                 fi
                 ;;
             *)      echo "Error: unsupported architecture: $ARCH"; exit 1 ;;
@@ -88,7 +104,14 @@ case "$OS" in
         ;;
 esac
 
-DOWNLOAD_URL="$DOWNLOAD_BASE/$ASSET_NAME"
+if [ "$OS" = "Darwin" ]; then
+    DESKTOP_BINARY_PATH="$APP_BINARY"
+else
+    APP_BUNDLE=""
+fi
+
+CLI_DOWNLOAD_URL="$DOWNLOAD_BASE/$CLI_ASSET_NAME"
+DESKTOP_DOWNLOAD_URL="$DOWNLOAD_BASE/$DESKTOP_ASSET_NAME"
 RELEASE_MANIFEST="$(fetch_release_manifest)"
 COMPACT_RELEASE_MANIFEST="$(compact_release_manifest "$RELEASE_MANIFEST")"
 
@@ -98,15 +121,19 @@ if [ -x "$BINARY_PATH" ]; then
     INSTALLED_VERSION=$("$BINARY_PATH" version 2>/dev/null | sed 's/scribe version //' || true)
 fi
 
-# Get latest version and the exact asset URL from release metadata.
+# Get latest version and the exact asset URLs from release metadata.
 LATEST_VERSION="$(extract_latest_version "$COMPACT_RELEASE_MANIFEST")"
-MANIFEST_DOWNLOAD_URL="$(extract_asset_download_url "$COMPACT_RELEASE_MANIFEST" "$ASSET_NAME")"
+CLI_MANIFEST_DOWNLOAD_URL="$(extract_asset_download_url "$COMPACT_RELEASE_MANIFEST" "$CLI_ASSET_NAME")"
+DESKTOP_MANIFEST_DOWNLOAD_URL="$(extract_asset_download_url "$COMPACT_RELEASE_MANIFEST" "$DESKTOP_ASSET_NAME")"
 
-if [ -n "$MANIFEST_DOWNLOAD_URL" ]; then
-    DOWNLOAD_URL="$MANIFEST_DOWNLOAD_URL"
+if [ -n "$CLI_MANIFEST_DOWNLOAD_URL" ]; then
+    CLI_DOWNLOAD_URL="$CLI_MANIFEST_DOWNLOAD_URL"
+fi
+if [ -n "$DESKTOP_MANIFEST_DOWNLOAD_URL" ]; then
+    DESKTOP_DOWNLOAD_URL="$DESKTOP_MANIFEST_DOWNLOAD_URL"
 fi
 
-if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ] && [ -x "$DESKTOP_BINARY_PATH" ]; then
     echo "Scribe v$INSTALLED_VERSION is already installed and up to date."
     exit 0
 elif [ -n "$INSTALLED_VERSION" ]; then
@@ -118,51 +145,67 @@ else
     echo "Scribe Installer"
     echo "================"
     echo ""
-    echo "Downloading $ASSET_NAME..."
+    echo "Downloading $CLI_ASSET_NAME and $DESKTOP_ASSET_NAME..."
 fi
 
-TMP_FILE=$(mktemp)
-trap 'rm -f "$TMP_FILE"' EXIT
+TMP_DIR=$(mktemp -d)
+CLI_TMP_FILE="$TMP_DIR/scribe"
+DESKTOP_TMP_FILE="$TMP_DIR/scribe-desktop"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
-if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_FILE"; then
-    echo "Error: failed to download from $DOWNLOAD_URL"
+if ! curl -fsSL "$CLI_DOWNLOAD_URL" -o "$CLI_TMP_FILE"; then
+    echo "Error: failed to download from $CLI_DOWNLOAD_URL"
     exit 1
 fi
-chmod +x "$TMP_FILE"
+if ! curl -fsSL "$DESKTOP_DOWNLOAD_URL" -o "$DESKTOP_TMP_FILE"; then
+    echo "Error: failed to download from $DESKTOP_DOWNLOAD_URL"
+    exit 1
+fi
+chmod +x "$CLI_TMP_FILE" "$DESKTOP_TMP_FILE"
 
-# Install binary
+# Install CLI and desktop binaries
+mkdir -p "$INSTALL_DIR"
 if [ "$OS" = "Darwin" ]; then
     # Create a minimal .app bundle so macOS registers the agenthub:// URL scheme
-    APP_BUNDLE="$HOME/Applications/Scribe.app"
-    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
     mkdir -p "$APP_BUNDLE/Contents/MacOS"
 
     echo "Installing to $APP_BUNDLE..."
-    mv "$TMP_FILE" "$APP_BINARY"
+    mv "$DESKTOP_TMP_FILE" "$APP_BINARY"
 
-    # Symlink CLI binary into PATH
-    mkdir -p "$INSTALL_DIR"
-    ln -sf "$APP_BINARY" "$BINARY_PATH"
+    echo "Installing CLI to $BINARY_PATH..."
+    rm -f "$BINARY_PATH"
+    mv "$CLI_TMP_FILE" "$BINARY_PATH"
     echo "  App bundle: $APP_BUNDLE"
-    echo "  CLI symlink: $BINARY_PATH"
+    echo "  CLI binary: $BINARY_PATH"
 else
-    mkdir -p "$INSTALL_DIR"
-    echo "Installing to $BINARY_PATH..."
-    mv "$TMP_FILE" "$BINARY_PATH"
-    echo "  Binary installed: $BINARY_PATH"
+    mkdir -p "$DESKTOP_INSTALL_DIR"
+    echo "Installing CLI to $BINARY_PATH..."
+    mv "$CLI_TMP_FILE" "$BINARY_PATH"
+    echo "Installing desktop app to $DESKTOP_BINARY_PATH..."
+    mv "$DESKTOP_TMP_FILE" "$DESKTOP_BINARY_PATH"
+    echo "  CLI binary: $BINARY_PATH"
+    echo "  Desktop binary: $DESKTOP_BINARY_PATH"
 fi
 
-# Migrate: if macOS binary is not in .app bundle yet, move it there
+# Remove the legacy macOS app executable name from pre-split installs.
 if [ "$OS" = "Darwin" ]; then
-    APP_BUNDLE="$HOME/Applications/Scribe.app"
-    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
-    if [ -x "$BINARY_PATH" ] && [ ! -L "$BINARY_PATH" ] && [ ! -x "$APP_BINARY" ]; then
-        echo "  Migrating binary into app bundle..."
-        mkdir -p "$APP_BUNDLE/Contents/MacOS"
-        mv "$BINARY_PATH" "$APP_BINARY"
-        ln -sf "$APP_BINARY" "$BINARY_PATH"
-    fi
+    rm -f "$APP_BUNDLE/Contents/MacOS/scribe"
 fi
+
+mkdir -p "$HOME/.scribe"
+INSTALL_VERSION="${LATEST_VERSION:-unknown}"
+cat > "$HOME/.scribe/install.json" << EOF
+{
+  "version": "$INSTALL_VERSION",
+  "channel": "stable",
+  "cliPath": "$BINARY_PATH",
+  "desktopPath": "$DESKTOP_BINARY_PATH",
+  "appBundlePath": "$APP_BUNDLE",
+  "installedComponents": ["cli", "desktop"],
+  "publicDownloadBase": "$DOWNLOAD_BASE"
+}
+EOF
+echo "  Install manifest: $HOME/.scribe/install.json"
 
 # --- Add to PATH if needed ---
 
@@ -197,14 +240,11 @@ fi
 # --- Background service ---
 
 if [ "$OS" = "Darwin" ]; then
-    APP_BUNDLE="$HOME/Applications/Scribe.app"
-    APP_BINARY="$APP_BUNDLE/Contents/MacOS/scribe"
-
     # --- App bundle Info.plist (registers agenthub:// URL scheme) ---
     echo ""
     echo "Configuring app bundle..."
     mkdir -p "$APP_BUNDLE/Contents/MacOS"
-    cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLISTEOF'
+    cat > "$APP_BUNDLE/Contents/Info.plist" << PLISTEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -212,7 +252,7 @@ if [ "$OS" = "Darwin" ]; then
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleExecutable</key>
-    <string>scribe</string>
+    <string>scribe-desktop</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
@@ -318,7 +358,7 @@ Version=1.0
 Name=Scribe
 GenericName=Skill Manager
 Comment=Skill manager for coding agents
-Exec=$BINARY_PATH %u
+Exec=$DESKTOP_BINARY_PATH %u
 Icon=scribe
 Terminal=false
 Type=Application
@@ -347,7 +387,7 @@ DESKTOP
 Version=1.0
 Name=Scribe
 Comment=Skill manager for coding agents
-Exec=$BINARY_PATH
+Exec=$DESKTOP_BINARY_PATH
 Icon=scribe
 Terminal=false
 Type=Application
@@ -366,7 +406,12 @@ if [ "$OS" = "Darwin" ]; then
     sleep 1
     open "agenthub://show" 2>/dev/null || true
 elif [ "$OS" = "Linux" ]; then
-    # Kill any existing instance before launching
-    pkill -x "$BINARY_NAME" 2>/dev/null || true
-    nohup "$BINARY_PATH" > /dev/null 2>&1 &
+    if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+        # Kill any existing instance before launching
+        pkill -x "$BINARY_NAME" 2>/dev/null || true
+        pkill -x "$DESKTOP_BINARY_NAME" 2>/dev/null || true
+        nohup "$DESKTOP_BINARY_PATH" > /dev/null 2>&1 &
+    else
+        echo "Desktop launch skipped: no graphical session detected."
+    fi
 fi

@@ -11,8 +11,12 @@ DEFAULT_DOWNLOAD_BASE="https://cdn.usescrolls.com/scribe"
 DEFAULT_CDN_BUCKET="agenthub-plugins"
 DEFAULT_CDN_PREFIX="scribe"
 DEFAULT_MACOS_MIN_VERSION="11.0"
-ASSET_NAME="scribe-darwin-arm64"
+MACOS_CLI_ASSET="scribe-cli-darwin-arm64"
+MACOS_DESKTOP_ASSET="scribe-desktop-darwin-arm64"
+LEGACY_MACOS_ASSET="scribe-darwin-arm64"
 WINDOWS_ASSET="scribe-windows-amd64.exe"
+LINUX_CLI_ASSET="scribe-cli-linux-amd64"
+LINUX_DESKTOP_ASSET="scribe-desktop-linux-amd64"
 LINUX_ASSET="scribe-linux-amd64"
 
 log() {
@@ -121,6 +125,8 @@ wait_for_ci_assets() {
     local asset_url=""
 
     for asset_url in \
+        "$(build_release_asset_url "${download_base}" "${tag}" "${LINUX_CLI_ASSET}")" \
+        "$(build_release_asset_url "${download_base}" "${tag}" "${LINUX_DESKTOP_ASSET}")" \
         "$(build_release_asset_url "${download_base}" "${tag}" "${LINUX_ASSET}")" \
         "$(build_release_asset_url "${download_base}" "${tag}" "${WINDOWS_ASSET}")"
     do
@@ -196,7 +202,9 @@ main() {
     local cdn_bucket="${CDN_BUCKET:-${DEFAULT_CDN_BUCKET}}"
     local cdn_prefix="${CDN_PREFIX:-${DEFAULT_CDN_PREFIX}}"
     local release_dir="build/release"
-    local asset_path="${release_dir}/${ASSET_NAME}"
+    local cli_asset_path="${release_dir}/${MACOS_CLI_ASSET}"
+    local desktop_asset_path="${release_dir}/${MACOS_DESKTOP_ASSET}"
+    local legacy_asset_path="${release_dir}/${LEGACY_MACOS_ASSET}"
     local macos_min_version="${MACOS_MIN_VERSION:-${DEFAULT_MACOS_MIN_VERSION}}"
     local latest_file=""
     local legacy_latest_file=""
@@ -226,7 +234,7 @@ main() {
     ensure_public_download_base_matches_prefix "${public_download_base}" "${cdn_prefix}"
 
     log "Releasing ${tag} from $(git rev-parse --short HEAD)"
-    log "Building macOS binary with minimum deployment target ${macos_min_version}"
+    log "Building macOS CLI and desktop binaries with minimum deployment target ${macos_min_version}"
 
     corepack enable
     require_command pnpm
@@ -234,7 +242,15 @@ main() {
     make build-frontend
 
     mkdir -p "${release_dir}"
-    rm -f "${asset_path}"
+    rm -f "${cli_asset_path}" "${desktop_asset_path}" "${legacy_asset_path}"
+
+    CGO_ENABLED=0 \
+    GOOS=darwin \
+    GOARCH=arm64 \
+    go build \
+        -ldflags="-s -w -X gitlab.com/usescrolls/scribe/internal.Version=${version} -X gitlab.com/usescrolls/scribe/internal.PublicDownloadBase=${public_download_base}" \
+        -o "${cli_asset_path}" \
+        ./cmd/scribe
 
     CGO_ENABLED=1 \
     GOOS=darwin \
@@ -244,8 +260,10 @@ main() {
     CGO_LDFLAGS="-mmacosx-version-min=${macos_min_version}" \
     go build \
         -ldflags="-s -w -X gitlab.com/usescrolls/scribe/internal.Version=${version} -X gitlab.com/usescrolls/scribe/internal.PublicDownloadBase=${public_download_base}" \
-        -o "${asset_path}" \
+        -o "${desktop_asset_path}" \
         .
+
+    cp "${desktop_asset_path}" "${legacy_asset_path}"
 
     wait_for_ci_assets "${public_download_base}" "${tag}"
 
@@ -257,9 +275,14 @@ main() {
     configure_rclone "${rclone_config}"
     export RCLONE_CONFIG="${rclone_config}"
 
-    rclone copyto "${asset_path}" "r2:${cdn_bucket}/$(build_release_asset_key "${cdn_prefix}" "${tag}" "${ASSET_NAME}")"
-    rclone copyto "${asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${ASSET_NAME}")"
-    wait_for_public_asset "$(build_release_asset_url "${public_download_base}" "${tag}" "${ASSET_NAME}")" "uploaded macOS asset is not available yet"
+    rclone copyto "${cli_asset_path}" "r2:${cdn_bucket}/$(build_release_asset_key "${cdn_prefix}" "${tag}" "${MACOS_CLI_ASSET}")"
+    rclone copyto "${cli_asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${MACOS_CLI_ASSET}")"
+    rclone copyto "${desktop_asset_path}" "r2:${cdn_bucket}/$(build_release_asset_key "${cdn_prefix}" "${tag}" "${MACOS_DESKTOP_ASSET}")"
+    rclone copyto "${desktop_asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${MACOS_DESKTOP_ASSET}")"
+    rclone copyto "${legacy_asset_path}" "r2:${cdn_bucket}/$(build_release_asset_key "${cdn_prefix}" "${tag}" "${LEGACY_MACOS_ASSET}")"
+    rclone copyto "${legacy_asset_path}" "r2:${cdn_bucket}/$(storage_key "${cdn_prefix}" "${LEGACY_MACOS_ASSET}")"
+    wait_for_public_asset "$(build_release_asset_url "${public_download_base}" "${tag}" "${MACOS_CLI_ASSET}")" "uploaded macOS CLI asset is not available yet"
+    wait_for_public_asset "$(build_release_asset_url "${public_download_base}" "${tag}" "${MACOS_DESKTOP_ASSET}")" "uploaded macOS desktop asset is not available yet"
 
     cat >"${latest_file}" <<EOF
 {
@@ -267,8 +290,12 @@ main() {
   "html_url": "${project_url}/-/releases/${tag}",
   "published_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "assets": [
+    {"name": "${LINUX_CLI_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${LINUX_CLI_ASSET}")"},
+    {"name": "${LINUX_DESKTOP_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${LINUX_DESKTOP_ASSET}")"},
     {"name": "${LINUX_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${LINUX_ASSET}")"},
-    {"name": "${ASSET_NAME}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${ASSET_NAME}")"},
+    {"name": "${MACOS_CLI_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${MACOS_CLI_ASSET}")"},
+    {"name": "${MACOS_DESKTOP_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${MACOS_DESKTOP_ASSET}")"},
+    {"name": "${LEGACY_MACOS_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${LEGACY_MACOS_ASSET}")"},
     {"name": "${WINDOWS_ASSET}", "browser_download_url": "$(build_release_asset_url "${public_download_base}" "${tag}" "${WINDOWS_ASSET}")"}
   ]
 }
@@ -281,7 +308,7 @@ EOF
     # /releases/latest can discover the namespaced asset URLs.
     rclone copyto "${legacy_latest_file}" "r2:${cdn_bucket}/releases/latest"
 
-    log "Uploaded ${ASSET_NAME} to ${cdn_prefix}/releases/${tag}/ and refreshed ${cdn_prefix}/releases/latest for ${tag}"
+    log "Uploaded macOS split assets to ${cdn_prefix}/releases/${tag}/ and refreshed ${cdn_prefix}/releases/latest for ${tag}"
 }
 
 main "$@"

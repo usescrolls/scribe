@@ -44,8 +44,9 @@ make deps
 # Build the app for your current platform
 make build
 
-# Run the binary
-./build/bin/scribe
+# Run the CLI and desktop app
+./build/bin/scribe --help
+./build/bin/scribe-desktop
 ```
 
 ---
@@ -54,7 +55,11 @@ make build
 
 ```
 scribe/
-├── main.go                     # Entry point — dual-mode (CLI + GUI)
+├── main.go                     # Desktop entry point (Wails GUI + URL handler)
+├── app_service.go              # Desktop service bindings for the frontend
+├── cmd/
+│   └── scribe/
+│       └── main.go             # Headless CLI entry point
 ├── internal/                   # Core business logic
 │   ├── types.go                # All core data structures
 │   ├── agents.go               # 39 agent definitions with detection
@@ -76,7 +81,8 @@ scribe/
 │   ├── update_checker.go       # Check for app updates from the release manifest
 │   ├── update_config.go        # App update notification configuration
 │   ├── updater.go              # Perform skill updates
-│   ├── self_update.go          # Self-update (binary upgrade)
+│   ├── self_update.go          # Self-update (paired CLI + desktop upgrade)
+│   ├── install_manifest.go     # Installed component path manifest
 │   ├── config.go               # Logger initialization
 │   ├── logwriter.go            # Rotating log writer
 │   └── *_test.go               # Unit tests (per-file)
@@ -88,7 +94,7 @@ scribe/
 │   ├── info.go                 # scribe info
 │   ├── check.go                # scribe check
 │   ├── update.go               # scribe update
-│   ├── upgrade.go              # scribe upgrade (alias for update)
+│   ├── upgrade.go              # scribe upgrade
 │   ├── version.go              # scribe version
 │   ├── workspace.go            # scribe workspace subcommands
 │   ├── cache.go                # scribe cache subcommands
@@ -206,7 +212,7 @@ make dev
 ### Production Build
 
 ```bash
-# Build binary for current platform
+# Build CLI and desktop binaries for current platform
 make build
 
 # Build and install to ~/.local/bin
@@ -218,12 +224,14 @@ make install
 | Target | Description |
 |--------|-------------|
 | `deps` | Install wails3, download Go modules, install frontend packages |
-| `build` | Build frontend + Go binary for current platform |
+| `build` | Build CLI + desktop app for current platform |
+| `build-cli` | Build the headless CLI only |
+| `build-desktop` | Build the desktop app (frontend + Wails Go binary) |
 | `build-frontend` | Build Vue frontend only (refreshes bindings if missing) |
 | `dev` | Development mode with hot reload (`wails3 dev`) |
-| `run` | Quick test: `go run . list` |
+| `run` | Quick test: `go run ./cmd/scribe list` |
 | `clean` | Remove build artifacts, local caches, node_modules, coverage |
-| `install` | Build and install to `~/.local/bin` |
+| `install` | Build and install CLI to `~/.local/bin` and desktop app to `~/.local/lib/scribe` |
 | `test` | Run Go tests |
 | `test-verbose` | Run Go tests with verbose output |
 | `coverage` | Run tests with coverage stats |
@@ -404,10 +412,10 @@ make build
 ```
 
 Linux and Windows release artifacts are built in GitLab CI. The macOS release
-artifact is built and published locally from a tagged macOS checkout because the
-GUI build requires the Apple SDK.
+artifacts are built and published locally from a tagged macOS checkout because
+the GUI build requires the Apple SDK.
 
-The macOS binary is built with a pinned minimum deployment target of `11.0` by
+The macOS desktop binary is built with a pinned minimum deployment target of `11.0` by
 default so releases stay compatible across build machines. Override it with
 `MACOS_MIN_VERSION` only when intentionally raising the support floor.
 
@@ -415,8 +423,8 @@ default so releases stay compatible across build machines. Override it with
 
 Tagged releases are split across CI and a local macOS publish step:
 
-- GitLab CI runs tests, builds the Linux and Windows binaries, uploads immutable release files under `scribe/releases/<tag>/`, refreshes the moving latest aliases, and creates the GitLab release entry.
-- A local macOS checkout builds `scribe-darwin-arm64` with `MACOS_MIN_VERSION=11.0` by default, uploads it under the same `scribe/releases/<tag>/` prefix, refreshes the moving macOS alias, and writes the final release manifest consumed by auto-update.
+- GitLab CI runs tests, builds the Linux CLI, Linux desktop, and Windows binaries, uploads immutable release files under `scribe/releases/<tag>/`, refreshes the moving latest aliases, and creates the GitLab release entry.
+- A local macOS checkout builds `scribe-cli-darwin-arm64` and `scribe-desktop-darwin-arm64` with `MACOS_MIN_VERSION=11.0` by default, uploads them under the same `scribe/releases/<tag>/` prefix, refreshes the moving macOS aliases, and writes the final release manifest consumed by auto-update.
 
 Run the macOS publish step from a clean macOS checkout where `HEAD` has exactly one `v*` tag:
 
@@ -437,7 +445,7 @@ Optional overrides:
 - `PUBLIC_DOWNLOAD_BASE` (must end with `/scribe` when `CDN_PREFIX=scribe`)
 - `GITLAB_PROJECT_URL`
 
-The script waits for the CI-published Linux and Windows assets under `scribe/releases/<tag>/`, uploads the macOS binary under the same versioned prefix, writes `scribe/releases/latest`, and also refreshes the legacy root `releases/latest` manifest for older installed builds.
+The script waits for the CI-published Linux and Windows assets under `scribe/releases/<tag>/`, uploads the macOS CLI and desktop assets under the same versioned prefix, writes `scribe/releases/latest`, and also refreshes the legacy root `releases/latest` manifest for older installed builds.
 
 ---
 

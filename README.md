@@ -21,7 +21,7 @@ On first launch, Scribe runs an onboarding wizard that detects your installed ag
 
 If you've seen `npx skills add`, you might wonder why Scribe exists. Both tools install the same `SKILL.md` files to coding agents, but they make different trade-offs:
 
-- **No runtime dependency**: Scribe is a standalone Go binary — no Node.js required. Install once via `curl`, runs offline after that
+- **No CLI runtime dependency**: The `scribe` CLI is a standalone Go binary — no Node.js or desktop libraries required. Install once via `curl`, runs offline after that
 - **Fast**: Native binary + local git clone cache. No npm registry roundtrip on every invocation
 - **Workspaces**: Organize skills into named sets (e.g. `web-dev`, `data-eng`) and switch between them
 - **Desktop GUI**: Vue 3 app with skill browser, workspace manager, and install wizard. You can paste `npx skills add owner/repo` commands directly into the Install tab — Scribe parses them automatically

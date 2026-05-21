@@ -10,7 +10,7 @@ macOS releases currently target macOS 11+.
 curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/install.sh | bash
 ```
 
-This detects your OS and architecture, downloads the latest binary, adds it to your PATH if needed, creates a minimal `.app` bundle on macOS, sets up a background service (launchd on macOS, XDG autostart on Linux), and on Linux also registers the `agenthub://` URL scheme.
+This detects your OS and architecture, downloads the CLI and desktop app, adds the CLI to your PATH if needed, creates a minimal `.app` bundle on macOS, sets up a background service (launchd on macOS, XDG autostart on Linux), and on Linux also registers the `agenthub://` URL scheme.
 
 If you publish releases somewhere other than the default CDN, override the base URL when running the installer:
 
@@ -24,9 +24,9 @@ To uninstall:
 curl -fsSL https://gitlab.com/usescrolls/scribe/-/raw/main/scripts/uninstall.sh | bash
 ```
 
-This stops the background service, removes the binary, cleans up `~/.scribe`, and removes platform-specific registrations.
+This stops the background service, removes the CLI and desktop components, cleans up `~/.scribe`, and removes platform-specific registrations.
 
-> **Note (Linux):** The binary requires the following runtime dependencies: `libgtk-3`, `libwebkit2gtk-4.1`, and `libayatana-appindicator3`. Install them via your package manager before running Scribe:
+> **Note (Linux desktop app):** The `scribe` CLI is headless and does not require GTK/WebKitGTK. The desktop app requires `libgtk-3`, `libwebkit2gtk-4.1`, and `libayatana-appindicator3`. Install them via your package manager before launching the desktop app:
 > ```bash
 > # Debian/Ubuntu
 > sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libayatana-appindicator3-1
@@ -59,7 +59,8 @@ git clone https://gitlab.com/usescrolls/scribe.git
 cd scribe
 make deps
 make build
-./build/bin/scribe
+./build/bin/scribe --help
+./build/bin/scribe-desktop
 ```
 
 ---

@@ -128,6 +128,7 @@ func init() {
 	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(cacheCmd)
 	rootCmd.AddCommand(upgradeCmd)
+	rootCmd.AddCommand(desktopCmd)
 }
 
 // Execute runs the CLI
@@ -156,5 +157,6 @@ func CLICommands() []string {
 		"cache",
 		"setup",
 		"upgrade",
+		"desktop",
 	}
 }

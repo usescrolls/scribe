@@ -213,7 +213,7 @@ scribe update --force            # Force update all skills
 
 ### `scribe upgrade`
 
-Upgrade the Scribe binary to the latest release. Detects the install method (`.app` bundle or standalone binary) and handles each accordingly.
+Upgrade Scribe to the latest release. On split installs, this updates the CLI and desktop app as a matched pair.
 
 ```bash
 scribe upgrade
@@ -391,27 +391,29 @@ scribe --version
 
 ## URL Scheme Handling
 
-The `agenthub://` URL scheme is supported for one-click installs:
+The `agenthub://` URL scheme is supported for one-click installs through the
+desktop app registered by the installer. The headless `scribe` CLI does not
+handle these URLs directly; use normal CLI sources for terminal installs:
 
 ```bash
-scribe "agenthub://install?source=github&repo=owner/repo"
+scribe install owner/repo
 ```
 
 ## GUI Mode
 
-Running without arguments launches the desktop GUI:
+The installer installs a headless CLI named `scribe` and a separate desktop app.
+Launch the desktop app from the CLI with:
 
 ```bash
-scribe              # Launch GUI with system tray
-scribe --no-gui     # Run in headless mode
+scribe desktop
 ```
 
 The GUI's **Install** tab accepts all the same source formats listed above. You can also paste a full CLI command (e.g. `npx skills add owner/repo`) and Scribe will automatically extract the source.
 
 ## Detection Order
 
-When scribe is invoked:
+When the desktop executable is invoked:
 
 1. If first argument starts with `agenthub://` → URL scheme handler
 2. If first argument is a known command → CLI mode
-3. If no arguments → GUI mode (or headless with `--no-gui`)
+3. If no arguments → GUI mode

@@ -227,7 +227,7 @@ Scribe distributes skills by creating symlinks in each agent's skills directory.
 
 ## System Tray
 
-When running with GUI (default), Scribe shows a system tray icon with:
+When the desktop app is running, Scribe shows a system tray icon with:
 
 - **Status**: Shows version and running state
 - **Skills**: Shows count of installed skills
