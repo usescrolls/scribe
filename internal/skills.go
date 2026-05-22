@@ -114,6 +114,7 @@ func ParseSkillContent(content, skillDir string) (*Skill, error) {
 		Description: fm.Description,
 		Path:        skillDir,
 		Content:     body,
+		RawContent:  content,
 		Metadata:    fm.Metadata,
 	}
 
@@ -380,9 +381,15 @@ func ReadAllSkills() ([]*Skill, error) {
 
 // GetSkillInfo converts a Skill to a SkillInfo for the frontend
 func GetSkillInfo(skill *Skill) SkillInfo {
+	content := skill.RawContent
+	if content == "" {
+		content = skill.Content
+	}
+
 	info := SkillInfo{
 		Name:        skill.Name,
 		Description: skill.Description,
+		Content:     content,
 		Agents:      []string{},
 	}
 

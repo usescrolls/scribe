@@ -37,123 +37,135 @@
     </div>
     <div v-else class="skills">
       <div class="skills-header">
-        <span class="count">{{ allSkillsRaw.length }} skill{{ allSkillsRaw.length !== 1 ? 's' : '' }} installed</span>
+        <span class="count">{{ countLabel }}</span>
         <div class="header-actions">
+          <input
+            v-model="searchQuery"
+            class="skill-search"
+            type="search"
+            placeholder="Search installed skills..."
+            aria-label="Search installed skills"
+          />
           <template v-if="selectionMode">
             <button class="btn-secondary btn-sm" @click="toggleSelectAll">
               {{ allSelected ? 'Deselect All' : 'Select All' }}
             </button>
             <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
           </template>
-          <button v-else class="btn-secondary btn-sm" @click="enterSelectionMode">Select</button>
+          <button v-else-if="searchedSkills.length > 0" class="btn-secondary btn-sm" @click="enterSelectionMode">Select</button>
         </div>
       </div>
 
-      <div v-for="group in groupedSkills" :key="group.key" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
-        <div class="group-header">
-          <input
-            v-if="selectionMode && hasSelectableSkills(group)"
-            type="checkbox"
-            class="group-checkbox"
-            :checked="isGroupAllSelected(group)"
-            :indeterminate="isGroupPartiallySelected(group)"
-            @click.stop="toggleGroupSelection(group)"
-          />
-          <SourceAvatar :source="group.source" :source-type="group.sourceType" :is-private="isGroupPrivate(group)" />
-          <span class="group-badge">{{ group.sourceType }}</span>
-          <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          <a
-            v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
-            class="group-source group-source-link"
-            @click.prevent="Browser.OpenURL(group.sourceUrl!)"
-          >
-            {{ group.source }}
-            <svg class="external-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
+      <div v-if="searchedSkills.length === 0" class="empty-search">
+        <span>No skills match "{{ searchTerm }}"</span>
+      </div>
+      <template v-else>
+        <div v-for="group in groupedSkills" :key="group.key" :class="['source-group', { 'source-group--has-update': groupHasUpdate(group) }]">
+          <div class="group-header">
+            <input
+              v-if="selectionMode && hasSelectableSkills(group)"
+              type="checkbox"
+              class="group-checkbox"
+              :checked="isGroupAllSelected(group)"
+              :indeterminate="isGroupPartiallySelected(group)"
+              @click.stop="toggleGroupSelection(group)"
+            />
+            <SourceAvatar :source="group.source" :source-type="group.sourceType" :is-private="isGroupPrivate(group)" />
+            <span class="group-badge">{{ group.sourceType }}</span>
+            <svg v-if="isGroupPrivate(group)" class="private-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Private repository">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>
-          </a>
-          <span v-else class="group-source">{{ group.source }}</span>
-          <span v-if="getGroupVersion(group)" class="group-version" :title="getGroupVersionTooltip(group)">{{ getGroupVersion(group) }}</span>
-          <span class="group-count">{{ group.skills.length }}</span>
-          <span
-            v-if="groupHasUpdate(group)"
-            class="update-badge"
-            :title="getUpdateTooltip(group)"
-          >
-            Update available
-          </span>
-          <button
-            v-if="isGroupUpdatable(group)"
-            class="group-action-btn group-update-btn"
-            :class="{ 'group-update-btn--highlighted': groupHasUpdate(group) }"
-            :disabled="updatingGroup === group.key"
-            @click="handleUpdateGroup(group)"
-          >
-            {{ updatingGroup === group.key ? 'Updating...' : 'Update' }}
-          </button>
-          <button
-            v-if="group.skills.length > 1"
-            class="group-action-btn group-uninstall-btn"
-            @click="handleUninstallGroup(group)"
-          >
-            Uninstall all
-          </button>
-          <button
-            v-if="getNewAvailableCount(group) > 0"
-            class="new-skills-btn"
-            @click="handleInstallNewSkills(group)"
-          >
-            {{ getNewAvailableCount(group) }} other skill{{ getNewAvailableCount(group) !== 1 ? 's' : '' }} available
-          </button>
+            <a
+              v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
+              class="group-source group-source-link"
+              @click.prevent="Browser.OpenURL(group.sourceUrl!)"
+            >
+              {{ group.source }}
+              <svg class="external-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+            <span v-else class="group-source">{{ group.source }}</span>
+            <span v-if="getGroupVersion(group)" class="group-version" :title="getGroupVersionTooltip(group)">{{ getGroupVersion(group) }}</span>
+            <span class="group-count">{{ group.skills.length }}</span>
+            <span
+              v-if="groupHasUpdate(group)"
+              class="update-badge"
+              :title="getUpdateTooltip(group)"
+            >
+              Update available
+            </span>
+            <button
+              v-if="isGroupUpdatable(group)"
+              class="group-action-btn group-update-btn"
+              :class="{ 'group-update-btn--highlighted': groupHasUpdate(group) }"
+              :disabled="updatingGroup === group.key"
+              @click="handleUpdateGroup(group)"
+            >
+              {{ updatingGroup === group.key ? 'Updating...' : 'Update' }}
+            </button>
+            <button
+              v-if="group.skills.length > 1"
+              class="group-action-btn group-uninstall-btn"
+              @click="handleUninstallGroup(group)"
+            >
+              Uninstall all
+            </button>
+            <button
+              v-if="getNewAvailableCount(group) > 0"
+              class="new-skills-btn"
+              @click="handleInstallNewSkills(group)"
+            >
+              {{ getNewAvailableCount(group) }} other skill{{ getNewAvailableCount(group) !== 1 ? 's' : '' }} available
+            </button>
+          </div>
+          <div class="skills-list">
+            <SkillCard
+              v-for="skill in group.skills"
+              :key="skill.name"
+              :skill="skill"
+              :show-uninstall="!selectionMode && !skill.isSystem"
+              :show-workspace-picker="!selectionMode && !skill.isSystem"
+              :selectable="selectionMode && !skill.isSystem"
+              :selected="selectedSkills.has(skill.name)"
+              :skill-workspaces="getSkillWorkspaces(skill.name)"
+              :all-workspaces="workspaces"
+              @detail="handleDetail"
+              @toggle-select="toggleSkillSelection"
+              @add-to-workspace="handleAddToWorkspace"
+              @remove-from-workspace="handleRemoveFromWorkspace"
+              @uninstall="handleUninstall"
+            />
+          </div>
         </div>
-        <div class="skills-list">
-          <SkillCard
-            v-for="skill in group.skills"
-            :key="skill.name"
-            :skill="skill"
-            :show-uninstall="!selectionMode && !skill.isSystem"
-            :show-workspace-picker="!selectionMode && !skill.isSystem"
-            :selectable="selectionMode && !skill.isSystem"
-            :selected="selectedSkills.has(skill.name)"
-            :skill-workspaces="getSkillWorkspaces(skill.name)"
-            :all-workspaces="workspaces"
-            @detail="handleDetail"
-            @toggle-select="toggleSkillSelection"
-            @add-to-workspace="handleAddToWorkspace"
-            @remove-from-workspace="handleRemoveFromWorkspace"
-            @uninstall="handleUninstall"
-          />
-        </div>
-      </div>
 
-      <!-- Bulk action bar -->
-      <div v-if="selectionMode && selectedSkills.size > 0" class="bulk-action-bar">
-        <span class="bulk-count">{{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }} selected</span>
-        <select v-model="bulkWorkspace" class="bulk-workspace-select">
-          <option value="" disabled>Choose workspace...</option>
-          <option v-for="ws in workspaces" :key="ws.name" :value="ws.name">{{ ws.name }}</option>
-        </select>
-        <button
-          class="btn-primary btn-sm"
-          :disabled="!bulkWorkspace || bulkOperating"
-          @click="bulkAddToWorkspace"
-        >
-          {{ bulkAdding ? 'Adding...' : 'Add to workspace' }}
-        </button>
-        <button
-          class="btn-danger btn-sm"
-          :disabled="!bulkWorkspace || bulkOperating"
-          @click="bulkRemoveFromWorkspace"
-        >
-          {{ bulkRemoving ? 'Removing...' : 'Remove from workspace' }}
-        </button>
-        <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
-      </div>
+        <!-- Bulk action bar -->
+        <div v-if="selectionMode && selectedSkills.size > 0" class="bulk-action-bar">
+          <span class="bulk-count">{{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }} selected</span>
+          <select v-model="bulkWorkspace" class="bulk-workspace-select">
+            <option value="" disabled>Choose workspace...</option>
+            <option v-for="ws in workspaces" :key="ws.name" :value="ws.name">{{ ws.name }}</option>
+          </select>
+          <button
+            class="btn-primary btn-sm"
+            :disabled="!bulkWorkspace || bulkOperating"
+            @click="bulkAddToWorkspace"
+          >
+            {{ bulkAdding ? 'Adding...' : 'Add to workspace' }}
+          </button>
+          <button
+            class="btn-danger btn-sm"
+            :disabled="!bulkWorkspace || bulkOperating"
+            @click="bulkRemoveFromWorkspace"
+          >
+            {{ bulkRemoving ? 'Removing...' : 'Remove from workspace' }}
+          </button>
+          <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
+        </div>
+      </template>
     </div>
     <SkillDetailModal
       v-if="detailSkill"
@@ -164,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
@@ -174,6 +186,7 @@ import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
 import { useSkillUpdateChecker } from '../composables/useSkillUpdateChecker'
 import { sourceGroupKey } from '../utils/source'
+import { fuzzyFilterSkills } from '../utils/fuzzySearch'
 import type { SkillInfo, WorkspaceInfo, UpdateResult } from '../types/skill'
 
 const emit = defineEmits<{
@@ -184,6 +197,7 @@ const { hasUpdates: sourceHasUpdates, getUpdateInfo, clearUpdate, checkForSource
 
 const allSkillsRaw = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
+const searchQuery = ref('')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const toast = ref<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -205,9 +219,24 @@ interface SourceGroup {
   skills: SkillInfo[]
 }
 
+const searchTerm = computed(() => searchQuery.value.trim())
+
+const searchedSkills = computed(() => {
+  return fuzzyFilterSkills(allSkillsRaw.value, searchTerm.value)
+})
+
+const countLabel = computed(() => {
+  const total = allSkillsRaw.value.length
+  const visible = searchedSkills.value.length
+  if (searchTerm.value) {
+    return `${visible} of ${total} skill${total !== 1 ? 's' : ''} installed`
+  }
+  return `${total} skill${total !== 1 ? 's' : ''} installed`
+})
+
 const groupedSkills = computed<SourceGroup[]>(() => {
   const groups = new Map<string, SourceGroup>()
-  for (const skill of allSkillsRaw.value) {
+  for (const skill of searchedSkills.value) {
     const key = sourceGroupKey(skill.source, skill.sourceType)
     if (!groups.has(key)) {
       groups.set(key, {
@@ -221,6 +250,10 @@ const groupedSkills = computed<SourceGroup[]>(() => {
     groups.get(key)!.skills.push(skill)
   }
   return [...groups.values()]
+})
+
+watch(searchTerm, () => {
+  selectedSkills.clear()
 })
 
 function getSkillWorkspaces(skillName: string): string[] {
@@ -495,7 +528,7 @@ function toggleSkillSelection(name: string) {
 }
 
 const selectableSkills = computed(() =>
-  allSkillsRaw.value.filter(s => !s.isSystem)
+  searchedSkills.value.filter(s => !s.isSystem)
 )
 
 const allSelected = computed(() =>
@@ -673,12 +706,41 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
 .count {
   font-size: 0.875rem;
   color: var(--text-secondary);
+}
+
+.skill-search {
+  width: min(17rem, 38vw);
+  min-width: 11rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.skill-search:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.12);
+}
+
+.empty-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 8rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 /* Source groups */
@@ -855,6 +917,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .btn-sm {

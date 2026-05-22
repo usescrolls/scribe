@@ -5,6 +5,7 @@ export interface SkillInfo {
   source: string
   sourceType: string
   sourceUrl?: string
+  content?: string
   installedAt: string
   updatedAt?: string
   contentHash?: string

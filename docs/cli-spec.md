@@ -89,7 +89,7 @@ scribe uninstall --all
 List installed skills.
 
 ```bash
-scribe list [flags]
+scribe list [query] [flags]
 ```
 
 **Aliases:** `ls`
@@ -99,13 +99,18 @@ scribe list [flags]
 |------|-------------|
 | `--json` | Output in JSON format |
 | `--names-only` | Print only skill names, one per line |
+| `--search`, `-s` | Fuzzy search installed skills |
 
 **Examples:**
 ```bash
 scribe list
+scribe list react
+scribe list --search rct
 scribe ls --json
 scribe list --names-only
 ```
+
+Search matches installed skill names, descriptions, sources, installed agents, and the full `SKILL.md` file text.
 
 **Output (default):**
 ```

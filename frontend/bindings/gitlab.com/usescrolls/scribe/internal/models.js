@@ -868,6 +868,14 @@ export class SkillInfo {
              */
             this["sourceUrl"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Full SKILL.md file text for local search
+             * @member
+             * @type {string | undefined}
+             */
+            this["content"] = undefined;
+        }
         if (!("installedAt" in $$source)) {
             /**
              * ISO formatted timestamp
@@ -938,10 +946,10 @@ export class SkillInfo {
      * @returns {SkillInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType5;
+        const $$createField14_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("agents" in $$parsedSource) {
-            $$parsedSource["agents"] = $$createField13_0($$parsedSource["agents"]);
+            $$parsedSource["agents"] = $$createField14_0($$parsedSource["agents"]);
         }
         return new SkillInfo(/** @type {Partial<SkillInfo>} */($$parsedSource));
     }

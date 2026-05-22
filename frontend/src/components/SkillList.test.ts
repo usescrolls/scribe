@@ -206,6 +206,54 @@ describe("SkillList", () => {
 
       expect(wrapper.find(".count").text()).toBe("1 skill in workspace")
     })
+
+    it("fuzzy searches skills in the active workspace", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".skill-search").setValue("rct")
+      await flushPromises()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].props("skill")).toMatchObject({ name: "react-patterns" })
+      expect(wrapper.find(".count").text()).toBe("1 of 2 skills in workspace")
+    })
+
+    it("shows a no-match state for workspace search", async () => {
+      const wrapper = await mountSkillList()
+
+      await wrapper.find(".skill-search").setValue("python")
+      await flushPromises()
+
+      expect(wrapper.find(".empty-search").exists()).toBe(true)
+      expect(wrapper.text()).toContain('No skills match "python"')
+      expect(wrapper.findAllComponents({ name: "SkillCard" })).toHaveLength(0)
+    })
+
+    it("searches SKILL.md content in the active workspace", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          description: "No body marker here",
+          content:
+            "---\nname: react-patterns\ndescription: No body marker here\n---\nUse browser automation for visual checks.",
+        },
+        {
+          ...mockSkills[1],
+          description: "Other metadata",
+          content:
+            "---\nname: typescript-tips\ndescription: Other metadata\n---\nUse database migrations.",
+        },
+      ])
+
+      const wrapper = await mountSkillList()
+      await wrapper.find(".skill-search").setValue("browser automation")
+      await flushPromises()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].props("skill")).toMatchObject({ name: "react-patterns" })
+    })
   })
 
   describe("remove from workspace", () => {

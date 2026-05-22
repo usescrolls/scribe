@@ -241,6 +241,54 @@ describe("BrowseSkills", () => {
       })
     })
 
+    it("fuzzy searches installed skills", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".skill-search").setValue("vue")
+      await flushPromises()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].props("skill")).toMatchObject({ name: "vue-utils" })
+      expect(wrapper.find(".count").text()).toBe("1 of 3 skills installed")
+    })
+
+    it("shows a no-match state for installed skill search", async () => {
+      const wrapper = await mountBrowseSkills()
+
+      await wrapper.find(".skill-search").setValue("python")
+      await flushPromises()
+
+      expect(wrapper.find(".empty-search").exists()).toBe(true)
+      expect(wrapper.text()).toContain('No skills match "python"')
+      expect(wrapper.findAllComponents({ name: "SkillCard" })).toHaveLength(0)
+    })
+
+    it("searches SKILL.md content", async () => {
+      mockAppService.GetSkills.mockResolvedValue([
+        {
+          ...mockSkills[0],
+          description: "No body marker here",
+          content:
+            "---\nname: react-patterns\ndescription: No body marker here\n---\nUse browser automation for visual checks.",
+        },
+        {
+          ...mockSkills[1],
+          description: "Other metadata",
+          content:
+            "---\nname: typescript-tips\ndescription: Other metadata\n---\nUse database migrations.",
+        },
+      ])
+
+      const wrapper = await mountBrowseSkills()
+      await wrapper.find(".skill-search").setValue("browser automation")
+      await flushPromises()
+
+      const cards = wrapper.findAllComponents({ name: "SkillCard" })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].props("skill")).toMatchObject({ name: "react-patterns" })
+    })
+
     it("passes workspace membership to skill cards", async () => {
       const wrapper = await mountBrowseSkills()
 

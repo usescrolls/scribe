@@ -704,6 +704,132 @@ func TestRunListNamesOnly(t *testing.T) {
 	}
 }
 
+func TestRunListSearchArgumentFiltersInstalledSkills(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	jsonOutput = false
+	namesOnly = false
+
+	installFakeSkill(t, "react-patterns", "React component patterns", "github", "owner/react")
+	installFakeSkill(t, "typescript-tips", "TypeScript tips", "github", "owner/typescript")
+
+	output := captureStdout(t, func() {
+		err := runList(listCmd, []string{"rct"})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "react-patterns") {
+		t.Errorf("expected fuzzy match in output, got: %s", output)
+	}
+	if strings.Contains(output, "typescript-tips") {
+		t.Errorf("did not expect non-matching skill in output, got: %s", output)
+	}
+	if !strings.Contains(output, "1 skill(s) installed") {
+		t.Errorf("expected filtered count in output, got: %s", output)
+	}
+}
+
+func TestRunListSearchFlagFiltersJSON(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = true
+	jsonOutput = true
+	namesOnly = false
+	listSearch = "react source"
+
+	installFakeSkill(t, "react-patterns", "React component patterns", "github", "owner/react-source")
+	installFakeSkill(t, "go-idioms", "Go idioms", "github", "owner/go-source")
+
+	output := captureStdout(t, func() {
+		err := runList(listCmd, []string{})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	var parsed struct {
+		Skills []skillJSON `json:"skills"`
+		Count  int         `json:"count"`
+	}
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Fatalf("failed to parse JSON: %v\nOutput: %s", err, output)
+	}
+	if parsed.Count != 1 {
+		t.Fatalf("expected count 1, got %d", parsed.Count)
+	}
+	if parsed.Skills[0].Name != "react-patterns" {
+		t.Errorf("expected react-patterns, got %s", parsed.Skills[0].Name)
+	}
+}
+
+func TestRunListSearchNoMatches(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	jsonOutput = false
+	namesOnly = false
+
+	installFakeSkill(t, "react-patterns", "React component patterns", "github", "owner/react")
+
+	output := captureStdout(t, func() {
+		err := runList(listCmd, []string{"python"})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, `No skills match "python"`) {
+		t.Errorf("expected no-match message, got: %s", output)
+	}
+}
+
+func TestRunListSearchMatchesSkillMdContent(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	quiet = false
+	jsonOutput = false
+	namesOnly = false
+
+	installFakeSkillWithBody(t, "content-search-skill", "Metadata without phrase", "github", "owner/content", "Use browser automation for visual checks.")
+	installFakeSkillWithBody(t, "other-search-skill", "Other metadata", "github", "owner/other", "Use database migrations.")
+
+	output := captureStdout(t, func() {
+		err := runList(listCmd, []string{"browser automation"})
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(output, "content-search-skill") {
+		t.Errorf("expected SKILL.md content match in output, got: %s", output)
+	}
+	if strings.Contains(output, "other-search-skill") {
+		t.Errorf("did not expect non-matching skill in output, got: %s", output)
+	}
+}
+
+func TestRunListSearchRejectsDuplicateQuery(t *testing.T) {
+	_, cleanup := setupTempHome(t)
+	defer cleanup()
+	saveAndRestoreFlags(t)
+	listSearch = "react"
+
+	err := runList(listCmd, []string{"go"})
+	if err == nil {
+		t.Fatal("expected duplicate query error")
+	}
+	if !strings.Contains(err.Error(), "specified twice") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestRunListSortsAlphabetically(t *testing.T) {
 	_, cleanup := setupTempHome(t)
 	defer cleanup()

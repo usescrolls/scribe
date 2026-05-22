@@ -80,6 +80,8 @@ scribe install owner/repo --all                    # Install all skills to all a
 
 # List installed skills
 scribe list
+scribe list react
+scribe list --search rct
 scribe ls --json
 scribe list --names-only
 

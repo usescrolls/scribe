@@ -41,11 +41,18 @@
       <span>{{ error }}</span>
       <button class="btn-secondary" @click="fetchAll">Retry</button>
     </div>
-    <EmptyState v-else-if="filteredSkills.length === 0" />
+    <EmptyState v-else-if="workspaceSkills.length === 0" />
     <div v-else class="skills">
       <div class="skills-header">
-        <span class="count">{{ filteredSkills.length }} skill{{ filteredSkills.length !== 1 ? 's' : '' }} in workspace</span>
+        <span class="count">{{ countLabel }}</span>
         <div class="header-actions">
+          <input
+            v-model="searchQuery"
+            class="skill-search"
+            type="search"
+            placeholder="Search installed skills..."
+            aria-label="Search installed skills"
+          />
           <template v-if="selectionMode">
             <button class="btn-secondary btn-sm" @click="toggleSelectAll">
               {{ allSelected ? 'Deselect All' : 'Select All' }}
@@ -56,67 +63,72 @@
         </div>
       </div>
 
-      <div v-for="group in groupedSkills" :key="group.key" class="source-group">
-        <div class="group-header">
-          <input
-            v-if="selectionMode && hasSelectableSkills(group)"
-            type="checkbox"
-            class="group-checkbox"
-            :checked="isGroupAllSelected(group)"
-            :indeterminate="isGroupPartiallySelected(group)"
-            @click.stop="toggleGroupSelection(group)"
-          />
-          <SourceAvatar :source="group.source" :source-type="group.sourceType" />
-          <span class="group-badge">{{ group.sourceType }}</span>
-          <a
-            v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
-            class="group-source group-source-link"
-            @click.prevent="Browser.OpenURL(group.sourceUrl!)"
-          >
-            {{ group.source }}
-            <svg class="external-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-          </a>
-          <span v-else class="group-source">{{ group.source }}</span>
-          <span class="group-count">{{ group.skills.length }}</span>
-          <button
-            v-if="!selectionMode && group.skills.filter(s => !s.isSystem).length > 1"
-            class="group-action-btn group-remove-btn"
-            @click="handleRemoveGroup(group)"
-          >
-            Remove all
-          </button>
-        </div>
-        <div class="skills-list">
-          <SkillCard
-            v-for="skill in group.skills"
-            :key="skill.name"
-            :skill="skill"
-            :show-remove="!selectionMode && !skill.isSystem"
-            :selectable="selectionMode && !skill.isSystem"
-            :selected="selectedSkills.has(skill.name)"
-            @detail="handleDetail"
-            @remove="handleRemove"
-            @toggle-select="toggleSkillSelection"
-          />
-        </div>
+      <div v-if="filteredSkills.length === 0" class="empty-search">
+        <span>No skills match "{{ searchTerm }}"</span>
       </div>
+      <template v-else>
+        <div v-for="group in groupedSkills" :key="group.key" class="source-group">
+          <div class="group-header">
+            <input
+              v-if="selectionMode && hasSelectableSkills(group)"
+              type="checkbox"
+              class="group-checkbox"
+              :checked="isGroupAllSelected(group)"
+              :indeterminate="isGroupPartiallySelected(group)"
+              @click.stop="toggleGroupSelection(group)"
+            />
+            <SourceAvatar :source="group.source" :source-type="group.sourceType" />
+            <span class="group-badge">{{ group.sourceType }}</span>
+            <a
+              v-if="group.sourceUrl && isHttpUrl(group.sourceUrl)"
+              class="group-source group-source-link"
+              @click.prevent="Browser.OpenURL(group.sourceUrl!)"
+            >
+              {{ group.source }}
+              <svg class="external-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+            <span v-else class="group-source">{{ group.source }}</span>
+            <span class="group-count">{{ group.skills.length }}</span>
+            <button
+              v-if="!selectionMode && group.skills.filter(s => !s.isSystem).length > 1"
+              class="group-action-btn group-remove-btn"
+              @click="handleRemoveGroup(group)"
+            >
+              Remove all
+            </button>
+          </div>
+          <div class="skills-list">
+            <SkillCard
+              v-for="skill in group.skills"
+              :key="skill.name"
+              :skill="skill"
+              :show-remove="!selectionMode && !skill.isSystem"
+              :selectable="selectionMode && !skill.isSystem"
+              :selected="selectedSkills.has(skill.name)"
+              @detail="handleDetail"
+              @remove="handleRemove"
+              @toggle-select="toggleSkillSelection"
+            />
+          </div>
+        </div>
 
-      <!-- Bulk action bar -->
-      <div v-if="selectionMode && selectedSkills.size > 0" class="bulk-action-bar">
-        <span class="bulk-count">{{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }} selected</span>
-        <button
-          class="btn-danger btn-sm"
-          :disabled="bulkRemoving"
-          @click="confirmBulkRemove = true"
-        >
-          {{ bulkRemoving ? 'Removing...' : 'Remove from workspace' }}
-        </button>
-        <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
-      </div>
+        <!-- Bulk action bar -->
+        <div v-if="selectionMode && selectedSkills.size > 0" class="bulk-action-bar">
+          <span class="bulk-count">{{ selectedSkills.size }} skill{{ selectedSkills.size !== 1 ? 's' : '' }} selected</span>
+          <button
+            class="btn-danger btn-sm"
+            :disabled="bulkRemoving"
+            @click="confirmBulkRemove = true"
+          >
+            {{ bulkRemoving ? 'Removing...' : 'Remove from workspace' }}
+          </button>
+          <button class="btn-secondary btn-sm" @click="exitSelectionMode">Cancel</button>
+        </div>
+      </template>
     </div>
     <SkillDetailModal
       v-if="detailSkill"
@@ -127,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { Browser, Events } from '@wailsio/runtime'
 import { AppService } from '../bindings/scribe'
 import SkillCard from './SkillCard.vue'
@@ -137,10 +149,12 @@ import ConfirmDialog from './ConfirmDialog.vue'
 import ToastNotification from './ToastNotification.vue'
 import SkillDetailModal from './SkillDetailModal.vue'
 import { sourceGroupKey } from '../utils/source'
+import { fuzzyFilterSkills } from '../utils/fuzzySearch'
 import type { SkillInfo, WorkspaceInfo } from '../types/skill'
 
 const skills = ref<SkillInfo[]>([])
 const workspaces = ref<WorkspaceInfo[]>([])
+const searchQuery = ref('')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const toast = ref<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -159,8 +173,23 @@ const workspaceSkillNames = computed(() => {
   return new Set(activeWorkspace.value?.skills || [])
 })
 
-const filteredSkills = computed(() => {
+const workspaceSkills = computed(() => {
   return skills.value.filter(skill => workspaceSkillNames.value.has(skill.name))
+})
+
+const searchTerm = computed(() => searchQuery.value.trim())
+
+const filteredSkills = computed(() => {
+  return fuzzyFilterSkills(workspaceSkills.value, searchTerm.value)
+})
+
+const countLabel = computed(() => {
+  const total = workspaceSkills.value.length
+  const visible = filteredSkills.value.length
+  if (searchTerm.value) {
+    return `${visible} of ${total} skill${total !== 1 ? 's' : ''} in workspace`
+  }
+  return `${total} skill${total !== 1 ? 's' : ''} in workspace`
 })
 
 interface SourceGroup {
@@ -187,6 +216,10 @@ const groupedSkills = computed<SourceGroup[]>(() => {
     groups.get(key)!.skills.push(skill)
   }
   return [...groups.values()]
+})
+
+watch(searchTerm, () => {
+  selectedSkills.clear()
 })
 
 function getScrollContainer(): HTMLElement | null {
@@ -423,6 +456,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin-bottom: 0.75rem;
 }
 
@@ -435,6 +470,35 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.skill-search {
+  width: min(17rem, 38vw);
+  min-width: 11rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.skill-search:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.12);
+}
+
+.empty-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 8rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
 .btn-secondary {

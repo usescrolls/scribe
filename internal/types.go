@@ -22,10 +22,11 @@ func emitProgress(emit []ProgressEmitter, phase, step, msg, detail string) {
 type Skill struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
-	Path        string         `json:"path,omitempty"`     // Local path to SKILL.md directory
-	Content     string         `json:"content,omitempty"`  // Raw SKILL.md content
-	Metadata    map[string]any `json:"metadata,omitempty"` // Additional frontmatter fields
-	Meta        *SkillMeta     `json:"meta,omitempty"`     // Source tracking (from .scribe-meta.json)
+	Path        string         `json:"path,omitempty"`       // Local path to SKILL.md directory
+	Content     string         `json:"content,omitempty"`    // Markdown body content
+	RawContent  string         `json:"rawContent,omitempty"` // Full SKILL.md file text
+	Metadata    map[string]any `json:"metadata,omitempty"`   // Additional frontmatter fields
+	Meta        *SkillMeta     `json:"meta,omitempty"`       // Source tracking (from .scribe-meta.json)
 }
 
 // GitCommitInfo holds the short hash and date of a git commit
@@ -133,6 +134,7 @@ type SkillInfo struct {
 	Source      string   `json:"source"`              // Human-readable source
 	SourceType  string   `json:"sourceType"`          // github, local, url, etc.
 	SourceURL   string   `json:"sourceUrl,omitempty"` // Full URL to source repo/page
+	Content     string   `json:"content,omitempty"`   // Full SKILL.md file text for local search
 	InstalledAt string   `json:"installedAt"`         // ISO formatted timestamp
 	UpdatedAt   string   `json:"updatedAt,omitempty"`
 	ContentHash string   `json:"contentHash,omitempty"`

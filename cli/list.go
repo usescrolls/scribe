@@ -15,28 +15,41 @@ import (
 
 var (
 	// List flags
-	namesOnly bool
+	namesOnly  bool
+	listSearch string
 
 	listCmd = &cobra.Command{
-		Use:     "list",
+		Use:     "list [query]",
 		Aliases: []string{"ls"},
 		Short:   "List installed skills",
 		Long: `List installed skills.
 
 Examples:
   scribe list
+  scribe list react
+  scribe list --search rct
   scribe ls --json
   scribe list --names-only`,
-		Args: cobra.NoArgs,
+		Args: cobra.MaximumNArgs(1),
 		RunE: runList,
 	}
 )
 
 func init() {
 	listCmd.Flags().BoolVar(&namesOnly, "names-only", false, "Print only skill names, one per line")
+	listCmd.Flags().StringVarP(&listSearch, "search", "s", "", "Fuzzy search installed skills")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	query := strings.TrimSpace(listSearch)
+	if len(args) > 0 {
+		argQuery := strings.TrimSpace(args[0])
+		if query != "" && argQuery != "" {
+			return fmt.Errorf("search query specified twice")
+		}
+		query = argQuery
+	}
+
 	skills, err := scribe.GetAllSkillInfo()
 	if err != nil {
 		scribe.Logger.Error("failed to get skills", "error", err)
@@ -48,12 +61,23 @@ func runList(cmd *cobra.Command, args []string) error {
 		return skills[i].Name < skills[j].Name
 	})
 
+	if query != "" {
+		skills = scribe.SearchSkillInfo(skills, query)
+	}
+
 	if jsonOutput {
 		return listSkillsJSON(skills)
 	}
 
 	if namesOnly {
 		return listSkillsNamesOnly(skills)
+	}
+
+	if query != "" && len(skills) == 0 {
+		if !quiet {
+			fmt.Printf("No skills match %q\n", query)
+		}
+		return nil
 	}
 
 	return listSkillsTable(skills)

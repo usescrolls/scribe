@@ -34,6 +34,10 @@ func setupTempHome(t *testing.T) (dir string, cleanup func()) {
 // installFakeSkill installs a fake skill into the temp HOME's scrolls directory.
 // Returns the skill directory path.
 func installFakeSkill(t *testing.T, name, description, sourceType, source string) string {
+	return installFakeSkillWithBody(t, name, description, sourceType, source, "Test skill content.")
+}
+
+func installFakeSkillWithBody(t *testing.T, name, description, sourceType, source, body string) string {
 	t.Helper()
 	scrollsDir, err := scribe.GetScrollsDir()
 	if err != nil {
@@ -44,7 +48,7 @@ func installFakeSkill(t *testing.T, name, description, sourceType, source string
 		t.Fatalf("failed to create skill dir: %v", err)
 	}
 
-	content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n\n# %s\n\nTest skill content.\n", name, description, name)
+	content := fmt.Sprintf("---\nname: %s\ndescription: %s\n---\n\n# %s\n\n%s\n", name, description, name, body)
 	skillPath := filepath.Join(skillDir, "SKILL.md")
 	if err := os.WriteFile(skillPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write SKILL.md: %v", err)
@@ -93,6 +97,7 @@ func saveAndRestoreFlags(t *testing.T) {
 	origQuiet := quiet
 	origJSON := jsonOutput
 	origNamesOnly := namesOnly
+	origListSearch := listSearch
 	origInstallSkills := installSkills
 	origInstallListOnly := installListOnly
 	origInstallYes := installYes
@@ -106,6 +111,7 @@ func saveAndRestoreFlags(t *testing.T) {
 		quiet = origQuiet
 		jsonOutput = origJSON
 		namesOnly = origNamesOnly
+		listSearch = origListSearch
 		installSkills = origInstallSkills
 		installListOnly = origInstallListOnly
 		installYes = origInstallYes
