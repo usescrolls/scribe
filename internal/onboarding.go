@@ -165,6 +165,12 @@ func ImportExistingSkills(skills []ExistingSkillInfo) error {
 	imported := make(map[string]bool)
 
 	for _, skill := range skills {
+		if IsSystemSkill(skill.Name) {
+			Logger.Info("skipping system skill import", "name", skill.Name, "from", skill.AgentID)
+			imported[skill.Name] = true
+			continue
+		}
+
 		if imported[skill.Name] {
 			Logger.Info("skipping duplicate skill", "name", skill.Name, "from", skill.AgentID)
 			continue
@@ -222,6 +228,11 @@ func ImportSelectedSkills(skillPaths []string) error {
 // DeleteExistingSkills removes all skills found in agent directories
 func DeleteExistingSkills(skills []ExistingSkillInfo) error {
 	for _, skill := range skills {
+		if IsSystemSkill(skill.Name) {
+			Logger.Info("skipping system skill delete", "name", skill.Name, "from", skill.AgentID)
+			continue
+		}
+
 		if err := os.RemoveAll(skill.Path); err != nil {
 			Logger.Error("failed to delete skill", "name", skill.Name, "path", skill.Path, "error", err)
 			return fmt.Errorf("failed to delete skill %s: %w", skill.Name, err)

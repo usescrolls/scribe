@@ -149,10 +149,12 @@ func EnsureSystemSkill() error {
 	}
 
 	skillPath := filepath.Join(skillDir, SkillFileName)
+	metaPath := filepath.Join(skillDir, MetaFileName)
 
 	// Check if content needs updating
 	existingContent, err := os.ReadFile(skillPath)
-	if err != nil || string(existingContent) != SystemSkillContent {
+	contentNeedsUpdate := err != nil || string(existingContent) != SystemSkillContent
+	if contentNeedsUpdate {
 		// Create or update the skill
 		if err := EnsureDir(skillDir); err != nil {
 			return err
@@ -161,9 +163,9 @@ func EnsureSystemSkill() error {
 		if err := os.WriteFile(skillPath, []byte(SystemSkillContent), 0o644); err != nil {
 			return err
 		}
+	}
 
-		// Write/update metadata
-		metaPath := filepath.Join(skillDir, MetaFileName)
+	if contentNeedsUpdate || systemSkillMetaNeedsUpdate(metaPath) {
 		now := time.Now().Format(time.RFC3339)
 		meta := &SkillMeta{
 			Source:      "scribe",
@@ -185,4 +187,16 @@ func EnsureSystemSkill() error {
 
 	// Always sync to agents — symlinks may be missing even if content is current
 	return SyncSkillToAgents(SystemSkillName, AgentIDs(DetectInstalledAgents()))
+}
+
+func systemSkillMetaNeedsUpdate(metaPath string) bool {
+	meta, err := ReadSkillMeta(metaPath)
+	if err != nil {
+		return true
+	}
+	return meta.Source != "scribe" ||
+		meta.SourceType != "system" ||
+		meta.ContentHash != ComputeContentHash(SystemSkillContent) ||
+		meta.InstalledAt == "" ||
+		meta.UpdatedAt == ""
 }

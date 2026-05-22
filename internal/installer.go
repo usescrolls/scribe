@@ -13,6 +13,10 @@ import (
 // It does NOT sync to agents — that is handled by workspace logic so that
 // only skills in the active workspace appear in agent folders.
 func InstallSkill(skill *Skill, source *SourceInfo, opts InstallOptions, gitInfo *GitCommitInfo, emit ...ProgressEmitter) error {
+	if IsSystemSkill(skill.Name) {
+		return fmt.Errorf("cannot install system skill '%s' (managed internally)", skill.Name)
+	}
+
 	// Determine target directory (always global)
 	scrollsDir, err := GetScrollsDir()
 	if err != nil {
@@ -174,6 +178,10 @@ func createWindowsJunction(target, link string) error {
 
 // CopySkillDir copies a skill directory to a new location
 func CopySkillDir(src, dst string) error {
+	if samePath(src, dst) {
+		return nil
+	}
+
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -208,6 +216,12 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
+	if dstInfo, err := os.Stat(dst); err == nil && os.SameFile(srcInfo, dstInfo) {
+		return nil
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
@@ -221,6 +235,18 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
+}
+
+func samePath(a, b string) bool {
+	aInfo, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	bInfo, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(aInfo, bInfo)
 }
 
 // installedSkillIndex maps frontmatter names to storage info for conflict detection.
@@ -258,6 +284,11 @@ func FilterAlreadyInstalled(skills []*Skill, source *SourceInfo) (newSkills []*S
 	newSourceIdentity := sourceIdentityFromSourceInfo(source)
 
 	for _, skill := range skills {
+		if IsSystemSkill(skill.Name) {
+			alreadyInstalledNames = append(alreadyInstalledNames, skill.Name)
+			continue
+		}
+
 		fmKey := strings.ToLower(skill.Name)
 		existingNames := idx.fmToStorage[fmKey]
 
@@ -288,6 +319,10 @@ func hasSourceMatch(storageSourceIdentity map[string]string, storageNames []stri
 // RenameInstalledSkill renames an already-installed skill's storage directory
 // and updates all workspace references and agent symlinks.
 func RenameInstalledSkill(oldName, newName string) error {
+	if IsSystemSkill(oldName) || IsSystemSkill(newName) {
+		return fmt.Errorf("cannot rename system skill '%s' (managed internally)", SystemSkillName)
+	}
+
 	scrollsDir, err := GetScrollsDir()
 	if err != nil {
 		return err

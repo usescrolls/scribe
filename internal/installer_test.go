@@ -76,6 +76,31 @@ func TestBoost_InstallSkill_AlreadyExists(t *testing.T) {
 	}
 }
 
+func TestBoost_InstallSkill_RejectsSystemSkill(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	srcDir := filepath.Join(tmpDir, "src-system")
+	_ = os.MkdirAll(srcDir, 0o755)
+	_ = os.WriteFile(filepath.Join(srcDir, SkillFileName), []byte(SystemSkillContent), 0o644)
+
+	skill := &Skill{
+		Name:        SystemSkillName,
+		Description: "System skill",
+		Path:        srcDir,
+	}
+	source := &SourceInfo{Type: "github", Owner: "u", Repo: "r"}
+
+	err := InstallSkill(skill, source, InstallOptions{}, nil)
+	if err == nil {
+		t.Fatal("expected system skill install to be rejected")
+	}
+	if !strings.Contains(err.Error(), "cannot install system skill") {
+		t.Errorf("error = %q, want 'cannot install system skill'", err.Error())
+	}
+}
+
 func TestBoost_InstallSkill_WithSubpath(t *testing.T) {
 	tmpDir := setupTempHome(t)
 	InitLoggerCLI(false)
@@ -565,6 +590,51 @@ func TestBoost_CopyFile_CreateParentDir(t *testing.T) {
 	}
 }
 
+func TestBoost_CopyFile_SameFileDoesNotTruncate(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-copy-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	path := filepath.Join(tmpDir, "same.txt")
+	_ = os.WriteFile(path, []byte("preserve me"), 0o644)
+
+	err := copyFile(path, path)
+	if err != nil {
+		t.Fatalf("copyFile same path error: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read same path: %v", err)
+	}
+	if string(data) != "preserve me" {
+		t.Errorf("content = %q, want original content", string(data))
+	}
+}
+
+func TestBoost_CopySkillDir_SameDirectoryDoesNotTruncate(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "scribe-copy-*")
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	skillDir := filepath.Join(tmpDir, "skill")
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, SkillFileName), []byte("skill content"), 0o644)
+	_ = os.WriteFile(filepath.Join(skillDir, MetaFileName), []byte("meta content"), 0o644)
+
+	err := CopySkillDir(skillDir, skillDir)
+	if err != nil {
+		t.Fatalf("CopySkillDir same directory error: %v", err)
+	}
+
+	skillData, _ := os.ReadFile(filepath.Join(skillDir, SkillFileName))
+	metaData, _ := os.ReadFile(filepath.Join(skillDir, MetaFileName))
+	if string(skillData) != "skill content" {
+		t.Errorf("SKILL.md content = %q, want original content", string(skillData))
+	}
+	if string(metaData) != "meta content" {
+		t.Errorf("meta content = %q, want original content", string(metaData))
+	}
+}
+
 // ============================================================================
 // FilterAlreadyInstalled (installer.go)
 // ============================================================================
@@ -792,6 +862,27 @@ func TestFilterAndResolveConflicts_AlreadyInstalled(t *testing.T) {
 	}
 	if len(already) != 1 {
 		t.Errorf("expected 1 already installed, got %d", len(already))
+	}
+}
+
+func TestFilterAndResolveConflicts_SystemSkillIsReserved(t *testing.T) {
+	setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureSystemSkill()
+
+	source := &SourceInfo{Type: "github", Owner: "alice", Repo: "skills", URL: "https://github.com/alice/skills"}
+	skills := []*Skill{{Name: SystemSkillName, Description: "External system name", Path: "/tmp"}}
+
+	toInstall, already, err := FilterAndResolveConflicts(skills, source)
+	if err != nil {
+		t.Fatalf("FilterAndResolveConflicts() error: %v", err)
+	}
+	if len(toInstall) != 0 {
+		t.Errorf("expected 0 skills to install, got %d", len(toInstall))
+	}
+	if len(already) != 1 || already[0] != SystemSkillName {
+		t.Fatalf("already = %v, want [%s]", already, SystemSkillName)
 	}
 }
 

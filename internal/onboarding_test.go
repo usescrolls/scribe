@@ -696,6 +696,37 @@ func TestBoost_ImportExistingSkills_DuplicateSkipped(t *testing.T) {
 	}
 }
 
+func TestBoost_ImportExistingSkills_SkipsSystemSkill(t *testing.T) {
+	tmpDir := setupTempHome(t)
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+	_ = EnsureSystemSkill()
+
+	srcDir := filepath.Join(tmpDir, ".codex", "skills", SystemSkillName)
+	_ = os.MkdirAll(filepath.Dir(srcDir), 0o755)
+	_ = os.Symlink(filepath.Join(tmpDir, ".scribe", "scrolls", SystemSkillName), srcDir)
+
+	skills := []ExistingSkillInfo{
+		{Name: SystemSkillName, Path: srcDir, AgentID: "codex", AgentName: "Codex"},
+	}
+
+	err := ImportExistingSkills(skills)
+	if err != nil {
+		t.Fatalf("ImportExistingSkills(system skill) error: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(tmpDir, ".scribe", "scrolls", SystemSkillName, SkillFileName))
+	if err != nil {
+		t.Fatalf("read system skill: %v", err)
+	}
+	if string(content) != SystemSkillContent {
+		t.Error("system skill content should remain managed by EnsureSystemSkill")
+	}
+	if _, err := os.Lstat(srcDir); err != nil {
+		t.Error("system skill symlink should not be moved during import")
+	}
+}
+
 func TestBoost_ImportExistingSkills_EmptyList(t *testing.T) {
 	_ = setupTempHome(t)
 	InitLoggerCLI(false)

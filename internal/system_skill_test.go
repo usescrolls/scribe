@@ -165,6 +165,65 @@ func TestEnsureSystemSkill_UpdatesContent(t *testing.T) {
 	}
 }
 
+func TestEnsureSystemSkill_RepairsMetadataWithoutContentChange(t *testing.T) {
+	tmpDir := setupTempHome(t)
+
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", SystemSkillName)
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, SkillFileName), []byte(SystemSkillContent), 0o644)
+	_ = os.WriteFile(filepath.Join(skillDir, MetaFileName), []byte{}, 0o644)
+
+	err := EnsureSystemSkill()
+	if err != nil {
+		t.Fatalf("EnsureSystemSkill() error: %v", err)
+	}
+
+	meta, err := ReadSkillMeta(filepath.Join(skillDir, MetaFileName))
+	if err != nil {
+		t.Fatalf("failed to read repaired meta: %v", err)
+	}
+	if meta.Source != "scribe" || meta.SourceType != "system" {
+		t.Fatalf("meta source = %q/%q, want scribe/system", meta.Source, meta.SourceType)
+	}
+	if meta.ContentHash != ComputeContentHash(SystemSkillContent) {
+		t.Errorf("meta.ContentHash = %q, want current system skill hash", meta.ContentHash)
+	}
+}
+
+func TestReadSkill_RepairsCorruptSystemSkill(t *testing.T) {
+	tmpDir := setupTempHome(t)
+
+	InitLoggerCLI(false)
+	_ = EnsureScribeDirs()
+
+	skillDir := filepath.Join(tmpDir, ".scribe", "scrolls", SystemSkillName)
+	_ = os.MkdirAll(skillDir, 0o755)
+	_ = os.WriteFile(filepath.Join(skillDir, SkillFileName), []byte{}, 0o644)
+	_ = os.WriteFile(filepath.Join(skillDir, MetaFileName), []byte{}, 0o644)
+
+	skill, err := ReadSkill(SystemSkillName)
+	if err != nil {
+		t.Fatalf("ReadSkill(%q) error: %v", SystemSkillName, err)
+	}
+	if skill.Name != SystemSkillName {
+		t.Fatalf("skill.Name = %q, want %q", skill.Name, SystemSkillName)
+	}
+	if skill.Meta == nil || skill.Meta.SourceType != "system" {
+		t.Fatalf("skill.Meta = %#v, want repaired system metadata", skill.Meta)
+	}
+
+	content, err := os.ReadFile(filepath.Join(skillDir, SkillFileName))
+	if err != nil {
+		t.Fatalf("read repaired system skill: %v", err)
+	}
+	if string(content) != SystemSkillContent {
+		t.Error("ReadSkill should repair zero-byte system skill content")
+	}
+}
+
 // ============================================================================
 // UninstallSkill guard
 // ============================================================================

@@ -320,9 +320,23 @@ func ReadSkill(skillName string) (*Skill, error) {
 		return nil, err
 	}
 
+	skillFileExists := false
+	if _, err := os.Stat(skillPath); err == nil {
+		skillFileExists = true
+	}
+
 	skill, err := ParseSkillMd(skillPath)
 	if err != nil {
-		return nil, err
+		if !IsSystemSkill(skillName) || !skillFileExists {
+			return nil, err
+		}
+		if ensureErr := EnsureSystemSkill(); ensureErr != nil {
+			return nil, err
+		}
+		skill, err = ParseSkillMd(skillPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Load metadata if available
@@ -334,6 +348,12 @@ func ReadSkill(skillName string) (*Skill, error) {
 	meta, err := ReadSkillMeta(metaPath)
 	if err == nil {
 		skill.Meta = meta
+	} else if IsSystemSkill(skillName) {
+		if ensureErr := EnsureSystemSkill(); ensureErr == nil {
+			if repairedMeta, err := ReadSkillMeta(metaPath); err == nil {
+				skill.Meta = repairedMeta
+			}
+		}
 	}
 
 	return skill, nil
